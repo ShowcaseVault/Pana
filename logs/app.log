@@ -1,0 +1,153 @@
+2025-12-06 23:46:37 | INFO | __main__ | FastAPI application instance created
+2025-12-06 23:46:37 | INFO | __main__ | CORS middleware configured to allow all origins
+2025-12-06 23:47:28 | INFO | __main__ | FastAPI application instance created
+2025-12-06 23:47:28 | INFO | __main__ | CORS middleware configured to allow all origins
+2025-12-06 23:47:28 | INFO | __main__ | Starting uvicorn server on 0.0.0.0:8000
+2025-12-06 23:47:29 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-06 23:47:29 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-06 23:47:29 | INFO | server | FastAPI application instance created
+2025-12-06 23:47:29 | INFO | server | CORS middleware configured to allow all origins
+2025-12-06 23:47:29 | INFO | server | Application lifespan startup: initializing database
+2025-12-06 23:47:29 | INFO | database | Checking and creating database if not exists
+2025-12-06 23:47:29 | INFO | database | Database 'pana-db' already exists
+2025-12-06 23:47:29 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-06 23:47:29 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-06 23:47:29 | INFO | database | Ensuring all tables are created
+2025-12-06 23:47:29 | INFO | database | Tables ensured/created
+2025-12-06 23:47:29 | INFO | server | Application lifespan started successfully
+2025-12-06 23:47:44 | INFO | server | Health check endpoint '/' called
+2025-12-06 23:47:57 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-06 23:47:57 | INFO | database | Disconnecting from database and disposing engine
+2025-12-06 23:47:57 | INFO | database | Asyncpg connection closed
+2025-12-06 23:47:57 | INFO | database | SQLAlchemy engine disposed
+2025-12-06 23:47:57 | INFO | database | Disconnected from database
+2025-12-06 23:47:57 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:25:51 | INFO | __main__ | FastAPI application instance created
+2025-12-07 00:25:51 | INFO | __main__ | CORS middleware configured to allow all origins
+2025-12-07 00:25:51 | INFO | __main__ | Starting uvicorn server on 0.0.0.0:8000
+2025-12-07 00:25:52 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:25:52 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:25:52 | INFO | server | FastAPI application instance created
+2025-12-07 00:25:52 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:25:52 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:25:52 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:25:53 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:25:53 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:25:53 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:25:53 | INFO | database | Ensuring all tables are created
+2025-12-07 00:25:53 | INFO | database | Tables ensured/created
+2025-12-07 00:25:53 | INFO | server | Application lifespan started successfully
+2025-12-07 00:29:50 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:29:50 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:29:50 | INFO | database | Asyncpg connection closed
+2025-12-07 00:29:50 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:29:50 | INFO | database | Disconnected from database
+2025-12-07 00:29:50 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:29:52 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:29:52 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:29:52 | INFO | server | FastAPI application instance created
+2025-12-07 00:29:52 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:29:52 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:29:52 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:29:52 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:29:52 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:29:52 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:29:52 | INFO | database | Ensuring all tables are created
+2025-12-07 00:29:52 | INFO | database | Tables ensured/created
+2025-12-07 00:29:52 | INFO | server | Application lifespan started successfully
+2025-12-07 00:29:53 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:29:53 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:29:53 | INFO | database | Asyncpg connection closed
+2025-12-07 00:29:53 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:29:53 | INFO | database | Disconnected from database
+2025-12-07 00:29:53 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:30:05 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:30:05 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:30:05 | INFO | server | FastAPI application instance created
+2025-12-07 00:30:05 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:30:05 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:30:05 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:30:05 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:30:05 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:30:05 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:30:05 | INFO | database | Ensuring all tables are created
+2025-12-07 00:30:05 | INFO | database | Tables ensured/created
+2025-12-07 00:30:05 | INFO | server | Application lifespan started successfully
+2025-12-07 00:31:08 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:31:08 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:31:08 | INFO | database | Asyncpg connection closed
+2025-12-07 00:31:08 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:31:08 | INFO | database | Disconnected from database
+2025-12-07 00:31:08 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:31:33 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:31:33 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:31:33 | INFO | server | FastAPI application instance created
+2025-12-07 00:31:33 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:31:33 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:31:33 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:31:33 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:31:33 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:31:33 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:31:33 | INFO | database | Ensuring all tables are created
+2025-12-07 00:31:34 | INFO | database | Tables ensured/created
+2025-12-07 00:31:34 | INFO | server | Application lifespan started successfully
+2025-12-07 00:32:18 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:32:18 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:32:18 | INFO | database | Asyncpg connection closed
+2025-12-07 00:32:18 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:32:18 | INFO | database | Disconnected from database
+2025-12-07 00:32:18 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:32:37 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:32:37 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:32:37 | INFO | server | FastAPI application instance created
+2025-12-07 00:32:37 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:32:37 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:32:37 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:32:37 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:32:37 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:32:37 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:32:37 | INFO | database | Ensuring all tables are created
+2025-12-07 00:32:37 | INFO | database | Tables ensured/created
+2025-12-07 00:32:37 | INFO | server | Application lifespan started successfully
+2025-12-07 00:33:04 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:33:04 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:33:04 | INFO | database | Asyncpg connection closed
+2025-12-07 00:33:04 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:33:04 | INFO | database | Disconnected from database
+2025-12-07 00:33:04 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:33:06 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:33:06 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:33:06 | INFO | server | FastAPI application instance created
+2025-12-07 00:33:06 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:33:06 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:33:06 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:33:06 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:33:06 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:33:06 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:33:06 | INFO | database | Ensuring all tables are created
+2025-12-07 00:33:06 | INFO | database | Tables ensured/created
+2025-12-07 00:33:06 | INFO | server | Application lifespan started successfully
+2025-12-07 00:33:09 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:33:09 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:33:09 | INFO | database | Asyncpg connection closed
+2025-12-07 00:33:09 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:33:09 | INFO | database | Disconnected from database
+2025-12-07 00:33:09 | INFO | server | Application shutdown cleanup complete
+2025-12-07 00:33:12 | INFO | __mp_main__ | FastAPI application instance created
+2025-12-07 00:33:12 | INFO | __mp_main__ | CORS middleware configured to allow all origins
+2025-12-07 00:33:12 | INFO | server | FastAPI application instance created
+2025-12-07 00:33:12 | INFO | server | CORS middleware configured to allow all origins
+2025-12-07 00:33:12 | INFO | server | Application lifespan startup: initializing database
+2025-12-07 00:33:12 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:33:12 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:33:12 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:33:13 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:33:13 | INFO | database | Ensuring all tables are created
+2025-12-07 00:33:13 | INFO | database | Tables ensured/created
+2025-12-07 00:33:13 | INFO | server | Application lifespan started successfully
+2025-12-07 00:33:17 | INFO | server | Application lifespan shutdown: disconnecting database
+2025-12-07 00:33:17 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:33:17 | INFO | database | Asyncpg connection closed
+2025-12-07 00:33:17 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:33:17 | INFO | database | Disconnected from database
+2025-12-07 00:33:17 | INFO | server | Application shutdown cleanup complete

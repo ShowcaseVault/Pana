@@ -1,0 +1,80 @@
+2025-12-06 23:47:29 | INFO | database | Checking and creating database if not exists
+2025-12-06 23:47:29 | INFO | database | Database 'pana-db' already exists
+2025-12-06 23:47:29 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-06 23:47:29 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-06 23:47:29 | INFO | database | Ensuring all tables are created
+2025-12-06 23:47:29 | INFO | database | Tables ensured/created
+2025-12-06 23:47:57 | INFO | database | Disconnecting from database and disposing engine
+2025-12-06 23:47:57 | INFO | database | Asyncpg connection closed
+2025-12-06 23:47:57 | INFO | database | SQLAlchemy engine disposed
+2025-12-06 23:47:57 | INFO | database | Disconnected from database
+2025-12-07 00:25:52 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:25:53 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:25:53 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:25:53 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:25:53 | INFO | database | Ensuring all tables are created
+2025-12-07 00:25:53 | INFO | database | Tables ensured/created
+2025-12-07 00:29:50 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:29:50 | INFO | database | Asyncpg connection closed
+2025-12-07 00:29:50 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:29:50 | INFO | database | Disconnected from database
+2025-12-07 00:29:52 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:29:52 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:29:52 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:29:52 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:29:52 | INFO | database | Ensuring all tables are created
+2025-12-07 00:29:52 | INFO | database | Tables ensured/created
+2025-12-07 00:29:53 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:29:53 | INFO | database | Asyncpg connection closed
+2025-12-07 00:29:53 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:29:53 | INFO | database | Disconnected from database
+2025-12-07 00:30:05 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:30:05 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:30:05 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:30:05 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:30:05 | INFO | database | Ensuring all tables are created
+2025-12-07 00:30:05 | INFO | database | Tables ensured/created
+2025-12-07 00:31:08 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:31:08 | INFO | database | Asyncpg connection closed
+2025-12-07 00:31:08 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:31:08 | INFO | database | Disconnected from database
+2025-12-07 00:31:33 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:31:33 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:31:33 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:31:33 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:31:33 | INFO | database | Ensuring all tables are created
+2025-12-07 00:31:34 | INFO | database | Tables ensured/created
+2025-12-07 00:32:18 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:32:18 | INFO | database | Asyncpg connection closed
+2025-12-07 00:32:18 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:32:18 | INFO | database | Disconnected from database
+2025-12-07 00:32:37 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:32:37 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:32:37 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:32:37 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:32:37 | INFO | database | Ensuring all tables are created
+2025-12-07 00:32:37 | INFO | database | Tables ensured/created
+2025-12-07 00:33:04 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:33:04 | INFO | database | Asyncpg connection closed
+2025-12-07 00:33:04 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:33:04 | INFO | database | Disconnected from database
+2025-12-07 00:33:06 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:33:06 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:33:06 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:33:06 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:33:06 | INFO | database | Ensuring all tables are created
+2025-12-07 00:33:06 | INFO | database | Tables ensured/created
+2025-12-07 00:33:09 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:33:09 | INFO | database | Asyncpg connection closed
+2025-12-07 00:33:09 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:33:09 | INFO | database | Disconnected from database
+2025-12-07 00:33:12 | INFO | database | Checking and creating database if not exists
+2025-12-07 00:33:12 | INFO | database | Database 'pana-db' already exists
+2025-12-07 00:33:12 | INFO | database | Setting up async SQLAlchemy engine and session
+2025-12-07 00:33:13 | INFO | database | Connected to database 'pana-db' at localhost:5433
+2025-12-07 00:33:13 | INFO | database | Ensuring all tables are created
+2025-12-07 00:33:13 | INFO | database | Tables ensured/created
+2025-12-07 00:33:17 | INFO | database | Disconnecting from database and disposing engine
+2025-12-07 00:33:17 | INFO | database | Asyncpg connection closed
+2025-12-07 00:33:17 | INFO | database | SQLAlchemy engine disposed
+2025-12-07 00:33:17 | INFO | database | Disconnected from database
