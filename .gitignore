@@ -2,6 +2,8 @@
 .env
 **/.env
 
+test.py
+
 # Ignore all __pycache__ directories everywhere
 __pycache__/
 **/__pycache__/

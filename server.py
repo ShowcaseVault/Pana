@@ -13,7 +13,8 @@ from api.connections.database_connection import (
 )
 
 from api.routes import (
-    authentication
+    authentication,
+    session
 )
 
 from api.utils.logging_config import setup_logging
@@ -71,6 +72,7 @@ logger.info("CORS middleware configured to allow all origins")
 
 # Include routers
 app.include_router(authentication.router)
+app.include_router(session.router)
 
 # Test route
 @app.get("/", include_in_schema=False)
