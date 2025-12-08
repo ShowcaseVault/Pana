@@ -1,8 +1,17 @@
 import requests
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from api.models.users import User
+
 from fastapi import HTTPException
 from urllib.parse import urlencode
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
+
+from api.auth.jwt_utils import (
+    create_access_token,
+    decode_refresh_token,
+)
 
 from api.config.config import settings
 
@@ -20,6 +29,7 @@ def get_google_login():
     }
 
     url = CONFIG.GOOGLE_AUTH_URL + "?" + urlencode(params)
+
     return url
 
 def get_google_callback(code: str):
@@ -52,3 +62,48 @@ def get_google_callback(code: str):
         raise HTTPException(status_code=400, detail="Could not get user info")
     
     return user_info
+
+def get_auth_refresh(token: str):
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing refresh token")
+
+    payload = decode_refresh_token(token)
+    subject = str(payload.get("sub") or "")
+    new_access = create_access_token(
+        {
+            "sub": subject,
+            "email": payload.get("email"),
+        }
+    )
+
+    return new_access
+
+async def create_or_update_user(db: AsyncSession, user_info: dict):
+    # User Data
+    sub = str(user_info.get("sub") or "")
+    email = str(user_info.get("email") or "")
+    name = str(user_info.get("name") or "")
+    picture = str(user_info.get("picture") or "")
+
+    # Database Interaction
+    stmt = select(User).where(User.google_id == sub)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        user = User(
+            google_id=sub,
+            email=email,
+            name=name,
+            picture=picture
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        user.name = name
+        user.picture = picture
+        await db.commit()
+        await db.refresh(user)
+    
+    return user

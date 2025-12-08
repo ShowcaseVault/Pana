@@ -13,6 +13,7 @@ class config:
     SERVER_PORT=8000
     SERVER_RELOAD=True
     SHOW_DOCS=True
+    CLIENT_URL=os.getenv("CLIENT_URL", "http://localhost:5173")
 
     # Authentication
     GOOGLE_CLIENT_ID=os.getenv("GOOGLE_CLIENT_ID", None)

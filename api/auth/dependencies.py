@@ -1,11 +1,14 @@
 from typing import Optional, Dict
-from fastapi import Request, HTTPException, status
+from fastapi import Request, HTTPException, status, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from api.config.config import settings
 from api.auth.jwt_utils import decode_access_token
 
 CONFIG = settings
 
+# Add security scheme for Swagger UI
+security = HTTPBearer(auto_error=False)
 
 def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
     if not authorization:
@@ -16,12 +19,21 @@ def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
     return None
 
 
-def get_current_user(request: Request) -> Dict:
+def get_current_user(
+    request: Request,
+    token_auth: Optional[HTTPAuthorizationCredentials] = Security(security)
+) -> Dict:
     """
     Reads access token from Authorization: Bearer <token> header, or from cookie.
     Decodes and returns JWT payload. Raises 401 if missing/invalid.
     """
-    token = _extract_bearer_token(request.headers.get("authorization"))
+    token = None
+    if token_auth:
+        token = token_auth.credentials
+    
+    if not token:
+        token = _extract_bearer_token(request.headers.get("authorization"))
+        
     if not token:
         token = request.cookies.get(CONFIG.ACCESS_COOKIE_NAME)
 
