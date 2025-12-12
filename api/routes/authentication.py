@@ -1,62 +1,113 @@
-import requests
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Response, Request, HTTPException
 from fastapi.responses import RedirectResponse
-from urllib.parse import urlencode
 
-from google.oauth2 import id_token as google_id_token
-from google.auth.transport import requests as google_requests
+from api.cruds.authentication import get_google_callback, get_google_login, get_auth_refresh, create_or_update_user
+from api.schemas.return_response import SuccessResponse, FailureResponse
+from api.auth.jwt_utils import (
+    create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
+)
+from api.auth.dependencies import get_current_user
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.connections.database_connection import get_async_db_session
 
 from api.config.config import settings
+
 CONFIG = settings
 
-router = APIRouter()
+router = APIRouter(tags=["Authentication"])
 
-# STEP 1: Redirect user to Google OAuth page
 @router.get("/auth/google")
 def google_login():
-    params = {
-        "client_id": CONFIG.GOOGLE_CLIENT_ID,
-        "redirect_uri": CONFIG.GOOGLE_REDIRECT_URI,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "prompt": "consent",
-        "access_type": "offline"
-    }
 
-    url = CONFIG.GOOGLE_AUTH_URL + "?" + urlencode(params)
+    url = get_google_login()
     return RedirectResponse(url)
 
-# STEP 2: Google redirects back with a ?code=123
 @router.get("/auth/google/callback")
-def google_callback(code: str):
-    # 1. Exchange code for tokens
-    token_url = CONFIG.GOOGLE_TOKEN_URL
-
-    data = {
-        "client_id": CONFIG.GOOGLE_CLIENT_ID,
-        "client_secret": CONFIG.GOOGLE_CLIENT_SECRET,
-        "code": code,
-        "grant_type": "authorization_code",
-        "redirect_uri": CONFIG.GOOGLE_REDIRECT_URI,
-    }
-
-    token_response = requests.post(token_url, data=data).json()
-
-    if "error" in token_response:
-        return {"error": token_response}
-
-    id_token = token_response["id_token"]
-
-    # 2. Decode + verify the ID token
+async def google_callback(code: str, response: Response, db: AsyncSession = Depends(get_async_db_session)):
     try:
-        user_info = google_id_token.verify_oauth2_token(
-            id_token,
-            google_requests.Request(),
-            CONFIG.GOOGLE_CLIENT_ID,
-            clock_skew_in_seconds=60
-        )
-    except Exception as e:
-        return {"error": str(e)}
+        user_info = get_google_callback(code)
+        await create_or_update_user(db, user_info)
+        
+        # Token variables needed for token generation below
+        sub = str(user_info.get("sub") or user_info.get("email") or "")
+        email = str(user_info.get("email") or "")
+        name = str(user_info.get("name") or "")
 
-    # 3. Return user data or create user in DB here
-    return {"google_user": user_info}
+        # Token Generation
+        access_token = create_access_token(
+            {
+                "sub": sub,
+                "email": email,
+                "name": name,
+            }
+        )
+        refresh_token = create_refresh_token(
+            {
+                "sub": sub,
+                "email": email,
+            }
+        )
+
+        access_max_age = int(CONFIG.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
+        refresh_max_age = int(CONFIG.REFRESH_TOKEN_EXPIRE_DAYS) * 86400
+        
+        redirect_response = RedirectResponse(url=f"{CONFIG.CLIENT_URL}")
+
+        redirect_response.set_cookie(
+            CONFIG.ACCESS_COOKIE_NAME,
+            access_token,
+            httponly=True,
+            secure=CONFIG.COOKIE_SECURE,
+            samesite=CONFIG.COOKIE_SAMESITE,
+            max_age=access_max_age,
+        )
+        redirect_response.set_cookie(
+            CONFIG.REFRESH_COOKIE_NAME,
+            refresh_token,
+            httponly=True,
+            secure=CONFIG.COOKIE_SECURE,
+            samesite=CONFIG.COOKIE_SAMESITE,
+            max_age=refresh_max_age,
+        )
+
+        return redirect_response
+
+    except HTTPException as e:
+        return RedirectResponse(f"{CONFIG.CLIENT_URL}/login?error={str(e.detail)}")
+    except Exception:
+        return RedirectResponse(f"{CONFIG.CLIENT_URL}/login?error=Google_Session_Failed")
+
+@router.post("/auth/refresh")
+def auth_refresh(request: Request, response: Response):
+    try:
+        token = request.cookies.get(CONFIG.REFRESH_COOKIE_NAME)
+        if not token:
+            auth = request.headers.get("authorization")
+            if auth and auth.lower().startswith("bearer "):
+                token = auth.split()[1]
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing refresh token")
+
+        new_access = get_auth_refresh(token)
+
+        access_max_age = int(CONFIG.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
+        response.set_cookie(
+            CONFIG.ACCESS_COOKIE_NAME,
+            new_access,
+            httponly=True,
+            secure=CONFIG.COOKIE_SECURE,
+            samesite=CONFIG.COOKIE_SAMESITE,
+            max_age=access_max_age,
+        )
+        return SuccessResponse(
+            data={"access_token": new_access, "token_type": "bearer"},
+            message="Token refreshed",
+        )
+    except HTTPException as e:
+        return FailureResponse(message=str(e.detail))
+    except Exception:
+        return FailureResponse(message="Refresh Failed")
+

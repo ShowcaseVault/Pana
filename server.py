@@ -12,14 +12,22 @@ from api.connections.database_connection import (
     async_disconnect,
 )
 
+# Routes
 from api.routes import (
-    authentication
+    authentication,
+    dashboard
+)
+
+# Models 
+from api.models.users import (
+    User
 )
 
 from api.utils.logging_config import setup_logging
 
 # For authentication
 # from api.auth.dependency import get_current_user
+
 
 # Load environment variables
 CONFIG = settings
@@ -71,6 +79,7 @@ logger.info("CORS middleware configured to allow all origins")
 
 # Include routers
 app.include_router(authentication.router)
+app.include_router(dashboard.router)
 
 # Test route
 @app.get("/", include_in_schema=False)
