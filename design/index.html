@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pana - AI Journal</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Using Google Fonts for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">Pana.</div>
+            
+            <ul class="nav-links">
+                <li class="nav-item active" onclick="switchTab('dashboard')">
+                    <span class="icon">🏠</span> Dashboard
+                </li>
+                <li class="nav-item" onclick="switchTab('recordings')">
+                    <span class="icon">🎙️</span> Recordings
+                </li>
+                <li class="nav-item" onclick="switchTab('journal')">
+                    <span class="icon">📖</span> Journal
+                </li>
+                <li class="nav-item" onclick="switchTab('history')">
+                    <span class="icon">📅</span> History
+                </li>
+            </ul>
+
+            <div class="user-profile">
+                <div class="avatar">JD</div>
+                <div class="user-info">
+                    <span class="name">John Doe</span>
+                    <span class="status">Free Plan</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- VIEW 1: DASHBOARD -->
+            <section id="dashboard" class="view active-view">
+                <header class="top-header">
+                    <h1>Welcome back, John</h1>
+                    <p class="subtitle">You're on a 5-day streak! Keep it up. 🔥</p>
+                </header>
+                
+                <div class="dashboard-grid">
+                    <!-- Streak Widget -->
+                    <div class="card streak-card">
+                        <div class="flame-container">🔥</div>
+                        <h2>5 Days</h2>
+                        <p>Current Streak</p>
+                    </div>
+
+                    <!-- Action Area -->
+                    <div class="card action-card">
+                        <h3>Ready to capture today?</h3>
+                        <p>Record your thoughts and let AI handle the rest.</p>
+                        <button class="btn-primary" onclick="switchTab('recordings')">Start Recording</button>
+                    </div>
+
+                    <!-- Mini Calendar Widget -->
+                    <div class="card calendar-card">
+                        <h3>December 2025</h3>
+                        <div class="mini-calendar-grid">
+                            <!-- JS will populate dummy days -->
+                            <span>10</span><span>11</span><span class="today">12</span><span>13</span><span>14</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 2: RECORDINGS -->
+            <section id="recordings" class="view">
+                <header class="top-header">
+                    <h1>Recordings</h1>
+                </header>
+
+                <div class="recording-layout">
+                    <!-- Sidebar List -->
+                    <div class="recordings-list">
+                        <h3>Today's Clips</h3>
+                        <div class="clip-item">
+                            <span class="time">10:00 AM</span>
+                            <span class="duration">02:15</span>
+                        </div>
+                        <div class="clip-item active">
+                            <span class="time">02:30 PM</span>
+                            <span class="duration">Recording...</span>
+                        </div>
+                    </div>
+
+                    <!-- Active Recording State -->
+                    <div class="recording-stage">
+                        <div class="visualizer">
+                            <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                            <div class="bar"></div><div class="bar"></div>
+                        </div>
+                        <div class="timer">00:00</div>
+                        <div class="controls">
+                            <button id="btn-record" class="btn-circle start">Start</button>
+                            <button id="btn-stop" class="btn-circle stop" disabled>Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 3: JOURNAL -->
+            <section id="journal" class="view">
+                <header class="top-header">
+                    <h1>Daily Insight</h1>
+                    <button id="btn-generate" class="btn-secondary">✨ Generate Insight</button>
+                </header>
+
+                <div class="journal-layout">
+                    <div class="card journal-entry">
+                        <div id="journal-loading" class="hidden">
+                            <div class="spinner"></div> Generating AI summary...
+                        </div>
+                        <div id="journal-content">
+                            <h3>Summary of the Day</h3>
+                            <p class="placeholder-text">Click generate to analyze your recordings and create your daily entry.</p>
+                        </div>
+                    </div>
+
+                    <div class="journal-sidebar">
+                        <div class="card todo-widget">
+                            <h3>Action Items</h3>
+                            <ul class="todo-list">
+                                <li><input type="checkbox"> Call Mom</li>
+                                <li><input type="checkbox"> Buy Groceries</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VIEW 4: HISTORY (New Implementation) -->
+            <section id="history" class="view">
+                <!-- Date Navigation Header -->
+                <header class="history-header">
+                    <button id="hist-prev" class="nav-arrow" onclick="changeHistoryDate(-1)">←</button>
+                    <div class="date-display">
+                        <h2 id="hist-date-text">December 13, 2025</h2>
+                        <span id="hist-status" class="badge">Today</span>
+                    </div>
+                    <button id="hist-next" class="nav-arrow" onclick="changeHistoryDate(1)">→</button>
+                </header>
+
+                <div class="history-content">
+                    <!-- Audio Section (Left) -->
+                    <div class="card history-audio" id="hist-audio-section">
+                        <h3>Audio Clips</h3>
+                        <div id="hist-audio-list" class="audio-list-container">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Diary/Notes Section (Right) -->
+                    <div class="card history-diary">
+                        <h3 id="hist-diary-title">Diary Entry</h3>
+                        <div id="hist-diary-content" class="diary-body">
+                            <!-- Populated by JS -->
+                        </div>
+                        
+                        <!-- Future Note Input (Hidden by default) -->
+                        <div id="hist-future-input" class="future-input hidden">
+                            <textarea id="future-note-text" placeholder="Add a note for this future date..."></textarea>
+                            <button class="btn-primary" onclick="saveFutureNote()">Save Note</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
