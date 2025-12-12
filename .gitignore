@@ -3,6 +3,7 @@
 **/.env
 
 test.py
+logs
 
 # Ignore all __pycache__ directories everywhere
 __pycache__/
