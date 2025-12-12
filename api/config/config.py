@@ -7,7 +7,10 @@ ENV_PATH = BASE_DIR / "config/.env"
 
 load_dotenv(ENV_PATH)
 
+environment = os.getenv("ENV","local")
+
 class config:
+
     # SYSTEM
     SERVER_HOST="0.0.0.0"
     SERVER_PORT=8000
