@@ -1,25 +1,36 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, Mic, Book, History, Settings, LogOut } from 'lucide-react';
+import axiosClient from '../api/axiosClient';
+import { API_ROUTES } from '../api/routes';
 import { useAuth } from '../context/useAuth';
+import '../styles/themes.css';
 
 const Sidebar = () => {
-  const { logout } = useAuth(); // Assuming useAuth has logout
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: Mic, label: 'Recordings', path: '/recordings' },
     { icon: Book, label: 'Journals', path: '/journals' },
     { icon: History, label: 'History', path: '/history' },
+    { icon: Settings, label: 'Preferences', path: '/preferences' },
   ];
 
-  const handleLogout = () => {
-      // Mock logout for now if context doesn't fully support it yet
-      window.location.href = '/login'; 
-  }
+  const handleLogout = async () => {
+    try {
+      await axiosClient.post(API_ROUTES.AUTH.LOGOUT);
+    } catch (e) {
+      // Even if backend logout fails, clear local state and redirect.
+    } finally {
+      logout();
+      navigate('/login', { replace: true });
+    }
+  };
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar-premium">
       <div className="logo-section">
         <h1 className="logo-text">Pana</h1>
       </div>
@@ -33,99 +44,127 @@ const Sidebar = () => {
               `nav-item ${isActive ? 'active' : ''}`
             }
           >
-            <item.icon size={20} />
-            <span>{item.label}</span>
+            <div className="nav-icon-wrapper">
+              <item.icon size={22} />
+            </div>
+            <span className="nav-label">{item.label}</span>
           </NavLink>
         ))}
       </nav>
 
       <div className="bottom-section">
-        <NavLink to="/preferences" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-           <Settings size={20} />
-           <span>Preferences</span>
-        </NavLink>
         <button onClick={handleLogout} className="nav-item logout-btn">
-          <LogOut size={20} />
-          <span>Logout</span>
+          <div className="nav-icon-wrapper">
+            <LogOut size={22} />
+          </div>
+          <span className="nav-label">Logout</span>
         </button>
       </div>
 
       <style>{`
-        .sidebar {
-          width: 240px;
+        .sidebar-premium {
+          width: 100px;
           height: 100%;
-          background-color: var(--bg-secondary);
+          background: var(--bg-secondary);
           display: flex;
           flex-direction: column;
-          padding: 1.5rem 1.5rem 4rem 1.5rem; /* Increased bottom padding */
-          border-right: 1px solid var(--bg-tertiary);
+          padding: 1.25rem 0.25rem;
+          align-items: center;
         }
 
         .logo-section {
           margin-bottom: 2rem;
-          padding-left: 0.5rem;
+          text-align: center;
         }
 
         .logo-text {
-          font-size: 1.5rem;
-          font-weight: 700;
-          background: linear-gradient(to right, #c4b5fd, #8b5cf6);
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
+          font-size: 1.25rem;
+          font-weight: 600;
+          color: var(--text-primary);
           margin: 0;
         }
 
         .nav-menu {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.25rem;
+          width: 100%;
+          align-items: center;
           flex: 1;
         }
 
         .nav-item {
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem 1rem;
+          gap: 0.25rem;
+          padding: 0.5rem 0.25rem;
           border-radius: 12px;
           color: var(--text-secondary);
           text-decoration: none;
           transition: all 0.2s ease;
-          border: none;
-          background: none;
-          width: 100%;
-          font-size: 0.95rem;
+          width: 90%;
           cursor: pointer;
+          background: none;
+          border: none;
         }
 
-        .nav-item:hover {
-          color: var(--text-primary);
-          background-color: rgba(255, 255, 255, 0.03);
+        .nav-icon-wrapper {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          background: transparent;
+        }
+
+        .nav-item:hover .nav-icon-wrapper {
+          background: var(--bg-tertiary);
+        }
+
+        .nav-item.active .nav-icon-wrapper {
+          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+          color: white;
+          box-shadow: 0 4px 12px rgba(79, 209, 197, 0.3);
         }
 
         .nav-item.active {
-          background-color: rgba(139, 92, 246, 0.1);
-          color: var(--accent-secondary);
+          color: var(--text-primary);
+        }
+
+        .nav-label {
+          font-size: 0.6rem;
           font-weight: 500;
+          text-align: center;
+        }
+
+        .nav-item.active .nav-label {
+          color: var(--accent-secondary);
+          font-weight: 600;
         }
 
         .bottom-section {
+          width: 100%;
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
-          margin-top: auto;
-          margin-bottom: 3rem; /* Forcefully lift up from bottom */
-          border-top: 1px solid var(--bg-tertiary);
+          align-items: center;
           padding-top: 1rem;
+          border-top: 1px solid var(--bg-tertiary);
+          margin-top: auto;
         }
-        
+
         .logout-btn {
-           color: #ef4444;
+          color: #ef4444;
         }
-        .logout-btn:hover {
-           background-color: rgba(239, 68, 68, 0.1);
-           color: #f87171;
+
+        .logout-btn:hover .nav-icon-wrapper {
+          background: rgba(239, 68, 68, 0.1);
+        }
+
+        .logout-btn .nav-label {
+          color: #ef4444;
         }
       `}</style>
     </aside>

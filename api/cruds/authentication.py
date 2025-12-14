@@ -4,6 +4,7 @@ from sqlalchemy.future import select
 from api.models.users import User
 
 from fastapi import HTTPException
+from fastapi import Response
 from urllib.parse import urlencode
 from google.oauth2 import id_token as google_id_token
 from google.auth.transport import requests as google_requests
@@ -17,6 +18,31 @@ from api.config.config import settings
 
 
 CONFIG = settings
+
+
+def clear_auth_cookies(response: Response) -> None:
+    access_cookie = str(CONFIG.ACCESS_COOKIE_NAME)
+    refresh_cookie = str(CONFIG.REFRESH_COOKIE_NAME)
+
+    response.delete_cookie(access_cookie)
+    response.delete_cookie(refresh_cookie)
+
+    response.set_cookie(
+        access_cookie,
+        "",
+        httponly=True,
+        secure=CONFIG.COOKIE_SECURE,
+        samesite=CONFIG.COOKIE_SAMESITE,
+        max_age=0,
+    )
+    response.set_cookie(
+        refresh_cookie,
+        "",
+        httponly=True,
+        secure=CONFIG.COOKIE_SECURE,
+        samesite=CONFIG.COOKIE_SAMESITE,
+        max_age=0,
+    )
 
 def get_google_login():
     params = {

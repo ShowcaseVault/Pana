@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 
 export const useAudioRecorder = () => {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioData, setAudioData] = useState(new Uint8Array(0));
   
@@ -13,6 +14,9 @@ export const useAudioRecorder = () => {
   const rafIdRef = useRef(null);
   const chunksRef = useRef([]);
   const startTimeRef = useRef(null);
+  const pauseTimeRef = useRef(null);
+  const totalPausedTimeRef = useRef(0);
+  const intervalRef = useRef(null);
 
   const startRecording = async () => {
     try {
@@ -27,7 +31,7 @@ export const useAudioRecorder = () => {
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       
-      source.connect(analyser); // Only connect to analyser, not destination to avoid feedback loop
+      source.connect(analyser);
       
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
@@ -54,15 +58,18 @@ export const useAudioRecorder = () => {
 
       mediaRecorder.start();
       startTimeRef.current = Date.now();
+      totalPausedTimeRef.current = 0;
       setIsRecording(true);
+      setIsPaused(false);
       
       // Timer
-      const interval = setInterval(() => {
-        setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      intervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current - totalPausedTimeRef.current;
+        setDuration(Math.floor(elapsed / 1000));
       }, 1000);
       
       mediaRecorder.onstop = () => {
-        clearInterval(interval);
+        if (intervalRef.current) clearInterval(intervalRef.current);
         cancelAnimationFrame(rafIdRef.current);
         if (sourceRef.current) sourceRef.current.disconnect();
         if (audioContextRef.current) audioContextRef.current.close();
@@ -71,7 +78,31 @@ export const useAudioRecorder = () => {
 
     } catch (err) {
       console.error("Error accessing microphone:", err);
-      // You might want to return an error state here
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecording && !isPaused) {
+      mediaRecorderRef.current.pause();
+      pauseTimeRef.current = Date.now();
+      setIsPaused(true);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && isRecording && isPaused) {
+      mediaRecorderRef.current.resume();
+      if (pauseTimeRef.current) {
+        totalPausedTimeRef.current += Date.now() - pauseTimeRef.current;
+      }
+      setIsPaused(false);
+      
+      // Restart timer
+      intervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTimeRef.current - totalPausedTimeRef.current;
+        setDuration(Math.floor(elapsed / 1000));
+      }, 1000);
     }
   };
 
@@ -79,24 +110,29 @@ export const useAudioRecorder = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsPaused(false);
     }
   };
 
   const getAudioBlob = () => {
-    return new Blob(chunksRef.current, { type: 'audio/webm' }); // or 'audio/mp4' depending on browser support
+    return new Blob(chunksRef.current, { type: 'audio/webm' });
   };
 
   const resetRecording = () => {
     setDuration(0);
     setAudioData(new Uint8Array(0));
     chunksRef.current = [];
+    totalPausedTimeRef.current = 0;
   };
 
   return {
     isRecording,
+    isPaused,
     duration,
     audioData,
     startRecording,
+    pauseRecording,
+    resumeRecording,
     stopRecording,
     getAudioBlob,
     resetRecording

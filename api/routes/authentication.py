@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, Request, HTTPException
 from fastapi.responses import RedirectResponse
 
-from api.cruds.authentication import get_google_callback, get_google_login, get_auth_refresh, create_or_update_user
+from api.cruds.authentication import get_google_callback, get_google_login, get_auth_refresh, create_or_update_user, clear_auth_cookies
 from api.schemas.return_response import SuccessResponse, FailureResponse
 from api.auth.jwt_utils import (
     create_access_token,
@@ -110,4 +110,13 @@ def auth_refresh(request: Request, response: Response):
         return FailureResponse(message=str(e.detail))
     except Exception:
         return FailureResponse(message="Refresh Failed")
+
+
+@router.post("/auth/logout")
+def auth_logout(response: Response):
+    try:
+        clear_auth_cookies(response)
+        return SuccessResponse(data=None, message="Logged out")
+    except Exception:
+        return FailureResponse(message="Logout Failed")
 

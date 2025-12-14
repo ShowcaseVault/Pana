@@ -1,202 +1,210 @@
-import React, { useEffect, useRef } from 'react';
-import { Mic, Square, Loader } from 'lucide-react';
+import React from 'react';
+import { Mic, Square, Pause, Play } from 'lucide-react';
 import { useAudioRecorder } from '../hooks/useAudioRecorder';
-import { motion } from 'framer-motion';
+import FluidWaveVisualizer from './FluidWaveVisualizer';
 import { toast } from 'sonner';
 
-const bars = 50;
-
 const AudioRecorder = ({ onRecordingComplete }) => {
-  const { isRecording, duration, audioData, startRecording, stopRecording, getAudioBlob, resetRecording } = useAudioRecorder();
+  const { 
+    isRecording, 
+    isPaused,
+    duration, 
+    audioData, 
+    startRecording, 
+    pauseRecording,
+    resumeRecording,
+    stopRecording, 
+    getAudioBlob, 
+    resetRecording 
+  } = useAudioRecorder();
+  
   const [isProcessing, setIsProcessing] = React.useState(false);
 
-  const handleToggle = async () => {
-    if (isRecording) {
-      if (duration < 10) {
-        toast.error("Recording must be at least 10 seconds long.");
-        stopRecording(); // Stop but don't save
-        return;
-      }
-      stopRecording();
-      setIsProcessing(true);
-      
-      // Allow state to settle before getting blob (small macro task delay)
-      setTimeout(async () => {
-          const blob = getAudioBlob();
-          const file = new File([blob], `recording_${Date.now()}.webm`, { type: blob.type });
-          try {
-            await onRecordingComplete(file, duration);
-            resetRecording(); 
-          } catch (e) {
-            console.error(e);
-            toast.error("Failed to upload recording.");
-          } finally {
-            setIsProcessing(false);
-          }
-      }, 500);
+  const handleStart = async () => {
+    await startRecording();
+  };
 
+  const handlePauseResume = () => {
+    if (isPaused) {
+      resumeRecording();
     } else {
-      await startRecording();
+      pauseRecording();
     }
   };
 
-  // Calculate average volume for background effect
-  const volume = React.useMemo(() => {
-    if (audioData.length === 0) return 0;
-    const sum = audioData.reduce((a, b) => a + b, 0);
-    const avg = sum / audioData.length;
-    return Math.min(avg / 128, 1); // Normalize 0-1 (roughly)
-  }, [audioData]);
+  const handleStop = async () => {
+    if (duration < 10) {
+      toast.error("Recording must be at least 10 seconds long.");
+      stopRecording();
+      resetRecording(); // Reset timer when too short
+      return;
+    }
+    
+    stopRecording();
+    setIsProcessing(true);
+    
+    setTimeout(async () => {
+      const blob = getAudioBlob();
+      const file = new File([blob], `recording_${Date.now()}.webm`, { type: blob.type });
+      try {
+        await onRecordingComplete(file, duration);
+        resetRecording();
+        toast.success("Recording saved successfully!");
+      } catch (e) {
+        console.error(e);
+        toast.error("Failed to upload recording.");
+      } finally {
+        setIsProcessing(false);
+      }
+    }, 500);
+  };
+
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
-    <motion.div 
-        className="recorder-container"
-        animate={{
-            boxShadow: `0 8px 32px rgba(139, 92, 246, ${Math.max(0.1, volume * 0.4)})`,
-            background: `linear-gradient(145deg, rgba(139, 92, 246, ${Math.max(0.05, volume * 0.2)}) 0%, rgba(20, 20, 20, 1) 100%)`
-        }}
-        transition={{ type: "tween", ease: "linear", duration: 0.1 }}
-    >
-      <div className="visualizer-area">
-        <div className="bars-container">
-           {Array.from({ length: bars }).map((_, i) => {
-             // Map audio data to height
-             // audioData is 0-255. 
-             // We can sample roughly evenly across the frequency spectrum.
-             const index = Math.floor((i / bars) * (audioData.length / 2)); // Use lower half of spectrum (bass/mids)
-             const value = audioData[index] || 0;
-             const height = isRecording ? Math.max(4, (value / 255) * 100) : 4; 
-             
-             return (
-               <motion.div
-                 key={i}
-                 className="bar"
-                 animate={{ height: `${height}%`, opacity: isRecording ? 1 : 0.3 }}
-                 transition={{ type: "spring", stiffness: 300, damping: 20 }}
-               />
-             );
-           })}
-        </div>
-        
-        <div className="timer">
-           {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}
-        </div>
+    <div className="audio-recorder-premium">
+      {/* Large Timer */}
+      <div className="timer-display">
+        {formatTime(duration)}
       </div>
 
-      <div className="controls">
-        <button 
-            className={`record-btn ${isRecording ? 'recording' : ''}`}
-            onClick={handleToggle}
-            disabled={isProcessing}
-        >
-          {isProcessing ? (
-              <Loader className="animate-spin" size={32} />
-          ) : isRecording ? (
-            <Square size={28} fill="currentColor" />
-          ) : (
+      {/* 3D Wave Visualizer */}
+      <div className="visualizer-container">
+        <FluidWaveVisualizer audioData={audioData} isRecording={isRecording && !isPaused} />
+      </div>
+
+      {/* Controls */}
+      <div className="controls-container">
+        {!isRecording ? (
+          <button className="control-btn start-btn" onClick={handleStart}>
             <Mic size={32} />
-          )}
-        </button>
-        <p className="status-text">
-            {isProcessing ? "Processing..." : isRecording ? "Listening..." : "Tap to Record"}
-        </p>
+          </button>
+        ) : (
+          <>
+            <button 
+              className="control-btn pause-btn" 
+              onClick={handlePauseResume}
+              disabled={isProcessing}
+            >
+              {isPaused ? <Play size={28} /> : <Pause size={28} />}
+            </button>
+            
+            <button 
+              className="control-btn stop-btn" 
+              onClick={handleStop}
+              disabled={isProcessing}
+            >
+              <Square size={28} fill="currentColor" />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Status Text */}
+      <div className="status-text">
+        {isProcessing ? "Processing..." : 
+         isPaused ? "Paused" :
+         isRecording ? "Listening..." : 
+         "Tap to Record"}
       </div>
 
       <style>{`
-        .recorder-container {
-          /* background is handled by motion.div inline styles for dynamic effect */
-          border-radius: 24px;
-          padding: 2rem;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2rem;
-          border: 1px solid rgba(255,255,255,0.1);
-          backdrop-filter: blur(10px);
-          width: 100%;
-          max-width: 600px;
-          margin: 0 auto;
-          /* box-shadow handled by motion.div */
-        }
-
-        .visualizer-area {
-          width: 100%;
-          height: 120px;
+        .audio-recorder-premium {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 1rem;
+          height: 100%;
+          padding: 1rem 2rem;
+          max-width: 700px;
+          margin: 0 auto;
+          gap: 0;
+        }
+
+        .timer-display {
+          font-size: 7rem;
+          font-weight: 100;
+          color: var(--text-tertiary);
+          letter-spacing: 0.15em;
+          margin-bottom: -1rem;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .visualizer-container {
+          width: 100%;
+          max-width: 600px;
+          margin: 0;
+        }
+
+        .controls-container {
+          display: flex;
+          gap: 1.25rem;
+          margin-bottom: 0.75rem;
+        }
+
+        .control-btn {
+          width: 72px;
+          height: 72px;
+          border-radius: 50%;
+          border: none;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
         }
 
-        .bars-container {
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           gap: 4px;
-           height: 80px;
-           width: 100%;
+        .control-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
         }
 
-        .bar {
-           width: 6px;
-           background-color: var(--accent-primary);
-           border-radius: 4px;
+        .start-btn {
+          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+          color: white;
+          box-shadow: 0 8px 24px rgba(79, 209, 197, 0.3);
         }
 
-        .timer {
-           font-family: monospace;
-           font-size: 1.5rem;
-           color: var(--text-secondary);
-           font-weight: 600;
+        .start-btn:hover:not(:disabled) {
+          transform: scale(1.1);
+          box-shadow: 0 12px 32px rgba(79, 209, 197, 0.4);
         }
 
-        .controls {
-           display: flex;
-           flex-direction: column;
-           align-items: center;
-           gap: 1rem;
+        .pause-btn {
+          background: linear-gradient(135deg, #e2e8f0, #cbd5e0);
+          color: #4a5568;
+          box-shadow: var(--shadow-md);
         }
 
-        .record-btn {
-           width: 80px;
-           height: 80px;
-           border-radius: 50%;
-           background: var(--accent-primary);
-           border: none;
-           color: white;
-           display: flex;
-           align-items: center;
-           justify-content: center;
-           cursor: pointer;
-           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-           box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7);
+        .pause-btn:hover:not(:disabled) {
+          transform: scale(1.05);
+          box-shadow: var(--shadow-lg);
         }
 
-        .record-btn:hover {
-           transform: scale(1.05);
-           box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        .stop-btn {
+          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+          color: white;
+          box-shadow: 0 8px 24px rgba(79, 209, 197, 0.3);
         }
 
-        .record-btn.recording {
-           background: #ef4444; /* Red for Stop */
-           animation: pulse-red 2s infinite;
-        }
-
-        @keyframes pulse-red {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        .stop-btn:hover:not(:disabled) {
+          transform: scale(1.05);
+          box-shadow: 0 12px 32px rgba(79, 209, 197, 0.4);
         }
 
         .status-text {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin: 0;
+          color: var(--text-secondary);
+          font-size: 1.1rem;
+          font-weight: 300;
+          letter-spacing: 0.05em;
         }
       `}</style>
-    </motion.div>
+    </div>
   );
 };
 
