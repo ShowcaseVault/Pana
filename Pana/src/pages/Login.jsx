@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_ROUTES } from '../api/routes';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,7 +9,7 @@ const Login = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/');
+      navigate('/home');
     }
   }, [user, loading, navigate]);
 

@@ -67,7 +67,7 @@ logger.info("FastAPI application instance created")
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,8 +76,8 @@ logger.info("CORS middleware configured to allow all origins")
 
 # Include routers
 app.include_router(authentication.router)
-app.include_router(dashboard.router)
-app.include_router(recordings.router)
+app.include_router(dashboard.router, prefix="/api")
+app.include_router(recordings.router, prefix="/api")
 
 # Test route
 @app.get("/", include_in_schema=False)
