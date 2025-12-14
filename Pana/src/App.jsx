@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/useAuth';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
 import Recordings from './pages/Recordings';
 import DashboardLayout from './layouts/DashboardLayout';
 import './App.css';
@@ -31,7 +31,7 @@ function App() {
         </ProtectedRoute>
       }>
          <Route index element={<Navigate to="/home" replace />} />
-         <Route path="home" element={<Dashboard />} />
+         <Route path="home" element={<Home />} />
          <Route path="recordings" element={<Recordings />} />
          <Route path="journals" element={<Journals />} />
          <Route path="history" element={<History />} />

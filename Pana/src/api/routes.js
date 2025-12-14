@@ -9,8 +9,8 @@ export const API_ROUTES = {
     GOOGLE_SESSION: '/auth/google/session', // GET ?code=...
     REFRESH: '/auth/refresh',               // POST
     LOGOUT: '/auth/logout',                 // POST
-    DASHBOARD: '/api/dashboard',           // GET - Updated to match backend prefix
   },
+  HOME: '/api/home',                        // GET - Home page data
   RECORDINGS: {
     LIST: '/api/recordings',
     CREATE: '/api/recordings',

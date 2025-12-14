@@ -7,7 +7,7 @@ import axiosClient from '../api/axiosClient';
 import { API_ROUTES } from '../api/routes';
 import '../styles/themes.css';
 
-const Dashboard = () => {
+const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [recordings, setRecordings] = useState([]);
@@ -263,4 +263,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default Home;

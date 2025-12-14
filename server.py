@@ -15,7 +15,7 @@ from api.connections.database_connection import (
 # Routes
 from api.routes import (
     authentication,
-    dashboard,
+    home,
     recordings,
 )
 
@@ -76,7 +76,7 @@ logger.info("CORS middleware configured to allow all origins")
 
 # Include routers
 app.include_router(authentication.router)
-app.include_router(dashboard.router, prefix="/api")
+app.include_router(home.router, prefix="/api")
 app.include_router(recordings.router, prefix="/api")
 
 # Test route
