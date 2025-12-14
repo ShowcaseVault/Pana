@@ -12,6 +12,8 @@ python-multipart
 sqlalchemy
 psycopg2-binary
 asyncpg
+# Migration
+alembic
 # Encryption
 bcrypt==4.0.0
 passlib

@@ -5,6 +5,8 @@
 test.py
 logs
 
+misc/
+
 # Ignore all __pycache__ directories everywhere
 __pycache__/
 **/__pycache__/

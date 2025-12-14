@@ -37,10 +37,11 @@ class config:
     COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
 
     # Database
-    POSTGRES_HOST='localhost'
-    POSTGRES_PORT='5433'
+    DATABASE_URL = "postgresql://pana:pana@localhost:5433/pana-db"
     POSTGRES_USER='pana'
     POSTGRES_PASSWORD='pana'
+    POSTGRES_HOST='localhost'
+    POSTGRES_PORT='5433'
     POSTGRES_DB='pana-db'
     # LLM1
     LLM1 = "Groq"
@@ -51,5 +52,8 @@ class config:
     LLM2 = "Gemini"
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
     GEMINI_MODEL = "gemini-2.5-flash"
+
+    # Files
+    UPLOAD_DIR = "recordings"
 
 settings = config()

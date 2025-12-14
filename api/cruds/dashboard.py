@@ -13,4 +13,4 @@ async def get_user_profile(db: AsyncSession, google_id: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    return UserResponse(**user.__dict__)
+    return UserResponse.model_validate(user)

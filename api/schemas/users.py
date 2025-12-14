@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+from pydantic.config import ConfigDict
 
 class UserResponse(BaseModel):
     id: int
@@ -11,3 +12,5 @@ class UserResponse(BaseModel):
     
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
