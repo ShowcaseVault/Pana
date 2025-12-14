@@ -5,6 +5,7 @@ export const useAudioRecorder = () => {
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioData, setAudioData] = useState(new Uint8Array(0));
+  const [mimeType, setMimeType] = useState('audio/webm');
   
   const mediaRecorderRef = useRef(null);
   const audioContextRef = useRef(null);
@@ -48,7 +49,25 @@ export const useAudioRecorder = () => {
       updateVisualizer();
 
       // MediaRecorder setup
-      const mediaRecorder = new MediaRecorder(stream);
+      const preferredTypes = [
+        'audio/mp4;codecs=mp4a.40.2',
+        'audio/mp4',
+        'audio/webm;codecs=opus',
+        'audio/webm'
+      ];
+
+      const selectedMimeType = preferredTypes.find((t) => {
+        try {
+          return typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(t);
+        } catch {
+          return false;
+        }
+      });
+
+      setMimeType(selectedMimeType || 'audio/webm');
+      const mediaRecorder = selectedMimeType
+        ? new MediaRecorder(stream, { mimeType: selectedMimeType })
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -115,7 +134,7 @@ export const useAudioRecorder = () => {
   };
 
   const getAudioBlob = () => {
-    return new Blob(chunksRef.current, { type: 'audio/webm' });
+    return new Blob(chunksRef.current, { type: mimeType || 'audio/webm' });
   };
 
   const resetRecording = () => {
@@ -130,6 +149,7 @@ export const useAudioRecorder = () => {
     isPaused,
     duration,
     audioData,
+    mimeType,
     startRecording,
     pauseRecording,
     resumeRecording,

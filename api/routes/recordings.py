@@ -19,6 +19,9 @@ from api.config.config import settings
 
 router = APIRouter(prefix="/recordings", tags=["Recordings"])
 
+
+_ALLOWED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".webm", ".flac"}
+
 @router.post("", response_model=Union[SuccessResponse, FailureResponse])
 async def create_recording_endpoint(
     file: UploadFile = File(...),
@@ -28,6 +31,12 @@ async def create_recording_endpoint(
     user = Depends(get_authorized_db_user),
     db: AsyncSession = Depends(get_async_db_session)
 ):
+
+    content_type = (file.content_type or "").lower()
+    if not content_type.startswith("audio/"):
+        filename = (file.filename or "").lower()
+        if not any(filename.endswith(ext) for ext in _ALLOWED_AUDIO_EXTENSIONS):
+            raise HTTPException(status_code=400, detail="Uploaded file must be an audio file")
 
     payload = RecordingCreate(
         duration_seconds=duration_seconds,
