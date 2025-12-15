@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
 from api.connections.database_creation import Base
+from api.schemas.transcriptions import TranscriptionStatus
 
 
 class Transcription(Base):
@@ -31,9 +32,9 @@ class Transcription(Base):
     confidence = Column(Float, nullable=True)
     model_name = Column(String, nullable=True)
     status = Column(
-        Enum("pending", "completed", "failed", name="transcription_status"),
+        Enum(TranscriptionStatus, name="transcription_status"),
         nullable=False,
-        default="pending",
+        default=TranscriptionStatus.pending.value,
     )
     created_at = Column(
         DateTime(timezone=True),

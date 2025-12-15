@@ -1,0 +1,20 @@
+services:
+  database-pana:
+    image: postgres:16
+    container_name: database-pana
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - pana-network
+
+volumes:
+  postgres_data:
+
+networks:
+  pana-network:
+    driver: bridge

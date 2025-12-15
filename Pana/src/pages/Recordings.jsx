@@ -18,7 +18,7 @@ const Recordings = () => {
   const fetchRecordings = async () => {
     try {
       setLoading(true);
-      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?limit=50&list_all=true`); 
+      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?limit=50`); 
       if (res.data.code === 'SUCCESS') {
           const records = res.data.data.data ? res.data.data.data : res.data.data;
           setRecordings(records); 
