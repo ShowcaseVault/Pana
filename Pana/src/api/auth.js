@@ -6,7 +6,7 @@ export const getGoogleSession = async (code) => {
 };
 
 export const getUser = async () => {
-  return axiosClient.get(API_ROUTES.AUTH.DASHBOARD);
+  return axiosClient.get(API_ROUTES.HOME);
 };
 
 export const logout = async () => {

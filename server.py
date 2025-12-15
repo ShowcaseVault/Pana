@@ -15,12 +15,8 @@ from api.connections.database_connection import (
 # Routes
 from api.routes import (
     authentication,
-    dashboard
-)
-
-# Models 
-from api.models.users import (
-    User
+    home,
+    recordings,
 )
 
 from api.utils.logging_config import setup_logging
@@ -64,13 +60,14 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url=docs[0],
     redoc_url=docs[1],
+    prefix="api",
 )
 logger.info("FastAPI application instance created")
 
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -79,7 +76,8 @@ logger.info("CORS middleware configured to allow all origins")
 
 # Include routers
 app.include_router(authentication.router)
-app.include_router(dashboard.router)
+app.include_router(home.router, prefix="/api")
+app.include_router(recordings.router, prefix="/api")
 
 # Test route
 @app.get("/", include_in_schema=False)
