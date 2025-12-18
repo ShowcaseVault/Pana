@@ -14,8 +14,11 @@ from api.cruds.recordings import (
     delete_recording
 )
 
+from api.cruds.transcriptions import create_transcription
+from celery_service.tasks.transcription import transcribe_audio_task
+
 from api.schemas.recordings import RecordingCreate,RecordingUpdate, RecordingResponse
-from api.config.config import settings
+from api.schemas.transcriptions import TranscriptionCreate
 
 router = APIRouter(prefix="/recordings", tags=["Recordings"])
 
@@ -44,6 +47,7 @@ async def create_recording_endpoint(
         location_text=location_text,
     )
 
+    # 1. Create recording
     new_recording = await create_recording(
         db=db,
         file=file,
@@ -51,7 +55,21 @@ async def create_recording_endpoint(
         user_sub=user.google_id,
         recording_data=payload
     )
-    
+
+    # 2. Create transcription
+    create_transcription_payload = TranscriptionCreate(
+        recording_id=new_recording.id
+    )
+    transcription = await create_transcription(
+        db=db,
+        payload = create_transcription_payload,
+        user_id=user.id,
+    )
+
+    # 3. enqueue celery task
+    if transcription:
+        transcribe_audio_task.delay(transcription.id)
+
     return SuccessResponse(data=new_recording, message="Recording created successfully")
 
 

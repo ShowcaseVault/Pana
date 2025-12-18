@@ -24,7 +24,7 @@ from api.schemas.transcriptions import (
 router = APIRouter(prefix="/transcriptions", tags=["Transcriptions"])
 
 
-@router.post("", response_model=Union[SuccessResponse, FailureResponse])
+# @router.post("", response_model=Union[SuccessResponse, FailureResponse])
 async def create_transcription_endpoint(
     payload: TranscriptionCreate,
     user = Depends(get_authorized_db_user),
@@ -60,7 +60,7 @@ async def get_transcriptions_endpoint(
     )
 
 
-@router.get("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
+# @router.get("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
 async def get_transcription_endpoint(
     transcription_id: int,
     user = Depends(get_authorized_db_user),
@@ -76,7 +76,7 @@ async def get_transcription_endpoint(
     )
 
 
-@router.patch("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
+# @router.patch("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
 async def update_transcription_endpoint(
     transcription_id: int,
     update_data: TranscriptionUpdate,
@@ -90,7 +90,7 @@ async def update_transcription_endpoint(
     return SuccessResponse(data=transcription, message="Transcription updated successfully")
 
 
-@router.delete("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
+# @router.delete("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
 async def delete_transcription_endpoint(
     transcription_id: int,
     user = Depends(get_authorized_db_user),

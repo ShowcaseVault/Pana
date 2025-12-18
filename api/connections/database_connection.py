@@ -5,8 +5,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
-    async_sessionmaker,
+    async_sessionmaker
 )
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session,sessionmaker
 from typing import Any, AsyncGenerator, Optional
 
 from api.connections.database_creation import Base
@@ -27,6 +29,10 @@ POSTGRES_DB = CONFIG.POSTGRES_DB
 engine: Optional[Any] = None
 async_session: Optional[async_sessionmaker] = None
 connection: Optional[asyncpg.Connection] = None
+
+# Sync Globals (for Celery)
+sync_engine: Optional[Any] = None
+SyncSession: Optional[sessionmaker] = None
 
 
 async def create_database_if_not_exists() -> None:
@@ -173,3 +179,30 @@ async def async_disconnect() -> bool:
     except Exception as e:
         logger.exception("Async disconnection error")
         return False
+    except Exception as e:
+        logger.exception("Async disconnection error")
+        return False
+
+
+def get_sync_db_session():
+    """
+    Get a synchronous DB session for Celery tasks.
+    """
+    global sync_engine, SyncSession
+
+    if not sync_engine:
+        db_url = (
+            f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+            f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+        )
+        sync_engine = create_engine(db_url, echo=False)
+        SyncSession = sessionmaker(bind=sync_engine)
+
+    session = SyncSession()
+    try:
+        yield session
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
