@@ -10,7 +10,7 @@ npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
 cmd = [
     npm_cmd,
     "run",
-    "dev",
+    "dev"
 ]
 
 subprocess.run(

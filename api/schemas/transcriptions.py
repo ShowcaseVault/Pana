@@ -8,6 +8,7 @@ from api.config.config import config
 
 class TranscriptionStatus(str, PyEnum):
     pending = "pending"
+    processing = "processing"
     completed = "completed"
     failed = "failed"
 

@@ -10,7 +10,9 @@ environment = os.getenv("ENV","local")
 class config:
 
     # Transcriptions
+    BASE_DIR = "recordings"
     TRANSCRIPTION_MODEL = "whisper-large-v3"
+    TRANSCRIPTION_MODEL_TURBO = "whisper-large-v3-turbo"
     
     # LLM1
     LLM1 = "Groq"
@@ -30,6 +32,10 @@ class config:
     POSTGRES_HOST='localhost'
     POSTGRES_PORT='5433'
     POSTGRES_DB='pana-db'
+
+    # Redis
+    REDIS_BROKER_URL = os.getenv("REDIS_BROKER_URL", "redis://localhost:6379")
+    REDIS_RESULT_BACKEND = os.getenv("REDIS_RESULT_BACKEND", "redis://localhost:6379")
 
     # SYSTEM
     SERVER_HOST="0.0.0.0"
