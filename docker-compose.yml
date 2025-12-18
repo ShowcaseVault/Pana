@@ -1,0 +1,45 @@
+services:
+  # POSTGRES DATABASE SEERVICE 
+  database-pana:
+    image: postgres:16
+    container_name: database-pana
+    env_file:
+      - .env
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_pana_data:/var/lib/postgresql/data
+    networks:
+      - pana-network
+  # CELERY BROKER REDIS SERVICE 
+  redis-pana:
+    image: redis:7-alpine
+    container_name: redis-pana
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    networks:
+      - pana-network
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DB=0
+    depends_on:
+      - redis-pana
+    networks:
+      - pana-network
+
+volumes:
+  postgres_pana_data:
+
+networks:
+  pana-network:
+    driver: bridge

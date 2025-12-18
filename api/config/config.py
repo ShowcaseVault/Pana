@@ -9,6 +9,28 @@ environment = os.getenv("ENV","local")
 
 class config:
 
+    # Transcriptions
+    TRANSCRIPTION_MODEL = "whisper-large-v3"
+    
+    # LLM1
+    LLM1 = "Groq"
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", None)
+    GROQ_MODEL_SMALL = "llama-3.1-8b-instant"
+    GROQ_MODEL_LARGE = "meta-llama/llama-4-maverick-17b-128e-instruct"
+
+    # LLM2
+    LLM2 = "Gemini"
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
+    GEMINI_MODEL = "gemini-2.5-flash"
+
+    # Database
+    DATABASE_URL = "postgresql://pana:pana@localhost:5433/pana-db"
+    POSTGRES_USER='pana'
+    POSTGRES_PASSWORD='pana'
+    POSTGRES_HOST='localhost'
+    POSTGRES_PORT='5433'
+    POSTGRES_DB='pana-db'
+
     # SYSTEM
     SERVER_HOST="0.0.0.0"
     SERVER_PORT=8000
@@ -33,23 +55,6 @@ class config:
     REFRESH_COOKIE_NAME = os.getenv("REFRESH_COOKIE_NAME", "refresh_token")
     COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
     COOKIE_SAMESITE = os.getenv("COOKIE_SAMESITE", "lax")
-
-    # Database
-    DATABASE_URL = "postgresql://pana:pana@localhost:5433/pana-db"
-    POSTGRES_USER='pana'
-    POSTGRES_PASSWORD='pana'
-    POSTGRES_HOST='localhost'
-    POSTGRES_PORT='5433'
-    POSTGRES_DB='pana-db'
-    # LLM1
-    LLM1 = "Groq"
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY", None)
-    GROQ_MODEL_SMALL = "llama-3.1-8b-instant"
-    GROQ_MODEL_LARGE = "meta-llama/llama-4-maverick-17b-128e-instruct"
-    # LLM2
-    LLM2 = "Gemini"
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", None)
-    GEMINI_MODEL = "gemini-2.5-flash"
 
     # Files
     UPLOAD_DIR = "recordings"

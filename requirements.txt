@@ -21,3 +21,6 @@ python-jose
 # Authentication
 google-auth
 google-auth-oauthlib
+# Task Queue
+celery
+redis
