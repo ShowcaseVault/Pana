@@ -1,40 +1,59 @@
 # Pana - पाना
 
-📜 The Book That Writes You
+📜 **The Voice Book That Writes You**
 
-**Pana** is a personal voice-based journaling assistant designed to make daily reflection effortless. Instead of typing long entries or forgetting important moments, users simply record short voice clips throughout the day. At night, Pana processes all recordings and generates a clean, structured journal entry that summarizes the day’s events, thoughts, and insights.
-
-Inspired by the Nepali word **“पाना (Pana)”**, meaning *page*, the project aims to transform raw voice notes into meaningful pages of a personal journal — automatically, privately, and intelligently.
+**Pana** is a sophisticated voice journaling assistant that transforms your raw voice notes into structured, meaningful reflections. Inspired by the Nepali word **“पाना (Pana)”**, meaning _page_, this project bridges the gap between spoken thoughts and an organized personal history.
 
 ---
 
-## ✨ What Pana Does
+## 🚀 Key Features
 
-- **Capture Your Day Through Voice**  
-  Record multiple short audio clips throughout the day to document events, ideas, emotions, and reminders.
-
-- **Local Storage for Privacy**  
-  All recordings are stored on the user’s device to ensure full control and privacy.
-
-- **AI-Generated Daily Journal**  
-  At the end of the day, Pana transcribes all voice clips and uses AI to generate:
-  - A clean, readable narrative  
-  - Key highlights  
-  - TODO items (when mentioned)  
-  - Emotional summaries (if expressed)  
-  - Short reflections or insights  
-
-- **Turns Raw Thoughts Into Organized Pages**  
-  Pana converts scattered voice notes into a coherent, meaningful journal entry.
+- **High-Fidelity Audio Capture**
+  Record thoughts on the fly with real-time volume visualization and a polished, premium UI.
+- **Word-Level Synchronized Transcription**
+  Powered by OpenAI Whisper, Pana provides live, word-by-word transcription display during playback, allowing you to "read" your voice.
+- **Background Processing with Celery**
+  Transcriptions are handled asynchronously in the background, ensuring the UI remains snappy and responsive.
+- **Real-Time Status Updates**
+  Uses Server-Sent Events (SSE) to notify the frontend as soon as a transcription is processed and ready.
+- **Secure Management**
+  Full CRUD operations for recordings, including a custom confirmation dialog for deletions and a "soft-delete" pattern in the database.
+- **Contextual Meta-Data**
+  Automatically captures geolocation and timestamps to provide context for every entry.
 
 ---
 
-## 🎯 Project Goals
+## 🛠 Tech Stack
 
-- **Make journaling effortless** by letting users speak naturally instead of typing.
-- **Provide meaningful summaries** that help users reflect and stay organized.
-- **Respect user privacy** through local-first storage and processing options.
-- **Serve as a personal memory companion** to help users remember their experiences.
-- **Lay the foundation for a smarter personal assistant** that understands your day through voice.
+### Frontend
+
+- **Framework**: React.js (Vite)
+- **Styling**: Vanilla CSS (Premium Light Theme)
+- **Icons**: Lucide React
+- **State/API**: Axios, Custom Hooks (SSE)
+- **Feedback**: Sonner (Toasts), Custom Dialogs
+
+### Backend
+
+- **Framework**: FastAPI (Python)
+- **Database**: PostgreSQL (SQLAlchemy Async)
+- **Tasks**: Celery + Redis (Task Queue)
+- **AI/ML**: OpenAI Whisper (via API)
+
+---
+
+## � Project Architecture
+
+1.  **Capture**: User records audio via the `AudioRecorder` component.
+2.  **Upload**: Audio is sent to the FastAPI backend and stored securely.
+3.  **Process**: A Celery task is triggered to transcribe the audio using Whisper with word-level granularity.
+4.  **Notify**: Once complete, the backend sends an SSE event to the frontend.
+5.  **Reflect**: The `RecordingCard` fetches the rich transcription and displays it in sync with audio playback.
+
+---
+
+## 🎯 Current Status
+
+The project core is fully functional, featuring a robust backend-to-frontend pipeline for voice capture and transcription. Future developments will focus on the "Daily Summary" engine to aggregate these notes into cohesive journal pages.
 
 ---
