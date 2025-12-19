@@ -82,8 +82,11 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
 
   return (
     <div className="recording-card">
-      <button className="play-button" onClick={() => onPlay?.(recording)}>
-        <Play size={14} fill="#4b5563" stroke="#4b5563" />
+      <button 
+        className={`play-button ${String(recording.transcription_status || '').toLowerCase() === 'completed' ? 'completed' : ''}`}
+        onClick={() => onPlay?.(recording)}
+      >
+        <Play size={14} fill="currentColor" stroke="currentColor" />
       </button>
       
       <div className="card-content">
@@ -131,10 +134,21 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           cursor: pointer;
           transition: all 0.2s ease;
           flex-shrink: 0;
+          color: #4b5563;
         }
         
         .play-button:hover {
           background: #d1d5db;
+        }
+
+        .play-button.completed {
+          background: rgba(20, 184, 166, 0.15);
+          color: rgb(20, 184, 166);
+          box-shadow: 0 0 10px rgba(20, 184, 166, 0.25);
+        }
+
+        .play-button.completed:hover {
+          background: rgba(20, 184, 166, 0.25);
         }
         
         .card-content {

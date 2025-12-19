@@ -17,7 +17,8 @@ from api.routes import (
     authentication,
     home,
     recordings,
-    transcriptions
+    transcriptions,
+    transcription_event
 )
 
 from api.utils.logging_config import setup_logging
@@ -68,7 +69,7 @@ logger.info("FastAPI application instance created")
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -80,6 +81,7 @@ app.include_router(authentication.router)
 app.include_router(home.router, prefix="/api")
 app.include_router(recordings.router, prefix="/api")
 app.include_router(transcriptions.router, prefix="/api")
+app.include_router(transcription_event.router,prefix="/api")
 
 # Test route
 @app.get("/", include_in_schema=False)

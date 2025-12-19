@@ -18,4 +18,5 @@ export const API_ROUTES = {
     UPDATE: (id) => `/api/recordings/${id}`,
     DELETE: (id) => `/api/recordings/${id}`,
   },
+  TRANSCRIPTION_EVENTS: '/api/transcription-events',
 };

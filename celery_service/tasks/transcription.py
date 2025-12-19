@@ -1,6 +1,9 @@
 import logging
+import json
 from celery_service.celery_app import celery_app
+
 from api.connections.database_connection import get_sync_db_session
+from api.config.redis_client import get_redis_client
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.transcriptions import TranscriptionStatus
@@ -55,6 +58,26 @@ def transcribe_audio_task(transcription_id: int):
             transcription.status = TranscriptionStatus.failed.value
             db.commit()
             raise e
+        try:
+            redis_client = get_redis_client()
+            status_value = (
+                transcription.status.value
+                if hasattr(transcription.status, "value")
+                else transcription.status
+            )
+            redis_client.publish(
+                "transcription_completed",
+                json.dumps(
+                    {
+                        "transcription_id": transcription.id,
+                        "recording_id": transcription.recording_id,
+                        "status": status_value,
+                    }
+                ),
+            )
+        except Exception as e:
+            logger.exception(f"Error during Publishing transcription information: {e}")
+
 
     except Exception as e:
         logger.exception(f"Unexpected error in task: {e}")

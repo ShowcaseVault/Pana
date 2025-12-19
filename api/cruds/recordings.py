@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import UploadFile, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
+from sqlalchemy.orm import joinedload
 from datetime import date
 
 from api.models.recordings import Recording
@@ -73,7 +74,7 @@ async def get_recording_by_id(db: AsyncSession, recording_id: int, user_id: int)
             Recording.id == recording_id, 
             Recording.user_id == user_id,
             Recording.is_deleted == False
-        )
+        ).options(joinedload(Recording.transcription))
     )
     recording = result.scalars().first()
     return recording
@@ -109,6 +110,7 @@ async def get_all_recordings(
     query = (
         apply_filters(query_stmt)
         .order_by(desc(Recording.recorded_at))
+        .options(joinedload(Recording.transcription))
         .offset(skip)
         .limit(limit)
     )
