@@ -131,12 +131,12 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
 
   return (
     <div className="recording-card">
-      <div className={`play-button-wrapper ${isTranscriptionCompleted ? 'is-completed' : ''}`} onClick={togglePlay}>
+      <div className={`play-button-wrapper ${!isTranscriptionCompleted ? 'is-accent' : ''}`} onClick={togglePlay}>
         <svg className="progress-ring" width="36" height="36">
            <circle
              className="progress-ring__circle-bg"
-             stroke={isTranscriptionCompleted ? "rgba(20, 184, 166, 0.2)" : "#e5e7eb"}
-             strokeWidth="3"
+             stroke={!isTranscriptionCompleted ? "rgba(20, 184, 166, 0.15)" : "#f3f4f6"}
+             strokeWidth="3.5"
              fill="transparent"
              r={radius}
              cx="18"
@@ -144,8 +144,9 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
            />
            <circle
              className="progress-ring__circle"
-             stroke="var(--accent-primary)"
-             strokeWidth="3"
+             stroke={!isTranscriptionCompleted ? "var(--accent-primary)" : "#4b5563"}
+             strokeWidth="3.5"
+             strokeLinecap="round"
              fill="transparent"
              r={radius}
              cx="18"
@@ -159,11 +160,11 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
              }}
            />
         </svg>
-        <div className={`play-icon-center ${isTranscriptionCompleted ? 'is-completed' : ''}`}>
+        <div className={`play-icon-center ${!isTranscriptionCompleted ? 'is-accent' : ''}`}>
             {isPlaying ? (
-                <Pause size={14} fill="currentColor" stroke="currentColor" />
+                <Pause size={13} fill="currentColor" stroke="currentColor" />
             ) : (
-                <Play size={14} fill="currentColor" stroke="currentColor" />
+                <Play size={13} fill="currentColor" stroke="currentColor" />
             )}
         </div>
       </div>
@@ -214,15 +215,15 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
 
         .play-icon-center {
             position: absolute;
-            color: #4b5563;
+            color: #374151;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
         }
 
-        .play-icon-center.is-completed {
-            color: rgb(20, 184, 166);
+        .play-icon-center.is-accent {
+            color: var(--accent-primary);
         }
         
         .card-content {
