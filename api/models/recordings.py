@@ -14,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy import inspect
 
 from api.connections.database_creation import Base
 
@@ -43,5 +44,18 @@ class Recording(Base):
         "Transcription",
         back_populates="recording",
         uselist=False,
-        cascade="all, delete-orphan",
     )
+
+    @property
+    def transcription_status(self):
+        state = inspect(self)
+        if "transcription" in state.unloaded:
+            return None
+        return self.transcription.status.value if self.transcription else None
+
+    @property
+    def transcription_id(self):
+        state = inspect(self)
+        if "transcription" in state.unloaded:
+            return None
+        return self.transcription.id if self.transcription else None

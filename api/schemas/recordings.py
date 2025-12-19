@@ -26,5 +26,7 @@ class RecordingResponse(BaseModel):
     location_text: Optional[str]
     created_at: datetime
     is_deleted: bool
+    transcription_status: Optional[str] = None
+    transcription_id: Optional[int] = None
     
     model_config = ConfigDict(from_attributes=True)

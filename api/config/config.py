@@ -36,6 +36,7 @@ class config:
     # Redis
     REDIS_BROKER_URL = os.getenv("REDIS_BROKER_URL", "redis://localhost:6379")
     REDIS_RESULT_BACKEND = os.getenv("REDIS_RESULT_BACKEND", "redis://localhost:6379")
+    REDIS_PUBSUB_URL = os.getenv("REDIS_PUBSUB_URL", "redis://localhost:6379")
 
     # SYSTEM
     SERVER_HOST="0.0.0.0"
