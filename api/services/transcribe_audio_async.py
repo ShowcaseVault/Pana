@@ -23,7 +23,7 @@ def transcribe_audio_file(file_path: str):
             file=file,
             model=CONFIG.TRANSCRIPTION_MODEL,
             response_format="verbose_json",
-            timestamp_granularities=["segment"],
+            timestamp_granularities=["word","segment"],
             language="en",
             temperature=0.0
         )
@@ -37,7 +37,15 @@ def transcribe_audio_file(file_path: str):
             "text": transcription_text,
             "confidence": confidence,
             "language": language,
-            "transcribe_time": transcribe_time
+            "transcribe_time": transcribe_time,
+            "words": [
+                {
+                    "start": s.get("start"),
+                    "end": s.get("end"),
+                    "text": s.get("word")
+                }
+                for s in (transcription.words if hasattr(transcription, "words") else [])
+            ]
         }
     
     return transcription_data

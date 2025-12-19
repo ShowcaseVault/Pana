@@ -13,9 +13,8 @@ export const useTranscriptionSSE = (onTranscriptionComplete) => {
       try {
         const data = JSON.parse(event.data);
         if (data.status === "completed" && data.recording_id) {
-          
           if (onTranscriptionComplete) {
-            onTranscriptionComplete(data.recording_id);
+            onTranscriptionComplete(data.recording_id, data.transcription_id);
           }
         }
       } catch (e) {

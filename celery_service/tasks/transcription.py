@@ -49,6 +49,7 @@ def transcribe_audio_task(transcription_id: int):
             transcription.confidence = transcription_data["confidence"]
             transcription.status = TranscriptionStatus.completed.value
             transcription.transcribed_at = transcription_data["transcribe_time"]
+            transcription.words = transcription_data["words"]
             
             db.commit()
             logger.info(f"Transcription {transcription_id} completed successfully.")

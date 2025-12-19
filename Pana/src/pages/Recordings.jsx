@@ -14,11 +14,10 @@ const Recordings = () => {
   const [loading, setLoading] = useState(true);
 
   // Define handler for SSE events
-  const handleTranscriptionComplete = (recordingId) => {
+  const handleTranscriptionComplete = (recordingId, transcriptionId) => {
     setRecordings(prev => prev.map(rec => {
-        // Loose comparison to handle string/number mismatch
         if (String(rec.id) === String(recordingId)) {
-            return { ...rec, transcription_status: 'completed' };
+            return { ...rec, transcription_status: 'completed', transcription_id: transcriptionId };
         }
         return rec;
     }));
@@ -144,9 +143,9 @@ const Recordings = () => {
         }
 
         .recordings-sidebar {
-          width: 28%;
-          min-width: 280px;
-          max-width: 400px;
+          width: 32%;
+          min-width: 300px;
+          max-width: 450px;
           background: transparent;
           padding: 2rem 1.5rem;
           overflow-y: auto;
