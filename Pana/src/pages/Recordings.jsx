@@ -6,10 +6,26 @@ import axiosClient from '../api/axiosClient';
 import { API_ROUTES } from '../api/routes';
 import '../styles/themes.css';
 
+import { useTranscriptionSSE } from '../hooks/useTranscriptionSSE';
+
 const Recordings = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Define handler for SSE events
+  const handleTranscriptionComplete = (recordingId) => {
+    setRecordings(prev => prev.map(rec => {
+        // Loose comparison to handle string/number mismatch
+        if (String(rec.id) === String(recordingId)) {
+            return { ...rec, transcription_status: 'completed' };
+        }
+        return rec;
+    }));
+  };
+
+  // Activate the listener
+  useTranscriptionSSE(handleTranscriptionComplete);
 
   useEffect(() => {
     fetchRecordings();

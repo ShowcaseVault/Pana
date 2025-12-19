@@ -18,10 +18,18 @@ def trigger_event():
         print(f"Could not connect to Redis: {e}")
         return
 
+    # Message format matches celery_service\tasks\transcription.py
+    # We need a valid recording ID. Since we don't know one, we'll use a placeholder.
+    # The user should verify by looking for a recording ID in their browser network tab or DB.
+    # For now, let's just use a string that might match if they have one, or they can edit it.
+    
+    # NOTE: You must replace 'YOUR_RECORDING_ID_HERE' with a real ID from your list to see the UI change!
+    print("IMPORTANT: Edit this script to use a real recording_id from your database to test the UI update.")
+    
     message = {
-        "status": "completed",
-        "file_name": "test_audio.mp3",
-        "transcription": "This is a test transcription event."
+        "transcription_id": "test_transcription_123",
+        "recording_id": "YOUR_RECORDING_ID_HERE", 
+        "status": "completed"
     }
     
     channel = "transcription_completed"
