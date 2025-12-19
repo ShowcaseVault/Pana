@@ -11,6 +11,42 @@ const RecordingList = ({ refreshTrigger }) => {
     fetchRecordings();
   }, [refreshTrigger]);
 
+  useEffect(() => {
+    const baseURL =
+      import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+    const eventSource = new EventSource(
+      `${baseURL}${API_ROUTES.TRANSCRIPTION_EVENTS}/`
+    );
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.status === "completed" && data.recording_id) {
+          setRecordings((prev) =>
+            prev.map((rec) =>
+              String(rec.id) === String(data.recording_id)
+                ? { ...rec, transcription_status: "completed" }
+                : rec
+            )
+          );
+          if (data.recording_id) {
+             toast.success("Transcription completed!");
+          }
+        }
+      } catch (e) {
+        // quiet failure
+      }
+    };
+
+    eventSource.onerror = (err) => {
+       // quiet
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
   const fetchRecordings = async () => {
     try {
       setLoading(true);

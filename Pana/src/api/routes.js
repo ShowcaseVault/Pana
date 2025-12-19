@@ -2,6 +2,8 @@
  * Centralized definition of all backend API routes.
  * These paths are relative to the BASE_API_URL configured in axiosClient.
  */
+export const BASE_URL = import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
+
 export const API_ROUTES = {
   AUTH: {
     GOOGLE_LOGIN: '/auth/google',
