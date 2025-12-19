@@ -3,7 +3,7 @@ import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
 import { API_ROUTES, BASE_URL } from '../api/routes';
 import axiosClient from '../api/axiosClient';
 
-const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
+const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [words, setWords] = useState([]);
@@ -21,23 +21,16 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
   }, []);
 
   const fetchTranscription = async () => {
-    if (words.length > 0 || !recording.transcription_id) {
-      console.log("Transcription already fetched or no id:", { wordsLen: words.length, tid: recording.transcription_id });
-      return;
-    }
+    if (words.length > 0 || !recording.transcription_id) return;
     
     try {
       setLoadingTranscription(true);
-      console.log("Fetching transcription for id:", recording.transcription_id);
       const res = await axiosClient.get(API_ROUTES.TRANSCRIPTIONS.DETAIL(recording.transcription_id));
-      console.log("Transcription response:", res.data);
       if (res.data.code === 'SUCCESS') {
         const data = res.data.data;
         if (data.words && data.words.length > 0) {
-          console.log("Setting words:", data.words);
           setWords(data.words);
         } else if (data.text) {
-          console.log("No words found, using fallback text:", data.text);
           setWords([{ start: 0, end: recording.duration_seconds || 3600, text: data.text }]);
         }
       }
@@ -48,19 +41,15 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
     }
   };
 
-
-
   useEffect(() => {
     if (!audioRef.current) return;
     
     const audio = audioRef.current;
-    
     const handleTimeUpdate = () => {
       if (audio.duration) {
         const time = audio.currentTime;
         setProgress((time / audio.duration) * 100);
         
-        // Find active word in NEWEST scope
         if (words.length > 0) {
           const active = words.find(s => {
             const start = parseFloat(s.start);
@@ -93,11 +82,10 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [words, currentText]); // Re-attach when data changes to avoid stale closures
+  }, [words, currentText]);
 
   const togglePlay = (e) => {
-    e.stopPropagation(); // Prevent card click
-
+    e.stopPropagation();
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -106,11 +94,9 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
         const url = `${BASE_URL}${API_ROUTES.AUDIO_BASE}/${recording.file_path}`;
         audioRef.current = new Audio(url);
       }
-      
       if (String(recording.transcription_status || '').toLowerCase() === 'completed') {
         fetchTranscription();
       }
-
       audioRef.current.play().catch(err => console.error("Playback failed", err));
       setIsPlaying(true);
     }
@@ -118,11 +104,7 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
 
   const formatTime = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const formatDuration = (seconds) => {
@@ -134,61 +116,27 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
   if (compact) {
     return (
       <div className="recording-card-compact">
-        <div className="compact-icon">
-          <Volume2 size={16} />
-        </div>
+        <div className="compact-icon"><Volume2 size={16} /></div>
         <div className="compact-info">
           <div className="compact-title">{recording.name || 'Untitled'}</div>
           <div className="compact-meta">
             {formatTime(recording.recorded_at)} · {formatDuration(recording.duration_seconds)}
           </div>
         </div>
-        
         <style>{`
           .recording-card-compact {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            background: var(--bg-card);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            margin-bottom: 0.5rem;
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
+            background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
+            cursor: pointer; transition: all 0.2s ease; margin-bottom: 0.5rem;
           }
-          
-          .recording-card-compact:hover {
-            box-shadow: var(--shadow-md);
-            transform: translateX(4px);
-          }
-          
+          .recording-card-compact:hover { box-shadow: var(--shadow-md); transform: translateX(4px); }
           .compact-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #e5e7eb, #d1d5db);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #6b7280;
+            width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; color: #6b7280; background: linear-gradient(135deg, #e5e7eb, #d1d5db);
           }
-          
-          .compact-info {
-            flex: 1;
-          }
-          
-          .compact-title {
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 0.125rem;
-          }
-          
-          .compact-meta {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-          }
+          .compact-info { flex: 1; }
+          .compact-title { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); margin-bottom: 0.125rem; }
+          .compact-meta { font-size: 0.75rem; color: var(--text-secondary); }
         `}</style>
       </div>
     );
@@ -197,12 +145,21 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
   const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
-
   const isTranscriptionCompleted = String(recording.transcription_status || '').toLowerCase() === 'completed';
+
+  const toggleMenu = (e) => {
+    e.stopPropagation();
+    if (onMenuToggle) onMenuToggle();
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (onDelete) onDelete(recording.id);
+  };
 
   return (
     <div className="recording-card-wrapper">
-      <div className="recording-card">
+      <div className={`recording-card ${showMenu ? 'menu-open' : ''}`}>
         <div className={`play-button-wrapper ${!isTranscriptionCompleted ? 'is-accent' : ''}`} onClick={togglePlay}>
           <svg className="progress-ring" width="36" height="36">
              <circle
@@ -266,15 +223,26 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           </div>
         )}
         
-        <button className="menu-button">
-          <MoreHorizontal size={18} />
-        </button>
+        <div className="menu-container">
+          <button className={`menu-button ${showMenu ? 'active' : ''}`} onClick={toggleMenu}>
+            <MoreHorizontal size={18} />
+          </button>
+          
+          {showMenu && (
+            <div className="dropdown-menu">
+              <button className="dropdown-item delete" onClick={handleDelete}>
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <style>{`
         .recording-card-wrapper {
           margin-bottom: 0.75rem;
           width: 100%;
+          position: relative;
         }
 
         .recording-card {
@@ -289,11 +257,21 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           cursor: pointer;
           position: relative;
           min-height: 72px;
+          z-index: 1;
+        }
+
+        .recording-card.menu-open {
+          z-index: 50;
         }
         
         .recording-card:hover {
           box-shadow: var(--shadow-md);
           transform: translateY(-1px);
+          z-index: 2;
+        }
+
+        .recording-card:hover.menu-open {
+          z-index: 50;
         }
         
         .play-button-wrapper {
@@ -403,6 +381,12 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           100% { opacity: 0.4; }
         }
         
+        .menu-container {
+          position: relative;
+          margin-left: auto;
+          z-index: 100;
+        }
+
         .menu-button {
           width: 28px;
           height: 28px;
@@ -416,12 +400,58 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           cursor: pointer;
           transition: all 0.2s ease;
           flex-shrink: 0;
-          margin-left: auto;
         }
         
-        .menu-button:hover {
+        .menu-button:hover, .menu-button.active {
           background: var(--bg-tertiary);
           color: var(--text-primary);
+        }
+
+        .dropdown-menu {
+          position: absolute;
+          top: calc(100% + 4px);
+          right: 0;
+          background: var(--bg-card);
+          border-radius: 6px;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          border: 1px solid #f3f4f6;
+          padding: 4px;
+          z-index: 200;
+          min-width: 120px;
+          animation: fadeIn 0.15s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .dropdown-item {
+          width: 100%;
+          padding: 8px 12px;
+          border: none;
+          background: transparent;
+          border-radius: 4px;
+          font-size: 0.8125rem;
+          text-align: left;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .dropdown-item:hover {
+          background: var(--bg-tertiary);
+        }
+
+        .dropdown-item.delete {
+          color: #ef4444;
+          font-weight: 500;
+        }
+
+        .dropdown-item.delete:hover {
+          background: #fef2f2;
         }
       `}</style>
     </div>

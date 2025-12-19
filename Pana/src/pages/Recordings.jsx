@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AudioRecorder from '../components/AudioRecorder';
 import RecordingCard from '../components/RecordingCard';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { Toaster, toast } from 'sonner';
 import axiosClient from '../api/axiosClient';
 import { API_ROUTES } from '../api/routes';
@@ -12,6 +13,9 @@ const Recordings = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [recordingToDelete, setRecordingToDelete] = useState(null);
 
   // Define handler for SSE events
   const handleTranscriptionComplete = (recordingId, transcriptionId) => {
@@ -53,20 +57,13 @@ const Recordings = () => {
   }, []);
 
   const fetchLocation = () => {
-    if (!navigator.geolocation) {
-      return;
-    }
-
+    if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        // User requested simple "lat,long" string
-        const loc = `${latitude},${longitude}`;
-        setLocationText(loc);
+        setLocationText(`${latitude},${longitude}`);
       },
-      (error) => {
-        console.warn("Geolocation permission denied or error:", error);
-      }
+      (error) => console.warn("Geolocation permission denied or error:", error)
     );
   };
 
@@ -75,16 +72,12 @@ const Recordings = () => {
       formData.append('file', file);
       formData.append('duration_seconds', duration);
       formData.append('recorded_at', new Date().toISOString());
-      
-      if (locationText) {
-          formData.append('location_text', locationText);
-      }
+      if (locationText) formData.append('location_text', locationText);
       
       try {
           const res = await axiosClient.post(API_ROUTES.RECORDINGS.CREATE, formData, {
               headers: { 'Content-Type': 'multipart/form-data' }
           });
-          
           if (res.data.code === 'SUCCESS') {
               setRefreshKey(prev => prev + 1);
           } else {
@@ -94,6 +87,41 @@ const Recordings = () => {
           console.error(err);
           toast.error("Upload error. " + (err.response?.data?.detail || err.message));
       }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuId(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const handleMenuToggle = (id) => {
+    setActiveMenuId(prev => prev === id ? null : id);
+  };
+
+  const handleDeleteRequest = (id) => {
+    setRecordingToDelete(id);
+    setIsConfirmOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!recordingToDelete) return;
+    try {
+      const res = await axiosClient.delete(API_ROUTES.RECORDINGS.DELETE(recordingToDelete));
+      if (res.data.code === 'SUCCESS') {
+        setRecordings(prev => prev.filter(rec => rec.id !== recordingToDelete));
+        toast.success("Recording deleted");
+      } else {
+        toast.error("Failed to delete recording");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Delete error: " + (err.response?.data?.detail || err.message));
+    } finally {
+      setRecordingToDelete(null);
+      setIsConfirmOpen(false);
+    }
   };
 
   const getTodayRecordings = () => {
@@ -117,6 +145,9 @@ const Recordings = () => {
               <RecordingCard 
                 key={recording.id} 
                 recording={recording}
+                onDelete={handleDeleteRequest}
+                showMenu={activeMenuId === recording.id}
+                onMenuToggle={() => handleMenuToggle(recording.id)}
               />
             ))
           ) : (
@@ -132,6 +163,16 @@ const Recordings = () => {
       <div className="recorder-panel">
         <AudioRecorder onRecordingComplete={handleUpload} />
       </div>
+      
+      <ConfirmDialog 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Recording"
+        message="Are you sure you want to delete this recording? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+      />
       
       <Toaster position="top-center" theme="light" />
 
