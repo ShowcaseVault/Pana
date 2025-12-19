@@ -60,7 +60,7 @@ async def get_transcriptions_endpoint(
     )
 
 
-# @router.get("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
+@router.get("/{transcription_id}", response_model=Union[SuccessResponse, FailureResponse])
 async def get_transcription_endpoint(
     transcription_id: int,
     user = Depends(get_authorized_db_user),

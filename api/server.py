@@ -1,8 +1,10 @@
+import os
 import uvicorn
 import logging
 from api.config.config import settings
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.connections.database_connection import (
@@ -75,6 +77,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 logger.info("CORS middleware configured to allow all origins")
+
+os.makedirs("recordings", exist_ok=True)
+app.mount("/recordings", StaticFiles(directory="recordings"), name="recordings")
 
 # Include routers
 app.include_router(authentication.router)

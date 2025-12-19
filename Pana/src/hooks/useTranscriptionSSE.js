@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { API_ROUTES, BASE_URL } from '../api/routes';
-import { toast } from 'sonner';
 
 export const useTranscriptionSSE = (onTranscriptionComplete) => {
   useEffect(() => {
@@ -18,8 +17,6 @@ export const useTranscriptionSSE = (onTranscriptionComplete) => {
           if (onTranscriptionComplete) {
             onTranscriptionComplete(data.recording_id);
           }
-          
-          toast.success("Transcription completed!");
         }
       } catch (e) {
         // quiet failure

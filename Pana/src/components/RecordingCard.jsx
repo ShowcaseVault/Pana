@@ -1,7 +1,49 @@
-import React from 'react';
-import { Play, MoreHorizontal, Volume2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
+import { API_ROUTES, BASE_URL } from '../api/routes';
 
 const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const audioRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  const togglePlay = (e) => {
+    e.stopPropagation(); // Prevent card click
+
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      if (!audioRef.current) {
+        const url = `${BASE_URL}${API_ROUTES.AUDIO_BASE}/${recording.file_path}`;
+        
+        audioRef.current = new Audio(url);
+        
+        audioRef.current.ontimeupdate = () => {
+          if (audioRef.current.duration) {
+            setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+          }
+        };
+
+        audioRef.current.onended = () => {
+          setIsPlaying(false);
+          setProgress(0);
+        };
+      }
+      audioRef.current.play().catch(err => console.error("Playback failed", err));
+      setIsPlaying(true);
+    }
+  };
+
   const formatTime = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('en-US', { 
@@ -24,7 +66,7 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           <Volume2 size={16} />
         </div>
         <div className="compact-info">
-          <div className="compact-title">{recording.location_text || 'Untitled'}</div>
+          <div className="compact-title">{recording.name || 'Untitled'}</div>
           <div className="compact-meta">
             {formatTime(recording.recorded_at)} · {formatDuration(recording.duration_seconds)}
           </div>
@@ -79,19 +121,57 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
       </div>
     );
   }
+  
+  // Circular progress calculations
+  const radius = 16;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  const isTranscriptionCompleted = String(recording.transcription_status || '').toLowerCase() === 'completed';
 
   return (
     <div className="recording-card">
-      <button 
-        className={`play-button ${String(recording.transcription_status || '').toLowerCase() === 'completed' ? 'completed' : ''}`}
-        onClick={() => onPlay?.(recording)}
-      >
-        <Play size={14} fill="currentColor" stroke="currentColor" />
-      </button>
+      <div className={`play-button-wrapper ${!isTranscriptionCompleted ? 'is-accent' : ''}`} onClick={togglePlay}>
+        <svg className="progress-ring" width="36" height="36">
+           <circle
+             className="progress-ring__circle-bg"
+             stroke={!isTranscriptionCompleted ? "rgba(20, 184, 166, 0.15)" : "#f3f4f6"}
+             strokeWidth="3.5"
+             fill="transparent"
+             r={radius}
+             cx="18"
+             cy="18"
+           />
+           <circle
+             className="progress-ring__circle"
+             stroke={!isTranscriptionCompleted ? "var(--accent-primary)" : "#4b5563"}
+             strokeWidth="3.5"
+             strokeLinecap="round"
+             fill="transparent"
+             r={radius}
+             cx="18"
+             cy="18"
+             style={{
+                 strokeDasharray: `${circumference} ${circumference}`,
+                 strokeDashoffset: strokeDashoffset,
+                 transform: 'rotate(-90deg)',
+                 transformOrigin: '50% 50%',
+                 transition: 'stroke-dashoffset 0.1s linear'
+             }}
+           />
+        </svg>
+        <div className={`play-icon-center ${!isTranscriptionCompleted ? 'is-accent' : ''}`}>
+            {isPlaying ? (
+                <Pause size={13} fill="currentColor" stroke="currentColor" />
+            ) : (
+                <Play size={13} fill="currentColor" stroke="currentColor" />
+            )}
+        </div>
+      </div>
       
       <div className="card-content">
         <div className="card-title-row">
-          <span className="card-title">{recording.location_text || 'In My Head'}</span>
+          <span className="card-title">{recording.name || 'In My Head'}</span>
           <Volume2 size={14} className="speaker-icon" />
         </div>
         <div className="card-meta">
@@ -122,33 +202,28 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false }) => {
           transform: translateY(-2px);
         }
         
-        .play-button {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          background: #e5e7eb;
-          border: none;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          flex-shrink: 0;
-          color: #4b5563;
-        }
-        
-        .play-button:hover {
-          background: #d1d5db;
+        .play-button-wrapper {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .play-button.completed {
-          background: rgba(20, 184, 166, 0.15);
-          color: rgb(20, 184, 166);
-          box-shadow: 0 0 10px rgba(20, 184, 166, 0.25);
+        .play-icon-center {
+            position: absolute;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
         }
 
-        .play-button.completed:hover {
-          background: rgba(20, 184, 166, 0.25);
+        .play-icon-center.is-accent {
+            color: var(--accent-primary);
         }
         
         .card-content {

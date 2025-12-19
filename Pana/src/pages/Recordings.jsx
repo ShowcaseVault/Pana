@@ -47,11 +47,39 @@ const Recordings = () => {
     }
   };
 
+  const [locationText, setLocationText] = useState("");
+
+  useEffect(() => {
+    fetchLocation();
+  }, []);
+
+  const fetchLocation = () => {
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        // User requested simple "lat,long" string
+        const loc = `${latitude},${longitude}`;
+        setLocationText(loc);
+      },
+      (error) => {
+        console.warn("Geolocation permission denied or error:", error);
+      }
+    );
+  };
+
   const handleUpload = async (file, duration) => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('duration_seconds', duration);
       formData.append('recorded_at', new Date().toISOString());
+      
+      if (locationText) {
+          formData.append('location_text', locationText);
+      }
       
       try {
           const res = await axiosClient.post(API_ROUTES.RECORDINGS.CREATE, formData, {
