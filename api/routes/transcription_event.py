@@ -1,24 +1,33 @@
 import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
-from api.config.redis_client import get_redis_client
+from api.config.redis_client import get_async_redis_client
 
 router = APIRouter(prefix="/transcription-events", tags=["Event"])
-redis_client = get_redis_client()
 
 @router.get("/")
 async def transcription_complete(request: Request):
     
     async def event_generator():
+        redis_client = get_async_redis_client()
         pubsub = redis_client.pubsub()
-        pubsub.subscribe("transcription_completed")
+        await pubsub.subscribe("transcription_completed")
 
         try:
-            for message in pubsub.listen():
+            async for message in pubsub.listen():
+                if await request.is_disconnected():
+                    break
+
                 if message['type'] == 'message':
-                    yield f"data: {message['data'].decode('utf-8')}\n\n"
+                    data = message['data']
+                    if isinstance(data, bytes):
+                        data = data.decode('utf-8')
+                    yield f"data: {data}\n\n"
+        except asyncio.CancelledError:
+            pass
         finally:
-            pubsub.close()
+            await pubsub.close()
+            await redis_client.close()
 
     return StreamingResponse(
         event_generator(),
