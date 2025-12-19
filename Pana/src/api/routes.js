@@ -21,5 +21,8 @@ export const API_ROUTES = {
     DELETE: (id) => `/api/recordings/${id}`,
   },
   TRANSCRIPTION_EVENTS: '/api/transcription-events',
+  TRANSCRIPTIONS: {
+    DETAIL: (id) => `/api/transcriptions/${id}`,
+  },
   AUDIO_BASE: '/recordings',
 };

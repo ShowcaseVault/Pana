@@ -39,6 +39,7 @@ class TranscriptionResponse(BaseModel):
     status: TranscriptionStatus
     created_at: datetime
     transcribed_at: Optional[datetime]
+    words: Optional[list] = None
     is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)

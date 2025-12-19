@@ -7,7 +7,8 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     Enum,
-    Boolean
+    Boolean,
+    JSON
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -42,5 +43,6 @@ class Transcription(Base):
         nullable=False,
     )
     transcribed_at = Column(DateTime(timezone=True), nullable=True)
+    words = Column(JSON, nullable=True)
     is_deleted = Column(Boolean, default=False)
     recording = relationship("Recording", back_populates="transcription")
