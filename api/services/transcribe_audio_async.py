@@ -22,9 +22,9 @@ def transcribe_audio_file(file_path: str):
         transcription = transcription_client.audio.transcriptions.create(
             file=file,
             model=CONFIG.TRANSCRIPTION_MODEL,
+            prompt=CONFIG.AUDIO_TRANSCRIBE_PROMPT,
             response_format="verbose_json",
             timestamp_granularities=["word","segment"],
-            language="en",
             temperature=0.0
         )
 

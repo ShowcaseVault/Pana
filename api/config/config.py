@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+from prompts.audio_transcribe import AUDIO_TRANSCRIBE_PROMPT
 
 ENV_PATH = ".env"
 
@@ -11,6 +12,7 @@ class config:
 
     # Transcriptions
     BASE_DIR = "recordings"
+    AUDIO_TRANSCRIBE_PROMPT = AUDIO_TRANSCRIBE_PROMPT
     TRANSCRIPTION_MODEL = "whisper-large-v3"
     TRANSCRIPTION_MODEL_TURBO = "whisper-large-v3-turbo"
     

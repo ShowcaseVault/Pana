@@ -1,0 +1,1 @@
+AUDIO_TRANSCRIBE_PROMPT="""Do NOT translate the audio file."""
