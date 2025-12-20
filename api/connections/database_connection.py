@@ -22,7 +22,7 @@ logger = logging.getLogger("database")
 POSTGRES_HOST = CONFIG.POSTGRES_HOST
 POSTGRES_PORT = int(CONFIG.POSTGRES_PORT)
 POSTGRES_USER = CONFIG.POSTGRES_USER
-POSTGRES_PASSWORD = CONFIG.POSTGRES_USER
+POSTGRES_PASSWORD = CONFIG.POSTGRES_PASSWORD
 POSTGRES_DB = CONFIG.POSTGRES_DB
 
 # Globals
@@ -176,9 +176,6 @@ async def async_disconnect() -> bool:
 
         logger.info("Disconnected from database")
         return True
-    except Exception as e:
-        logger.exception("Async disconnection error")
-        return False
     except Exception as e:
         logger.exception("Async disconnection error")
         return False

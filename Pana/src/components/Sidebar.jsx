@@ -13,7 +13,7 @@ const Sidebar = () => {
   const navItems = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: Mic, label: 'Recordings', path: '/recordings' },
-    { icon: Book, label: 'Journals', path: '/journals' },
+    { icon: Book, label: 'Diary', path: '/diary' },
     { icon: History, label: 'History', path: '/history' },
     { icon: Settings, label: 'Preferences', path: '/preferences' },
   ];

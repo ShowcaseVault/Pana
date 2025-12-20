@@ -31,7 +31,7 @@ class Recording(Base):
     file_path = Column(Text, nullable=False)
     duration_seconds = Column(Integer)
     recorded_at = Column(DateTime(timezone=True), nullable=False)
-    recording_date = Column(Date, nullable=False, index=True)
+    recording_date = Column(Date, nullable=False, index=True, server_default=func.current_date())
     location_text = Column(String, nullable=True)
     created_at = Column(
         DateTime(timezone=True),
@@ -59,3 +59,10 @@ class Recording(Base):
         if "transcription" in state.unloaded:
             return None
         return self.transcription.id if self.transcription else None
+
+    @property
+    def transcription_confidence(self):
+        state = inspect(self)
+        if "transcription" in state.unloaded:
+            return None
+        return self.transcription.confidence if self.transcription else None
