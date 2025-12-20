@@ -28,5 +28,6 @@ class RecordingResponse(BaseModel):
     is_deleted: bool
     transcription_status: Optional[str] = None
     transcription_id: Optional[int] = None
+    transcription_confidence: Optional[float] = None
     
     model_config = ConfigDict(from_attributes=True)

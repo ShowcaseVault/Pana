@@ -7,7 +7,7 @@ import DashboardLayout from './layouts/DashboardLayout';
 import './App.css';
 
 // Placeholder pages for now
-const Journals = () => <div style={{padding: '2rem'}}><h2>Journals</h2><p>Coming soon...</p></div>;
+const Diary = () => <div style={{padding: '2rem'}}><h2>Diary</h2><p>Coming soon...</p></div>;
 const History = () => <div style={{padding: '2rem'}}><h2>History</h2><p>Coming soon...</p></div>;
 const Settings = () => <div style={{padding: '2rem'}}><h2>Preferences</h2><p>Coming soon...</p></div>;
 
@@ -33,7 +33,7 @@ function App() {
          <Route index element={<Navigate to="/home" replace />} />
          <Route path="home" element={<Home />} />
          <Route path="recordings" element={<Recordings />} />
-         <Route path="journals" element={<Journals />} />
+         <Route path="diary" element={<Diary />} />
          <Route path="history" element={<History />} />
          <Route path="preferences" element={<Settings />} />
       </Route>

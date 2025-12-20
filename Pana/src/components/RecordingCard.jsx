@@ -146,6 +146,17 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (progress / 100) * circumference;
   const isTranscriptionCompleted = String(recording.transcription_status || '').toLowerCase() === 'completed';
+  const confidence = typeof recording?.transcription_confidence === 'number' ? recording.transcription_confidence : null;
+  const confidenceColor = confidence == null
+    ? null
+    : confidence < 0.48
+      ? 'var(--accent-primary)'
+      : confidence < 0.8
+        ? 'var(--text-primary)'
+        : 'rgb(10,100,200)';
+  const effectiveColor = isTranscriptionCompleted
+    ? (confidenceColor || 'var(--text-primary)')
+    : 'var(--accent-primary)';
 
   const toggleMenu = (e) => {
     e.stopPropagation();
@@ -160,11 +171,11 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
   return (
     <div className="recording-card-wrapper">
       <div className={`recording-card ${showMenu ? 'menu-open' : ''}`}>
-        <div className={`play-button-wrapper ${!isTranscriptionCompleted ? 'is-accent' : ''}`} onClick={togglePlay}>
+        <div className={`play-button-wrapper`} onClick={togglePlay}>
           <svg className="progress-ring" width="36" height="36">
              <circle
                className="progress-ring__circle-bg"
-               stroke={!isTranscriptionCompleted ? "rgba(20, 184, 166, 0.15)" : "#f3f4f6"}
+               stroke={confidenceColor ? 'rgba(0,0,0,0.06)' : '#f3f4f6'}
                strokeWidth="3.5"
                fill="transparent"
                r={radius}
@@ -173,7 +184,7 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
              />
              <circle
                className="progress-ring__circle"
-               stroke={!isTranscriptionCompleted ? "var(--accent-primary)" : "#4b5563"}
+               stroke={effectiveColor || '#4b5563'}
                strokeWidth="3.5"
                strokeLinecap="round"
                fill="transparent"
@@ -189,7 +200,7 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
                }}
              />
           </svg>
-          <div className={`play-icon-center ${!isTranscriptionCompleted ? 'is-accent' : ''}`}>
+          <div className={`play-icon-center`} style={{ color: effectiveColor || '#374151' }}>
               {isPlaying ? (
                   <Pause size={13} fill="currentColor" stroke="currentColor" />
               ) : (

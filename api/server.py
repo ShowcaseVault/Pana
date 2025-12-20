@@ -20,7 +20,9 @@ from api.routes import (
     home,
     recordings,
     transcriptions,
-    transcription_event
+    transcription_event,
+    history,
+    diary
 )
 
 from api.utils.logging_config import setup_logging
@@ -87,6 +89,8 @@ app.include_router(home.router, prefix="/api")
 app.include_router(recordings.router, prefix="/api")
 app.include_router(transcriptions.router, prefix="/api")
 app.include_router(transcription_event.router,prefix="/api")
+app.include_router(history.router, prefix="/api")
+app.include_router(diary.router, prefix="/api")
 
 # Test route
 @app.get("/", include_in_schema=False)

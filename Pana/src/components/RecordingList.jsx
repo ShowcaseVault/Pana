@@ -25,13 +25,23 @@ const RecordingList = ({ refreshTrigger }) => {
           setRecordings((prev) =>
             prev.map((rec) =>
               String(rec.id) === String(data.recording_id)
-                ? { ...rec, transcription_status: "completed" }
+                ? {
+                    ...rec,
+                    transcription_status: "completed",
+                    ...(typeof data.confidence === 'number'
+                      ? { transcription_confidence: data.confidence }
+                      : {}),
+                  }
                 : rec
             )
           );
           if (data.recording_id) {
              toast.success("Transcription completed!");
           }
+          // Re-fetch to ensure latest confidence and fields are loaded
+          setTimeout(() => {
+            fetchRecordings();
+          }, 250);
         }
       } catch (e) {
         // quiet failure
@@ -75,6 +85,15 @@ const RecordingList = ({ refreshTrigger }) => {
     }
   };
 
+  const getConfidenceClass = (rec) => {
+    const conf = typeof rec?.transcription_confidence === 'number' ? rec.transcription_confidence : null;
+    if (conf == null) return "";
+    if (conf >= 0 && conf < 0.4) return "conf-primary";
+    if (conf >= 0.4 && conf < 0.8) return "conf-secondary";
+    if (conf >= 0.8 && conf <= 1.0) return "conf-high";
+    return "";
+  };
+
   if (loading && recordings.length === 0) {
     return <div className="loading-state">Loading recordings...</div>;
   }
@@ -92,12 +111,7 @@ const RecordingList = ({ refreshTrigger }) => {
         {recordings.map((rec) => (
           <div key={rec.id} className="recording-card">
             <div
-              className={`card-icon ${
-                String(rec.transcription_status || "").toLowerCase() ===
-                "completed"
-                  ? "completed"
-                  : ""
-              }`}
+              className={`card-icon ${getConfidenceClass(rec)}`}
             >
               <Play size={20} fill="currentColor" />
             </div>
@@ -186,12 +200,24 @@ const RecordingList = ({ refreshTrigger }) => {
             align-items: center;
             justify-content: center;
             transition: all 0.3s ease;
+            border: 1px solid transparent;
         }
 
-        .card-icon.completed {
-             background-color: rgba(20, 184, 166, 0.15);
-             color: rgb(20, 184, 166);
-             box-shadow: 0 0 10px rgba(20, 184, 166, 0.25);
+        .card-icon.conf-primary {
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .card-icon.conf-secondary {
+            color: var(--text-secondary);
+            border-color: var(--text-secondary);
+        }
+
+        .card-icon.conf-high {
+            background-color: rgba(10, 100, 200, 0.15);
+            color: rgb(10, 100, 200);
+            box-shadow: 0 0 10px rgba(10, 100, 200, 0.25);
+            border-color: rgba(10, 100, 200, 0.75);
         }
 
         .card-info {
