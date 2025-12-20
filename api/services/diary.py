@@ -2,9 +2,13 @@ from typing import List, Dict, Any
 from datetime import datetime
 
 from api.models.recordings import Recording
+from api.models.transcriptions import Transcription
 
 
-def generate_diary_from_recordings(recordings: List[Recording]) -> Dict[str, Any]:
+def generate_diary_from_recordings(
+    recordings: List[Recording], 
+    transcriptions: List[Transcription]
+) -> Dict[str, Any]:
     """
     Very simple heuristic service that aggregates transcription texts
     and derives mood/content/actions placeholders.
