@@ -4,11 +4,10 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import Recordings from './pages/Recordings';
 import DashboardLayout from './layouts/DashboardLayout';
+import Calendar from './pages/Calendar';
 import './App.css';
 
-// Placeholder pages for now
 const Diary = () => <div style={{padding: '2rem'}}><h2>Diary</h2><p>Coming soon...</p></div>;
-const History = () => <div style={{padding: '2rem'}}><h2>History</h2><p>Coming soon...</p></div>;
 const Settings = () => <div style={{padding: '2rem'}}><h2>Preferences</h2><p>Coming soon...</p></div>;
 
 const ProtectedRoute = ({ children }) => {
@@ -34,7 +33,7 @@ function App() {
          <Route path="home" element={<Home />} />
          <Route path="recordings" element={<Recordings />} />
          <Route path="diary" element={<Diary />} />
-         <Route path="history" element={<History />} />
+         <Route path="calendar/:year?/:month?" element={<Calendar />} />
          <Route path="preferences" element={<Settings />} />
       </Route>
     </Routes>

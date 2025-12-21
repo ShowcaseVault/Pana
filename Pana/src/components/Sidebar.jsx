@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Mic, Book, History, Settings, LogOut } from 'lucide-react';
+import { Home, Mic, Book, Calendar,Settings, LogOut } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 import { API_ROUTES } from '../api/routes';
 import { useAuth } from '../context/useAuth';
@@ -10,13 +10,23 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
 
+  const now = new Date();
+  const currentYearMonth = `${now.getFullYear()}/${now.getMonth() + 1}`;
+
   const navItems = [
     { icon: Home, label: 'Home', path: '/home' },
     { icon: Mic, label: 'Recordings', path: '/recordings' },
     { icon: Book, label: 'Diary', path: '/diary' },
-    { icon: History, label: 'History', path: '/history' },
+    { icon: Calendar, label: 'Calendar', path: `/calendar/${currentYearMonth}` },
     { icon: Settings, label: 'Preferences', path: '/preferences' },
   ];
+
+  const isCalendarActive = (path, currentPath) => {
+    if (path.startsWith('/calendar')) {
+      return currentPath.startsWith('/calendar');
+    }
+    return path === currentPath;
+  };
 
   const handleLogout = async () => {
     try {
@@ -38,10 +48,10 @@ const Sidebar = () => {
       <nav className="nav-menu">
         {navItems.map((item) => (
           <NavLink
-            key={item.path}
+            key={item.label}
             to={item.path}
             className={({ isActive }) => 
-              `nav-item ${isActive ? 'active' : ''}`
+              `nav-item ${(isActive || (item.label === 'Calendar' && window.location.pathname.startsWith('/calendar'))) ? 'active' : ''}`
             }
           >
             <div className="nav-icon-wrapper">
