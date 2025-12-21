@@ -24,5 +24,8 @@ export const API_ROUTES = {
   TRANSCRIPTIONS: {
     DETAIL: (id) => `/api/transcriptions/${id}`,
   },
+  HISTORY: {
+    CALENDAR: (year, month) => `/api/history/calendar/${year}/${month}`,
+  },
   AUDIO_BASE: '/recordings',
 };
