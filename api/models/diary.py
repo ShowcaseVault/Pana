@@ -23,7 +23,6 @@ class Diary(Base):
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
         index=True,
     )
     diary_date = Column(Date,nullable=False, index=True, server_default=func.current_date())

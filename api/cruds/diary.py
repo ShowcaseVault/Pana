@@ -1,4 +1,5 @@
 from datetime import date as _date
+
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -11,14 +12,12 @@ from api.models.transcriptions import Transcription
 from api.schemas.diary import DiaryResponse
 from api.services.diary import generate_diary_from_recordings
 
-
 async def create_or_update_today_diary(
     db: AsyncSession,
     user_id: int,
 ) -> DiaryResponse:
     today = _date.today()
 
-    # Fetch recordings for today with their transcriptions
     rec_stmt = (
         select(Recording)
         .where(
@@ -31,12 +30,29 @@ async def create_or_update_today_diary(
     rec_result = await db.execute(rec_stmt)
     recordings: List[Recording] = rec_result.scalars().all()
 
-    # Use service to generate mood/content/actions
-    summary = generate_diary_from_recordings(recordings)
+    tra_stmt = (
+        select(Transcription)
+        .join(Recording, Recording.id == Transcription.recording_id)
+        .where(
+            Recording.user_id == user_id,
+            Transcription.is_deleted == False,
+            Transcription.transcribed_at == today,
+        )
+    )
 
-    # Upsert diary (unique user_id on Diary implies single row per user)
+    tra_result = await db.execute(tra_stmt)
+    transcriptions: List[Transcription] = tra_result.scalars().all()
+
+    # Diary Creating Service
+    summary = await generate_diary_from_recordings(db, user_id, recordings, transcriptions)
+
     diary_result = await db.execute(
-        select(Diary).where(Diary.user_id == user_id)
+        select(Diary)
+        .where(
+            Diary.user_id == user_id,
+            Diary.diary_date == today,
+            Diary.is_deleted == False
+        )
     )
     diary: Optional[Diary] = diary_result.scalars().first()
 

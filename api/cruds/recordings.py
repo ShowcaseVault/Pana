@@ -8,6 +8,8 @@ from sqlalchemy.orm import joinedload
 from datetime import date
 
 from api.models.recordings import Recording
+from api.models.transcriptions import Transcription
+from api.cruds.transcriptions import get_transcription_by_id
 from api.schemas.recordings import RecordingCreate, RecordingUpdate, RecordingResponse
 
 from api.config.config import settings
@@ -159,9 +161,13 @@ async def delete_recording(db: AsyncSession, recording_id: int, user_id: int) ->
     Soft delete a recording.
     """
     recording = await get_recording_by_id(db, recording_id, user_id)
-    if not recording:
+    transcription = await get_transcription_by_id(db, recording.transcription_id)
+    if not recording or not transcription:
         return False
     
     recording.is_deleted = True
+    transcription.is_deleted = True
     await db.commit()
+    await db.refresh(recording)
+    await db.refresh(transcription)
     return True

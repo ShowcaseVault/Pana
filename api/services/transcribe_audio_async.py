@@ -1,9 +1,10 @@
 import json
+import asyncio
 from datetime import datetime, timezone
 from api.config.client import transcription_client
 from api.config.config import settings as CONFIG
 
-def compute_confidence(segment):
+async def compute_confidence(segment):
     seg_score = 0
     for seg in segment:
         logprob_score = min(1.0, max(0.0, 1 + seg["avg_logprob"]))
@@ -11,7 +12,7 @@ def compute_confidence(segment):
         seg_score += round((logprob_score * 0.7 + no_speech_score * 0.3), 3)
     return seg_score / len(segment)
 
-def transcribe_audio_file(file_path: str):
+async def transcribe_audio_file(file_path: str):
     """
     Transcribes the audio file using the configured client.
     """
@@ -19,7 +20,7 @@ def transcribe_audio_file(file_path: str):
     file_name = BASE_DIR+"/"+file_path
     with open(file_name, "rb") as file:
 
-        transcription = transcription_client.audio.transcriptions.create(
+        transcription = await transcription_client.audio.transcriptions.create(
             file=file,
             model=CONFIG.TRANSCRIPTION_MODEL,
             prompt=CONFIG.AUDIO_TRANSCRIBE_PROMPT,
@@ -28,7 +29,7 @@ def transcribe_audio_file(file_path: str):
             temperature=0.0
         )
 
-        confidence = compute_confidence(transcription.segments)
+        confidence = await compute_confidence(transcription.segments)
         transcription_text = transcription.text
         language = transcription.language
         transcribe_time = datetime.now(timezone.utc)

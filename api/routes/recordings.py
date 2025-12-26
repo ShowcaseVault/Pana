@@ -68,7 +68,8 @@ async def create_recording_endpoint(
 
     # 3. enqueue celery task
     if transcription:
-        transcribe_audio_task.delay(transcription.id)
+        transcribe_audio_task.apply_async(args=[transcription.id], queue="default")
+
 
     return SuccessResponse(data=new_recording, message="Recording created successfully")
 

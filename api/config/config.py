@@ -10,11 +10,15 @@ environment = os.getenv("ENV","local")
 
 class config:
 
+    # Diary
+    LOCATION_URL = "https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={long}"
+
     # Transcriptions
     BASE_DIR = "recordings"
     AUDIO_TRANSCRIBE_PROMPT = AUDIO_TRANSCRIBE_PROMPT
     TRANSCRIPTION_MODEL = "whisper-large-v3"
     TRANSCRIPTION_MODEL_TURBO = "whisper-large-v3-turbo"
+    TRANSCRIPTION_CONFIDENCE_THRESHOLD = 0.5
     
     # LLM1
     LLM1 = "Groq"
