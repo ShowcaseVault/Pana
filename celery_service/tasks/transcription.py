@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import json
 from celery_service.celery_app import celery_app
@@ -41,7 +42,8 @@ def transcribe_audio_task(transcription_id: int):
         # Perform Transcription
         logger.info(f"Transcribing file: {recording.file_path}")
         try:
-            transcription_data = transcribe_audio_file(recording.file_path)
+            transcription_data = asyncio.run(transcribe_audio_file(recording.file_path))
+
             
             # Update Transcription record
             transcription.text = transcription_data["text"]

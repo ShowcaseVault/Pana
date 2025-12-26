@@ -10,6 +10,9 @@ environment = os.getenv("ENV","local")
 
 class config:
 
+    # Diary
+    LOCATION_URL = "https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={long}"
+
     # Transcriptions
     BASE_DIR = "recordings"
     AUDIO_TRANSCRIBE_PROMPT = AUDIO_TRANSCRIBE_PROMPT

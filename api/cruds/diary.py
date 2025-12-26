@@ -1,5 +1,5 @@
 from datetime import date as _date
-import trace
+
 from typing import List, Optional
 
 from sqlalchemy import select
@@ -11,7 +11,6 @@ from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.diary import DiaryResponse
 from api.services.diary import generate_diary_from_recordings
-
 
 async def create_or_update_today_diary(
     db: AsyncSession,
@@ -36,8 +35,8 @@ async def create_or_update_today_diary(
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
             Recording.user_id == user_id,
-            Recording.is_deleted.is_(False),
-            Recording.recording_date == today,
+            Transcription.is_deleted == False,
+            Transcription.transcribed_at == today,
         )
     )
 
@@ -45,10 +44,15 @@ async def create_or_update_today_diary(
     transcriptions: List[Transcription] = tra_result.scalars().all()
 
     # Diary Creating Service
-    summary = generate_diary_from_recordings(recordings, transcriptions)
+    summary = await generate_diary_from_recordings(db, user_id, recordings, transcriptions)
 
     diary_result = await db.execute(
-        select(Diary).where(Diary.user_id == user_id)
+        select(Diary)
+        .where(
+            Diary.user_id == user_id,
+            Diary.diary_date == today,
+            Diary.is_deleted == False
+        )
     )
     diary: Optional[Diary] = diary_result.scalars().first()
 
