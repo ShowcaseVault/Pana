@@ -12,24 +12,24 @@ def main():
     """
     print("🚀 Starting Pana Backend Integration...")
 
-    # 1. Start Celery Worker
+    # 1. Start Celery Workers (Dedicated Queues)
     # Using '-P solo' for Windows compatibility to avoid 'spawn' issues without extra deps.
-    # If you have 'gevent' installed, you can change 'solo' to 'gevent'.
-    celery_command = [
-        "celery", 
-        "-A", "celery_service.celery_app", 
-        "worker", 
-        "--loglevel=info", 
-        "-P", "solo"
-    ]
     
-    print(f"   > Launching Celery: {' '.join(celery_command)}")
-    # shell=True allows finding the executable in the path more reliably on some Windows setups
-    celery_process = subprocess.Popen(
-        celery_command, 
-        cwd=ROOT,
-        shell=True
-    )
+    # High Priority Worker
+    celery_command_high = [
+        "celery", "-A", "celery_service.celery_app", "worker", 
+        "--loglevel=info", "-P", "solo", "-Q", "high_priority", "-n", "high_worker@%h"
+    ]
+    print(f"   > Launching High Priority Celery: {' '.join(celery_command_high)}")
+    celery_process_high = subprocess.Popen(celery_command_high, cwd=ROOT, shell=True)
+
+    # Default Priority Worker
+    celery_command_default = [
+        "celery", "-A", "celery_service.celery_app", "worker", 
+        "--loglevel=info", "-P", "solo", "-Q", "default", "-n", "default_worker@%h"
+    ]
+    print(f"   > Launching Default Priority Celery: {' '.join(celery_command_default)}")
+    celery_process_default = subprocess.Popen(celery_command_default, cwd=ROOT, shell=True)
 
     # 2. Start FastAPI Server
     api_command = ["python", "-m", "api.server"]
@@ -45,8 +45,11 @@ def main():
         while True:
             time.sleep(0.5)
             # Check if any process has exited unexpectedly
-            if celery_process.poll() is not None:
-                print("❌ Celery worker terminated unexpected.")
+            if celery_process_high.poll() is not None:
+                print("❌ High priority Celery worker terminated unexpectedly.")
+                break
+            if celery_process_default.poll() is not None:
+                print("❌ Default priority Celery worker terminated unexpectedly.")
                 break
             if api_process.poll() is not None:
                 print("❌ API server terminated unexpectedly.")
@@ -55,16 +58,19 @@ def main():
         print("\n\n🛑 Stopping services...")
     finally:
         # Cleanup
-        if celery_process.poll() is None:
-            print("   > Killing Celery...")
-            # On Windows, terminate() sends SIGTERM which might be ignored by shell=True wrappers
-            # We use taskkill to be sure the tree is dead
-            subprocess.call(["taskkill", "/F", "/T", "/PID", str(celery_process.pid)])
-        
-        if api_process.poll() is None:
-            print("   > Killing API...")
-            api_process.terminate()
-            api_process.wait()
+        for name, process in [
+            ("High Priority Celery", celery_process_high),
+            ("Default Priority Celery", celery_process_default),
+            ("API", api_process)
+        ]:
+            if process.poll() is None:
+                print(f"   > Killing {name}...")
+                if "Celery" in name:
+                    # On Windows, we use taskkill to be sure the tree is dead
+                    subprocess.call(["taskkill", "/F", "/T", "/PID", str(process.pid)])
+                else:
+                    process.terminate()
+                    process.wait()
 
 if __name__ == "__main__":
     main()
