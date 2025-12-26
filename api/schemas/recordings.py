@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 from pydantic.config import ConfigDict
 
 
@@ -22,7 +22,7 @@ class RecordingResponse(BaseModel):
     file_path: str
     duration_seconds: int
     recorded_at: datetime
-    recording_date: datetime
+    recording_date: date
     location_text: Optional[str]
     created_at: datetime
     is_deleted: bool
