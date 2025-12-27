@@ -1,4 +1,5 @@
-from typing import Union
+from datetime import date
+from typing import Union, Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,12 +14,13 @@ router = APIRouter(prefix="/diary", tags=["Diary"])
 
 
 @router.post("", response_model=Union[SuccessResponse, FailureResponse])
-async def create_today_diary_endpoint(
+async def create_diary_endpoint(
+    date: Optional[date] = None,
     user = Depends(get_authorized_db_user),
     db: AsyncSession = Depends(get_async_db_session),
 ):
     try:
-        result = await diary_crud.create_or_update_today_diary(db, user.id)
+        result = await diary_crud.create_or_update_diary(db, user.id, date)
         return SuccessResponse(
             data=result,
             message="Diary created/updated successfully",
@@ -27,12 +29,13 @@ async def create_today_diary_endpoint(
         return FailureResponse(message=str(e))
 
 @router.get("", response_model=Union[SuccessResponse, FailureResponse])
-async def get_today_diary_endpoint(
+async def get_diary_endpoint(
+    date: Optional[date] = None,
     user = Depends(get_authorized_db_user),
     db: AsyncSession = Depends(get_async_db_session),
 ):
     try:
-        result = await diary_crud.get_today_diary(db, user.id)
+        result = await diary_crud.get_diary(db, user.id, date)
         return SuccessResponse(
             data=result,
             message="Diary fetched successfully",

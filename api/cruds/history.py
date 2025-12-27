@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models.diary import Diary
 from api.models.recordings import Recording
-from api.schemas.history import HistoryCalendar, HistoryFetch, HistoryResponse
+from api.schemas.history import HistoryCalendar
 from api.schemas.recordings import RecordingResponse
 from api.schemas.diary import DiaryResponse
 
@@ -61,47 +61,3 @@ async def fetch_calendar(
         diary_days=diary_days,
         recording_days=recording_days,
     )
-
-async def fetch_history(
-    db: AsyncSession,
-    user_id: int,
-    payload: HistoryFetch,
-) -> HistoryResponse:
-    target_date = payload.history_date or _date.today()
-
-    # Fetch diary for the date
-    diary_result = await db.execute(
-        select(Diary).where(
-            Diary.user_id == user_id,
-            Diary.diary_date == target_date,
-            Diary.is_deleted == False,
-        )
-    )
-    diary: Optional[Diary] = diary_result.scalars().first()
-
-    diary_dict = None
-    if diary:
-        diary_dict = DiaryResponse.model_validate(diary).model_dump()
-
-    # Fetch recordings for the date
-    rec_result = await db.execute(
-        select(Recording).where(
-            Recording.user_id == user_id,
-            Recording.recording_date == target_date,
-            Recording.is_deleted == False,
-        )
-    )
-    recordings: List[Recording] = rec_result.scalars().all()
-
-    recordings_list = [
-        RecordingResponse.model_validate(r).model_dump()
-        for r in recordings
-    ]
-
-    response = HistoryResponse(
-        history_date=target_date,
-        diary=diary_dict,
-        recordings=recordings_list,
-    )
-
-    return HistoryResponse.model_validate(response)

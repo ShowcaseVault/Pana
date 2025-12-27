@@ -3,8 +3,10 @@ import axiosClient from '../api/axiosClient';
 import { API_ROUTES } from '../api/routes';
 import CreateDiary from '../components/CreateDiary';
 import DiaryView from '../components/Diary/DiaryView';
+import { useParams } from 'react-router-dom';
 
 const Diary = () => {
+  const { date } = useParams();
   const [diary, setDiary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [recordings, setRecordings] = useState([]);
@@ -15,14 +17,17 @@ const Diary = () => {
     return new Date().toISOString().split('T')[0];
   };
 
+  const targetDate = date || getTodayDateString();
+  const isToday = targetDate === getTodayDateString();
+
   const fetchRecordings = async () => {
     try {
-      const today = getTodayDateString();
       const response = await axiosClient.get(API_ROUTES.RECORDINGS.LIST, {
-        params: { recording_date: today }
+        params: { recording_date: targetDate }
       });
       if (response.data && response.data.code === 'SUCCESS') {
-        setRecordings(response.data.data || []);
+        const records = response.data.data.data ? response.data.data.data : response.data.data;
+        setRecordings(records || []);
       }
     } catch (error) {
       console.error("Failed to fetch recordings:", error);
@@ -33,26 +38,32 @@ const Diary = () => {
 
   const checkExistingDiary = async () => {
     try {
-      const response = await axiosClient.get(API_ROUTES.DIARY.GET);
+      const response = await axiosClient.get(API_ROUTES.DIARY.GET, {
+          params: { date: targetDate }
+      });
+      
       if (response.data && response.data.code === 'SUCCESS') {
         setDiary(response.data.data);
+      } else {
+        setDiary(null);
       }
     } catch (error) {
-      // 404 is expected if diary doesn't exist, just ignore
-      if (error.response && error.response.status !== 404) {
-          console.error("Failed to fetch diary:", error);
-      }
+      // 404 is expected if diary doesn't exist
+      setDiary(null);
     }
   };
 
   const handleCreateDiary = async () => {
+    // We now support creating/regenerating diary for any date supported by backend
     setLoading(true);
     try {
-      const response = await axiosClient.post(API_ROUTES.DIARY.CREATE);
+      // Pass the targetDate as a query parameter
+      const response = await axiosClient.post(API_ROUTES.DIARY.CREATE, null, {
+          params: { date: targetDate }
+      });
       if (response.data && response.data.code === 'SUCCESS') {
         setDiary(response.data.data);
       } else {
-        // Handle failure message if needed
         console.error("Diary generation failed:", response.data.message);
       }
     } catch (error) {
@@ -66,6 +77,7 @@ const Diary = () => {
     // Load both recordings and diary status in parallel
     const init = async () => {
         setLoadingRecordings(true);
+        setDiary(null); // Reset on date change
         await Promise.all([
             fetchRecordings(),
             checkExistingDiary()
@@ -73,7 +85,7 @@ const Diary = () => {
         setLoadingRecordings(false);
     };
     init();
-  }, []);
+  }, [targetDate]);
 
   if (loadingRecordings) {
     return (
@@ -93,10 +105,17 @@ const Diary = () => {
           loading={loading}
         />
       ) : (
-        <CreateDiary 
-          onCreate={handleCreateDiary} 
-          loading={loading} 
-        />
+        isToday ? (
+            <CreateDiary 
+            onCreate={handleCreateDiary} 
+            loading={loading} 
+            />
+        ) : (
+            <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                <p>No diary entry for this date.</p>
+                {recordings.length > 0 && <p className="text-sm mt-2">({recordings.length} recordings found)</p>}
+            </div>
+        )
       )}
     </div>
   );

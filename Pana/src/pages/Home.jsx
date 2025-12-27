@@ -12,6 +12,7 @@ const Home = () => {
   const navigate = useNavigate();
   const [recordings, setRecordings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showName, setShowName] = useState(false);
 
   useEffect(() => {
     fetchRecentRecordings();
@@ -112,11 +113,92 @@ const Home = () => {
         </div>
       </div>
 
+       {/* Profile Section - Absolute Top Right */}
+       <div className="profile-section">
+        <div 
+            className="profile-icon-wrapper"
+            onClick={() => setShowName(!showName)}
+        >
+            {user?.picture ? (
+                <img src={user.picture} alt="Profile" className="profile-img" />
+            ) : (
+                <div className="profile-placeholder">
+                    {user?.name?.charAt(0) || 'U'}
+                </div>
+            )}
+        </div>
+        {showName && (
+            <div className="profile-popover">
+                {user?.name || 'User'}
+            </div>
+        )}
+      </div>
+
       <style>{`
         .dashboard-page {
           display: flex;
           height: 100vh;
           background: var(--bg-primary);
+          position: relative; /* Context for profile absolute position */
+        }
+        
+        .profile-section {
+            position: absolute;
+            top: 1.5rem;
+            right: 2rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .profile-icon-wrapper {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            overflow: hidden;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+            background: #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-icon-wrapper:hover {
+            transform: scale(1.05);
+        }
+
+        .profile-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .profile-placeholder {
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+        }
+
+        .profile-popover {
+            margin-top: 0.5rem;
+            background: white;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .activity-sidebar {
