@@ -61,6 +61,7 @@ async def create_or_update_today_diary(
         diary.mood = summary.get("mood")
         diary.content = summary.get("content")
         diary.actions = summary.get("actions")
+        diary.recording_file_paths = [r.file_path for r in recordings]
         diary.is_deleted = False
     else:
         diary = Diary(
@@ -69,11 +70,34 @@ async def create_or_update_today_diary(
             mood=summary.get("mood"),
             content=summary.get("content"),
             actions=summary.get("actions"),
+            recording_file_paths=[r.file_path for r in recordings],
             is_deleted=False,
         )
         db.add(diary)
 
     await db.commit()
     await db.refresh(diary)
+
+    return DiaryResponse.model_validate(diary)
+
+async def get_today_diary(
+    db: AsyncSession,
+    user_id: int,
+) -> DiaryResponse:
+    today = _date.today()
+
+    stmt = (
+        select(Diary)
+        .where(
+            Diary.user_id == user_id,
+            Diary.diary_date == today,
+            Diary.is_deleted == False
+        )
+    )
+    result = await db.execute(stmt)
+    diary: Optional[Diary] = result.scalars().first()
+
+    if not diary:
+        raise HTTPException(status_code=404, detail="Diary not found")
 
     return DiaryResponse.model_validate(diary)
