@@ -25,3 +25,17 @@ async def create_today_diary_endpoint(
         )
     except Exception as e:
         return FailureResponse(message=str(e))
+
+@router.get("", response_model=Union[SuccessResponse, FailureResponse])
+async def get_today_diary_endpoint(
+    user = Depends(get_authorized_db_user),
+    db: AsyncSession = Depends(get_async_db_session),
+):
+    try:
+        result = await diary_crud.get_today_diary(db, user.id)
+        return SuccessResponse(
+            data=result,
+            message="Diary fetched successfully",
+        )
+    except Exception as e:
+        return FailureResponse(message=str(e))

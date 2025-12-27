@@ -9,6 +9,7 @@ class DiaryResponse(BaseModel):
     mood: Optional[str] = None
     content: Optional[str] = None
     actions: Optional[List[Dict]] = None
+    recording_file_paths: Optional[List[str]] = []
     created_at: datetime
     is_deleted: bool
 

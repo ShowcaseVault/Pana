@@ -29,6 +29,7 @@ class Diary(Base):
     mood = Column(Text)
     content = Column(Text)
     actions = Column(JSON)
+    recording_file_paths = Column(JSON)
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now(),

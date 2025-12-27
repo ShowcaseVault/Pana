@@ -1,0 +1,405 @@
+/* Diary Page Layout */
+.diary-container {
+  display: flex;
+  height: 100%;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  box-sizing: border-box;
+}
+
+.diary-main {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: var(--spacing-sm);
+  position: relative; /* For loading overlay */
+}
+
+.diary-main.is-loading > *:not(.loading-overlay) {
+  filter: blur(4px);
+  pointer-events: none;
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  gap: var(--spacing-md);
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.diary-sidebar {
+  width: 350px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--bg-tertiary);
+  padding-left: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography & Header */
+.diary-header {
+  margin-bottom: var(--spacing-lg);
+}
+
+.diary-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+  font-family: "DM Serif Display", serif; /* Or system serif */
+}
+
+.diary-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.diary-date {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.diary-mood-badge {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mood Colors */
+.mood-positive {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.mood-neutral {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+.mood-negative {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+.mood-energetic {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.mood-calm {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+/* Main Card */
+.diary-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--spacing-xl);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.diary-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--accent-primary);
+}
+
+.diary-text {
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: var(--text-primary);
+  white-space: pre-line;
+  font-family: "Georgia", serif; /* Use a readable serif for the diary content */
+}
+
+/* Actions Section */
+.actions-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+.action-column h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-sm);
+}
+
+.action-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  background: var(--bg-card);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--bg-tertiary);
+  margin-bottom: var(--spacing-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.action-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.action-icon {
+  margin-top: 2px;
+}
+
+.action-text {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.action-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* Sidebar Recordings */
+.sidebar-section {
+  position: sticky;
+  top: var(--spacing-lg);
+}
+
+.sidebar-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.recording-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.recording-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: var(--bg-card);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bg-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative; /* Establish stacking context */
+  overflow: hidden; /* Contain the overlay */
+}
+
+.recording-card:hover {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.progress-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.05); /* Subtle gray */
+  z-index: 0; /* Behind content */
+  transition: width 0.1s linear;
+  pointer-events: none;
+}
+
+.play-icon-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(79, 209, 197, 0.1); 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  transition: background 0.2s, color 0.2s;
+  position: relative; /* Sit above overlay */
+  z-index: 1;
+}
+
+.recording-card:hover .play-icon-wrapper {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.recording-info {
+  flex: 1;
+  min-width: 0;
+  position: relative; /* Sit above overlay */
+  z-index: 1;
+}
+
+.recording-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recording-details {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.regenerate-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.regenerate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Create Diary (Empty State) */
+.create-diary-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  text-align: center;
+  padding: var(--spacing-lg);
+}
+
+.create-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background: rgba(79, 209, 197, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--spacing-lg);
+  color: var(--accent-primary);
+}
+
+.create-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.create-desc {
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin-bottom: var(--spacing-xl);
+  line-height: 1.6;
+}
+
+.create-btn {
+  padding: 12px 32px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  transition: all 0.3s ease;
+}
+
+.create-btn:disabled {
+  background: var(--bg-tertiary);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.create-btn:not(:disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+/* Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Mobile Responsive */
+@media (max-width: 1024px) {
+  .diary-container {
+    flex-direction: column;
+  }
+  .diary-sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--bg-tertiary);
+    padding-left: 0;
+    padding-top: var(--spacing-lg);
+  }
+}
