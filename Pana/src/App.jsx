@@ -8,7 +8,6 @@ import Diary from './pages/Diary';
 import Calendar from './pages/Calendar';
 import './App.css';
 
-const Settings = () => <div style={{padding: '2rem'}}><h2>Preferences</h2><p>Coming soon...</p></div>;
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -34,7 +33,6 @@ function App() {
          <Route path="recordings" element={<Recordings />} />
          <Route path="diary" element={<Diary />} />
          <Route path="calendar/:year?/:month?" element={<Calendar />} />
-         <Route path="preferences" element={<Settings />} />
       </Route>
     </Routes>
   );

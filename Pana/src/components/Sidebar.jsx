@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Mic, Book, Calendar,Settings, LogOut } from 'lucide-react';
+import { Home, Mic, Book, Calendar, LogOut } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 import { API_ROUTES } from '../api/routes';
 import { useAuth } from '../context/useAuth';
@@ -18,7 +18,6 @@ const Sidebar = () => {
     { icon: Mic, label: 'Recordings', path: '/recordings' },
     { icon: Book, label: 'Diary', path: '/diary' },
     { icon: Calendar, label: 'Calendar', path: `/calendar/${currentYearMonth}` },
-    { icon: Settings, label: 'Preferences', path: '/preferences' },
   ];
 
   const isCalendarActive = (path, currentPath) => {
@@ -80,11 +79,14 @@ const Sidebar = () => {
           flex-direction: column;
           padding: 1.25rem 0.25rem;
           align-items: center;
+          /* justify-content: center; REMOVED to allow distribution */
+          gap: 0; /* Remove gap, use flex-grow for spacing */
         }
 
         .logo-section {
-          margin-bottom: 2rem;
+          margin-bottom: 0;
           text-align: center;
+          padding-bottom: 1rem; /* Space below logo */
         }
 
         .logo-text {
@@ -100,7 +102,8 @@ const Sidebar = () => {
           gap: 0.25rem;
           width: 100%;
           align-items: center;
-          flex: 1;
+          flex: 1; /* Take up all available space */
+          justify-content: center; /* Center items within this space */
         }
 
         .nav-item {
@@ -162,7 +165,7 @@ const Sidebar = () => {
           align-items: center;
           padding-top: 1rem;
           border-top: 1px solid var(--bg-tertiary);
-          margin-top: auto;
+          margin-top: 0;
         }
 
         .logout-btn {
