@@ -12,14 +12,17 @@
   Record thoughts on the fly with real-time volume visualization and a polished, premium UI.
 - **Word-Level Synchronized Transcription**
   Powered by OpenAI Whisper, Pana provides live, word-by-word transcription display during playback, allowing you to "read" your voice.
-- **Background Processing with Celery**
-  Transcriptions are handled asynchronously in the background, ensuring the UI remains snappy and responsive.
-- **Real-Time Status Updates**
-  Uses Server-Sent Events (SSE) to notify the frontend as soon as a transcription is processed and ready.
-- **Secure Management**
-  Full CRUD operations for recordings, including a custom confirmation dialog for deletions and a "soft-delete" pattern in the database.
-- **Contextual Meta-Data**
-  Automatically captures geolocation and timestamps to provide context for every entry.
+- **Intelligent Diary Synthesis**
+  Pana uses advanced LLMs (Groq) to analyze your day's recordings and automatically generate a cohesive diary entry, complete with:
+  - **Mood Analysis**: Detects the emotional tone of your day.
+  - **Structured Narrative**: Weaves disparate thoughts into a flowing story.
+  - **Action Items**: Automatically extracts Todos and Reminders from your rants.
+- **Interactive Calendar**
+  A visual history of your life. Browse past days, see your "Streak" (days with recordings/diary), and time-travel to view or regenerate diaries for any specific date.
+- **Background Processing**
+  Transcriptions and AI generation happen asynchronously via Celery & Redis, keeping the experience buttery smooth.
+- **Secure & Private**
+  Full control over your data with secure Google Authentication and local-first design principles.
 
 ---
 
@@ -27,33 +30,86 @@
 
 ### Frontend
 
-- **Framework**: React.js (Vite)
-- **Styling**: Vanilla CSS (Premium Light Theme)
-- **Icons**: Lucide React
-- **State/API**: Axios, Custom Hooks (SSE)
-- **Feedback**: Sonner (Toasts), Custom Dialogs
+- **Framework**: React.js 19 (Vite)
+- **Styling**: Vanilla CSS (Custom Premium Light Theme)
+- **State**: React Hooks + Context API
+- **Visuals**: Framer Motion (Animations), Lucide React (Icons)
+- **API**: Axios with Interceptors
 
 ### Backend
 
-- **Framework**: FastAPI (Python)
-- **Database**: PostgreSQL (SQLAlchemy Async)
-- **Tasks**: Celery + Redis (Task Queue)
-- **AI/ML**: OpenAI Whisper (via API)
+- **API Framework**: FastAPI (Python 3.12+)
+- **Database**: PostgreSQL (via SQLAlchemy Async)
+- **Task Queue**: Celery + Redis
+- **AI Services**:
+  - **Transcription**: OpenAI Whisper
+  - **Synthesis**: Groq (LLM)
 
 ---
 
-## � Project Architecture
+## 🏗 Architecture
 
 1.  **Capture**: User records audio via the `AudioRecorder` component.
-2.  **Upload**: Audio is sent to the FastAPI backend and stored securely.
-3.  **Process**: A Celery task is triggered to transcribe the audio using Whisper with word-level granularity.
-4.  **Notify**: Once complete, the backend sends an SSE event to the frontend.
-5.  **Reflect**: The `RecordingCard` fetches the rich transcription and displays it in sync with audio playback.
+2.  **Upload**: Audio is uploaded to the backend and stored on disk.
+3.  **Transcribe**: A Celery worker picks up the job and transcribes audio using Whisper.
+4.  **Synthesize**: When requested, the AI engine aggregates the day's transcripts and synthesizes a structured Diary Entry.
+5.  **Reflect**: The user views their generated diary, plays back source recordings, and tracks action items on the Dashboard or Calendar.
+
+---
+
+## ⚡ Getting Started
+
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+
+- Docker & Docker Compose (for Postgres/Redis)
+- Google Cloud Project (for Auth)
+- Groq & OpenAI API Keys
+
+### Installation
+
+1.  **Clone the repository**
+
+    ```bash
+    git clone https://github.com/ShowcaseVault/Pana.git
+    cd Pana
+    ```
+
+2.  **Start Infrastructure (DB & Redis)**
+
+    ```bash
+    docker-compose up -d
+    ```
+
+3.  **Backend Setup**
+
+    ```bash
+    # Create virtual environment
+    python -m venv venv
+    source venv/bin/activate  # or venv\Scripts\activate on Windows
+
+    # Install dependencies
+    pip install -r requirements.txt
+
+    # Run Migrations
+    alembic upgrade head
+
+    # Start API Server
+    python backend.py
+    ```
+
+4.  **Frontend Setup** (New Terminal)
+  - Remember to add the API_BASE_URL to the .env file
+    ```bash
+    python frontend.py
+    ```
+
+5.  **Access the App**
+    Open `http://localhost:5173` in your browser.
 
 ---
 
 ## 🎯 Current Status
 
-The project core is fully functional, featuring a robust backend-to-frontend pipeline for voice capture and transcription. Future developments will focus on the "Daily Summary" engine to aggregate these notes into cohesive journal pages.
-
----
+The project is feature-complete for the core MVP. Users can record, transcribe, and generate AI diaries. The Calendar integration allows full historical navigation. Future work will focus on mobile responsiveness and enhanced AI personalization.

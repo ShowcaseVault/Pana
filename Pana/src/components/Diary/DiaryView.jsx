@@ -4,7 +4,8 @@ import './Diary.css';
 import { BASE_URL, API_ROUTES } from '../../api/routes';
 
 const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) => {
-  const [playingId, setPlayingId] = useState(null);
+  const [activeId, setActiveId] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef(new Audio());
 
@@ -21,53 +22,60 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
   }, []);
 
   const handlePlay = (recording) => {
-    if (playingId === recording.id) {
-      if (audioRef.current) {
+    // If interacting with the currently active recording
+    if (activeId === recording.id) {
+      if (isPlaying) {
         audioRef.current.pause();
-        audioRef.current.ontimeupdate = null; // Cleanup
-      }
-      setPlayingId(null);
-      setProgress(0);
-    } else {
-      if (!audioRef.current) audioRef.current = new Audio();
-      
-      // Clean path logic
-      // User requested to use the specific backend link with recording_file_path
-      // Schema: BASE_URL + AUDIO_BASE + / + recording_file_path
-      
-      let filePath = recording.file_path;
-      // Normalize slashes to forward slashes for URL
-      if (filePath) {
-        filePath = filePath.replace(/\\/g, '/');
+        setIsPlaying(false);
       } else {
-         console.error("No file path for recording", recording);
-         return;
+        audioRef.current.play().catch(e => console.error("Resume failed:", e));
+        setIsPlaying(true);
       }
-      
-      // Ensure no double slashes between AUDIO_BASE and filePath
-      const audioBase = API_ROUTES.AUDIO_BASE.replace(/\/$/, '');
-      const relativePath = filePath.replace(/^\//, '');
+      return;
+    } 
 
-      const audioUrl = `${BASE_URL}${audioBase}/${relativePath}`;
-      
-      audioRef.current.src = audioUrl;
-      audioRef.current.play().catch(e => console.error("Playback failed:", e));
-      setPlayingId(recording.id);
-      
-      // Update progress
-      audioRef.current.ontimeupdate = () => {
-         if (audioRef.current.duration) {
-             const prog = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-             setProgress(prog);
-         }
-      };
-
-      audioRef.current.onended = () => {
-          setPlayingId(null);
-          setProgress(0);
-          audioRef.current.ontimeupdate = null;
-      };
+    // Switching to a new recording
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
     }
+    
+    // Create new audio instance if needed (though ref persists)
+    if (!audioRef.current) audioRef.current = new Audio();
+      
+    // Clean path logic
+    let filePath = recording.file_path;
+    if (filePath) {
+      filePath = filePath.replace(/\\/g, '/');
+    } else {
+      console.error("No file path for recording", recording);
+      return;
+    }
+    
+    const audioBase = API_ROUTES.AUDIO_BASE.replace(/\/$/, '');
+    const relativePath = filePath.replace(/^\//, '');
+    const audioUrl = `${BASE_URL}${audioBase}/${relativePath}`;
+    
+    audioRef.current.src = audioUrl;
+    audioRef.current.play().catch(e => console.error("Playback failed:", e));
+    
+    setActiveId(recording.id);
+    setIsPlaying(true);
+    setProgress(0);
+      
+    // Update progress
+    audioRef.current.ontimeupdate = () => {
+      if (audioRef.current.duration) {
+        const prog = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+        setProgress(prog);
+      }
+    };
+
+    audioRef.current.onended = () => {
+      setIsPlaying(false);
+      setProgress(0);
+      setActiveId(null); // Optional: reset active state on finish
+    };
   };
 
   // Helper to format date
@@ -221,14 +229,14 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
               return displayList.map((rec) => (
               <div 
                 key={rec.id} 
-                className={`recording-card ${playingId === rec.id ? 'is-playing' : ''}`} 
+                className={`recording-card ${activeId === rec.id ? 'is-playing' : ''}`} 
                 onClick={() => handlePlay(rec)}
               >
-               {playingId === rec.id && (
+               {activeId === rec.id && (
                   <div className="progress-overlay" style={{width: `${progress}%`}} />
                )}
                 <div className="card-icon">
-                  {playingId === rec.id ? (
+                  {activeId === rec.id && isPlaying ? (
                     <Pause size={20} fill="currentColor" />
                   ) : (
                     <Play size={20} fill="currentColor" />
