@@ -31,7 +31,7 @@ function App() {
          <Route index element={<Navigate to="/home" replace />} />
          <Route path="home" element={<Home />} />
          <Route path="recordings" element={<Recordings />} />
-         <Route path="diary" element={<Diary />} />
+         <Route path="diary/:date?" element={<Diary />} />
          <Route path="calendar/:year?/:month?" element={<Calendar />} />
       </Route>
     </Routes>

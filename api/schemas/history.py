@@ -11,11 +11,4 @@ class HistoryCalendar(BaseModel):
     recording_days : List[int] = []
 
 class HistoryFetch(BaseModel):
-    history_date: date = None
-
-class HistoryResponse(BaseModel):
-    history_date: date
-    diary: Optional[dict] = None
-    recordings: List[dict] = []
-    
-    model_config = ConfigDict(from_attributes=True)
+    history_date: Optional[date] = None

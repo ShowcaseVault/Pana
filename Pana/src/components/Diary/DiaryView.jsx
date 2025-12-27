@@ -110,9 +110,23 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
         </header>
 
         <div className="diary-card">
-          <div className="diary-text">
-            {content}
-          </div>
+          {content ? (
+            <div className="diary-text">
+              {content}
+            </div>
+          ) : (
+            <div className="empty-diary-state">
+              <div className="empty-icon">
+                <Play size={48} strokeWidth={1} />
+              </div>
+              <h2>Ready to Write?</h2>
+              <p>You have recordings for this day. Generate your diary to summarize them.</p>
+              <button onClick={onRegenerate} className="generate-btn-large">
+                <RotateCw size={20} />
+                Generate Diary
+              </button>
+            </div>
+          )}
         </div>
 
         {actions && actions.length > 0 && (
@@ -226,7 +240,7 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
                       <span>{rec.name || "Recording"}</span>
                    </div>
                    <div className="info-row sub">
-                      {rec.duration !== null && (
+                      {Number.isFinite(rec.duration) && (
                         <>
                           <span className="duration-badge">
                             <Clock size={12} /> 

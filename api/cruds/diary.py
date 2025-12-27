@@ -1,7 +1,7 @@
 from datetime import date as _date
 
 from typing import List, Optional
-
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -10,20 +10,22 @@ from api.models.diary import Diary
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.diary import DiaryResponse
+from api.schemas.history import HistoryFetch
 from api.services.diary import generate_diary_from_recordings
 
-async def create_or_update_today_diary(
+async def create_or_update_diary(
     db: AsyncSession,
     user_id: int,
+    date: Optional[_date] = None,
 ) -> DiaryResponse:
-    today = _date.today()
+    target_date = date or _date.today()
 
     rec_stmt = (
         select(Recording)
         .where(
             Recording.user_id == user_id,
             Recording.is_deleted == False,
-            Recording.recording_date == today,
+            Recording.recording_date == target_date,
         )
         .options(joinedload(Recording.transcription))
     )
@@ -36,7 +38,7 @@ async def create_or_update_today_diary(
         .where(
             Recording.user_id == user_id,
             Transcription.is_deleted == False,
-            Transcription.transcribed_at == today,
+            Transcription.transcribed_at == target_date,
         )
     )
 
@@ -50,14 +52,14 @@ async def create_or_update_today_diary(
         select(Diary)
         .where(
             Diary.user_id == user_id,
-            Diary.diary_date == today,
+            Diary.diary_date == target_date,
             Diary.is_deleted == False
         )
     )
     diary: Optional[Diary] = diary_result.scalars().first()
 
     if diary:
-        diary.diary_date = today
+        diary.diary_date = target_date
         diary.mood = summary.get("mood")
         diary.content = summary.get("content")
         diary.actions = summary.get("actions")
@@ -66,7 +68,7 @@ async def create_or_update_today_diary(
     else:
         diary = Diary(
             user_id=user_id,
-            diary_date=today,
+            diary_date=target_date,
             mood=summary.get("mood"),
             content=summary.get("content"),
             actions=summary.get("actions"),
@@ -80,24 +82,44 @@ async def create_or_update_today_diary(
 
     return DiaryResponse.model_validate(diary)
 
-async def get_today_diary(
+async def get_diary(
     db: AsyncSession,
     user_id: int,
+    date: Optional[_date] = None,
 ) -> DiaryResponse:
-    today = _date.today()
+    target_date = date or _date.today()
 
     stmt = (
         select(Diary)
         .where(
             Diary.user_id == user_id,
-            Diary.diary_date == today,
+            Diary.diary_date == target_date,
             Diary.is_deleted == False
         )
     )
+
     result = await db.execute(stmt)
     diary: Optional[Diary] = result.scalars().first()
 
     if not diary:
-        raise HTTPException(status_code=404, detail="Diary not found")
+        stmt_recording = (
+            select(Recording.file_path)
+            .where(
+                Recording.user_id == user_id,
+                Recording.recording_date == target_date,
+                Recording.is_deleted == False
+            )
+        )
+
+        rec_result = await db.execute(stmt_recording)
+        recordings: List[str] = rec_result.scalars().all()
+
+        return DiaryResponse(
+            diary_date=target_date,
+            mood=None,
+            content=None,
+            actions=None,
+            recording_file_paths=recordings,
+        )
 
     return DiaryResponse.model_validate(diary)

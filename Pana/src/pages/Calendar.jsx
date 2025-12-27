@@ -105,6 +105,32 @@ const Calendar = () => {
     calendarDays.push(null);
   }
 
+  const [errorBlob, setErrorBlob] = useState(null); // { day, timestamp } to trigger red blob
+
+  const handleDateClick = (day) => {
+    if (!day) return;
+    
+    // Check if we have data for this day
+    const hasDiary = diaryDays.has(day);
+    const hasRecording = recordingDays.has(day);
+    
+    // If there is history (diary or recordings), navigate to Diary page
+    if (hasDiary || hasRecording) {
+      const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+      const dayStr = day.toString().padStart(2, '0');
+      const dateStr = `${currentDate.getFullYear()}-${month}-${dayStr}`;
+      navigate(`/diary/${dateStr}`);
+    } else {
+      // Show reddish blob for empty date
+      setErrorBlob({ day, timestamp: Date.now() });
+      
+      // Clear after animation
+      setTimeout(() => {
+        setErrorBlob(null);
+      }, 1000);
+    }
+  };
+
   return (
     <div className="calendar-container">
       <div className="calendar-header">
@@ -133,13 +159,22 @@ const Calendar = () => {
         <div className="days-grid">
           {calendarDays.map((day, index) => {
             const blobType = day ? getBlobType(day) : null;
+            const isError = errorBlob && errorBlob.day === day;
+
             return (
-              <div key={index} className="day-cell">
+              <div 
+                key={index} 
+                className="day-cell"
+                onClick={() => day && handleDateClick(day)}
+              >
                 {day && (
                   <>
                     <span className="day-number">{day}</span>
                     {blobType && (
                       <div className={`recording-blob ${blobType === 'diary' ? 'blob-diary' : 'blob-recording'}`} />
+                    )}
+                    {isError && (
+                         <div className="recording-blob blob-error" />
                     )}
                   </>
                 )}
@@ -337,6 +372,27 @@ const Calendar = () => {
   border-radius: 52% 48% 55% 45% / 45% 55% 52% 48%;
   opacity: 0.25;
   animation: watercolorFlow 5s ease-in-out infinite reverse;
+}
+
+/* Error blob - Reddish */
+.recording-blob.blob-error::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at 40% 40%, rgba(239, 68, 68, 0.5) 0%, transparent 70%),
+              radial-gradient(ellipse at 60% 60%, rgba(220, 38, 38, 0.45) 0%, transparent 65%);
+  border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
+  opacity: 0.6;
+  animation: errorPulse 0.5s ease-in-out;
+}
+
+@keyframes errorPulse {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 0.6; }
 }
 
 @keyframes watercolorFlow {

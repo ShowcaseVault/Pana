@@ -23,15 +23,3 @@ async def fetch_calendar_endpoint(
         data=result,
         message="Streak retrieved successfully"
     )
-
-@router.post("", response_model=Union[SuccessResponse, FailureResponse])
-async def fetch_history_endpoint(
-    payload: HistoryFetch,
-    user = Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
-):
-    result = await history_crud.fetch_history(db, user.id, payload)
-    return SuccessResponse(
-        data=result,
-        message="History retrieved successfully",
-    )
