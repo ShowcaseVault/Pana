@@ -1,0 +1,14 @@
+# Ignore all .env files everywhere
+.env
+**/.env
+
+test.py
+logs
+
+misc/
+
+recordings/
+
+# Ignore all __pycache__ directories everywhere
+__pycache__/
+**/__pycache__/

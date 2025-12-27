@@ -1,0 +1,28 @@
+# Environment
+python-dotenv
+langchain
+langchain_community
+langchain-experimental==0.3.4
+langchain_openai==0.3.9
+# Transcription
+groq
+# Server-side
+fastapi
+uvicorn
+python-multipart
+# Database
+sqlalchemy
+psycopg2-binary
+asyncpg
+# Migration
+alembic
+# Encryption
+bcrypt==4.0.0
+passlib
+python-jose
+# Authentication
+google-auth
+google-auth-oauthlib
+# Task Queue
+celery
+redis
