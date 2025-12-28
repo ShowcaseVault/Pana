@@ -1,6 +1,6 @@
 # Pana - पाना
 
-📜 **The Voice Book That Writes You**
+📜 **The Page That Remembers You**
 
 **Pana** is a sophisticated voice journaling assistant that transforms your raw voice notes into structured, meaningful reflections. Inspired by the Nepali word **“पाना (Pana)”**, meaning _page_, this project bridges the gap between spoken thoughts and an organized personal history.
 
