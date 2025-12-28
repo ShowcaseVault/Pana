@@ -1,0 +1,38 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="100" cy="100" r="90" fill="#2A9D8F" opacity="0.1"/>
+  
+  <!-- Main Logo Icon - Microphone with Wave -->
+  <g transform="translate(100, 100)">
+    <!-- Wave Pattern (Left) -->
+    <path d="M -50 0 Q -45 -15, -40 0 T -30 0" stroke="#2A9D8F" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M -50 0 Q -45 -10, -40 0 T -30 0" stroke="#2A9D8F" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M -50 0 Q -45 -5, -40 0 T -30 0" stroke="#2A9D8F" stroke-width="2" stroke-linecap="round" fill="none"/>
+    
+    <!-- Wave Pattern (Right) -->
+    <path d="M 30 0 Q 35 -15, 40 0 T 50 0" stroke="#2A9D8F" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M 30 0 Q 35 -10, 40 0 T 50 0" stroke="#2A9D8F" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M 30 0 Q 35 -5, 40 0 T 50 0" stroke="#2A9D8F" stroke-width="2" stroke-linecap="round" fill="none"/>
+    
+    <!-- Microphone Body -->
+    <rect x="-12" y="-25" width="24" height="35" rx="12" fill="#2A9D8F"/>
+    
+    <!-- Microphone Grid -->
+    <line x1="-8" y1="-20" x2="8" y2="-20" stroke="white" stroke-width="1.5" opacity="0.3"/>
+    <line x1="-8" y1="-15" x2="8" y2="-15" stroke="white" stroke-width="1.5" opacity="0.3"/>
+    <line x1="-8" y1="-10" x2="8" y2="-10" stroke="white" stroke-width="1.5" opacity="0.3"/>
+    <line x1="-8" y1="-5" x2="8" y2="-5" stroke="white" stroke-width="1.5" opacity="0.3"/>
+    <line x1="-8" y1="0" x2="8" y2="0" stroke="white" stroke-width="1.5" opacity="0.3"/>
+    
+    <!-- Microphone Stand -->
+    <path d="M -15 15 Q 0 35, 15 15" stroke="#6d7d85" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <line x1="0" y1="35" x2="0" y2="45" stroke="#6d7d85" stroke-width="3" stroke-linecap="round"/>
+    <line x1="-10" y1="45" x2="10" y2="45" stroke="#6d7d85" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Accent Circle -->
+    <circle cx="0" cy="-7" r="18" stroke="#2A9D8F" stroke-width="2" fill="none" opacity="0.2"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="100" y="185" font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="#2A9D8F" text-anchor="middle">Pana</text>
+</svg>

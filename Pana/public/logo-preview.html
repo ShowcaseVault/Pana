@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pana Logo Preview</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: linear-gradient(135deg, #f5f7fa 0%, #e8eef2 100%);
+        padding: 3rem 2rem;
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #2a9d8f;
+        text-align: center;
+        margin-bottom: 0.5rem;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #6d7d85;
+        font-size: 1rem;
+        margin-bottom: 3rem;
+        letter-spacing: 0.05em;
+      }
+
+      .color-palette {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 3rem;
+      }
+
+      .color-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .color-swatch {
+        width: 80px;
+        height: 80px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .color-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #6d7d85;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .color-code {
+        font-family: "Courier New", monospace;
+        font-size: 0.875rem;
+        color: #4a5568;
+      }
+
+      .logo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .logo-card {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .logo-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      }
+
+      .logo-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #2a9d8f;
+        margin-bottom: 1rem;
+      }
+
+      .logo-preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        background: #f9fafb;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        padding: 2rem;
+      }
+
+      .logo-preview.dark {
+        background: #1a202c;
+      }
+
+      .logo-info {
+        font-size: 0.875rem;
+        color: #6d7d85;
+        line-height: 1.6;
+      }
+
+      .usage-section {
+        background: white;
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      }
+
+      .usage-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #2a9d8f;
+        margin-bottom: 1rem;
+      }
+
+      .usage-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .usage-item {
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        border-left: 3px solid #2a9d8f;
+      }
+
+      .usage-item h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #2a9d8f;
+        margin-bottom: 0.5rem;
+      }
+
+      .usage-item p {
+        font-size: 0.875rem;
+        color: #6d7d85;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Pana Logo Design</h1>
+      <p class="subtitle">Audio Diary Application Branding</p>
+
+      <!-- Color Palette -->
+      <div class="color-palette">
+        <div class="color-box">
+          <div class="color-swatch" style="background: #2a9d8f"></div>
+          <span class="color-label">Primary</span>
+          <span class="color-code">#2A9D8F</span>
+        </div>
+        <div class="color-box">
+          <div class="color-swatch" style="background: #6d7d85"></div>
+          <span class="color-label">Secondary</span>
+          <span class="color-code">#6d7d85</span>
+        </div>
+      </div>
+
+      <!-- Logo Variants -->
+      <div class="logo-grid">
+        <!-- Standard Logo -->
+        <div class="logo-card">
+          <h3 class="logo-title">Standard Logo</h3>
+          <div class="logo-preview">
+            <img
+              src="logo.svg"
+              alt="Pana Logo"
+              style="max-width: 100%; height: auto"
+            />
+          </div>
+          <p class="logo-info">
+            <strong>Usage:</strong> General branding, splash screens, about
+            pages<br />
+            <strong>File:</strong> logo.svg
+          </p>
+        </div>
+
+        <!-- Horizontal Logo -->
+        <div class="logo-card">
+          <h3 class="logo-title">Horizontal Logo</h3>
+          <div class="logo-preview">
+            <img
+              src="logo-horizontal.svg"
+              alt="Pana Horizontal Logo"
+              style="max-width: 100%; height: auto"
+            />
+          </div>
+          <p class="logo-info">
+            <strong>Usage:</strong> Headers, footers, marketing materials, email
+            signatures<br />
+            <strong>File:</strong> logo-horizontal.svg
+          </p>
+        </div>
+
+        <!-- App Icon -->
+        <div class="logo-card">
+          <h3 class="logo-title">App Icon</h3>
+          <div class="logo-preview dark">
+            <img
+              src="logo-icon.svg"
+              alt="Pana Icon"
+              style="max-width: 120px; height: auto"
+            />
+          </div>
+          <p class="logo-info">
+            <strong>Usage:</strong> App icons, favicons, social media avatars<br />
+            <strong>File:</strong> logo-icon.svg
+          </p>
+        </div>
+      </div>
+
+      <!-- Usage Guidelines -->
+      <div class="usage-section">
+        <h3 class="usage-title">Logo Usage Guidelines</h3>
+        <div class="usage-grid">
+          <div class="usage-item">
+            <h4>🎨 Colors</h4>
+            <p>
+              Primary teal (#2A9D8F) represents audio/voice. Secondary gray
+              (#6d7d85) provides balance and professionalism.
+            </p>
+          </div>
+          <div class="usage-item">
+            <h4>📐 Format</h4>
+            <p>
+              All logos are SVG format - scalable to any size without quality
+              loss. Perfect for web and print.
+            </p>
+          </div>
+          <div class="usage-item">
+            <h4>🎯 Concept</h4>
+            <p>
+              Microphone symbolizes recording, waves represent audio
+              visualization, combining the core features of Pana.
+            </p>
+          </div>
+          <div class="usage-item">
+            <h4>✨ Spacing</h4>
+            <p>
+              Maintain clear space around the logo equal to at least 1/4 of the
+              logo's height.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -160,11 +160,18 @@ const Calendar = () => {
           {calendarDays.map((day, index) => {
             const blobType = day ? getBlobType(day) : null;
             const isError = errorBlob && errorBlob.day === day;
+            
+            // Check if this day is today
+            const today = new Date();
+            const isToday = day && 
+              currentDate.getFullYear() === today.getFullYear() &&
+              currentDate.getMonth() === today.getMonth() &&
+              day === today.getDate();
 
             return (
               <div 
                 key={index} 
-                className="day-cell"
+                className={`day-cell ${isToday ? 'today' : ''}`}
                 onClick={() => day && handleDateClick(day)}
               >
                 {day && (
@@ -294,6 +301,19 @@ const Calendar = () => {
         .day-cell:hover {
           background: rgba(79, 209, 197, 0.05);
           cursor: pointer;
+        }
+
+        .day-cell.today::before {
+          content: '';
+          position: absolute;
+          width: 40px;
+          height: 40px;
+          border: 2px solid #000000;
+          border-radius: 50%;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
         }
 
         .day-number {
