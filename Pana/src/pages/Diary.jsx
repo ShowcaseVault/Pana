@@ -95,28 +95,59 @@ const Diary = () => {
     );
   }
 
+  // Check if diary has content - if content is null, treat as not created
+  const hasDiaryContent = diary && diary.content !== null;
+  const hasRecordings = recordings.length > 0;
+
+  let contentToRender;
+
+  if (hasDiaryContent) {
+    contentToRender = (
+      <DiaryView 
+        diary={diary} 
+        recordings={recordings} 
+        onRegenerate={handleCreateDiary} 
+        loading={loading} 
+      />
+    );
+  } else if (isToday) {
+    // For today, show the specific CreateDiary landing page
+    contentToRender = (
+      <CreateDiary 
+        onCreate={handleCreateDiary} 
+        loading={loading} 
+      />
+    );
+  } else if (hasRecordings) {
+    // For past dates with recordings, show DiaryView in "empty" state
+    // ensuring we pass a valid object structure so DiaryView doesn't crash
+    const placeholderDiary = diary || {
+      diary_date: targetDate,
+      mood: null,
+      content: null,
+      actions: []
+    };
+    
+    contentToRender = (
+      <DiaryView 
+        diary={placeholderDiary} 
+        recordings={recordings} 
+        onRegenerate={handleCreateDiary} 
+        loading={loading} 
+      />
+    );
+  } else {
+    // Past date, no recordings, no diary
+    contentToRender = (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+          <p>No diary entry for this date.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 h-full">
-      {diary ? (
-        <DiaryView 
-          diary={diary} 
-          recordings={recordings} 
-          onRegenerate={handleCreateDiary} 
-          loading={loading}
-        />
-      ) : (
-        isToday ? (
-            <CreateDiary 
-            onCreate={handleCreateDiary} 
-            loading={loading} 
-            />
-        ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <p>No diary entry for this date.</p>
-                {recordings.length > 0 && <p className="text-sm mt-2">({recordings.length} recordings found)</p>}
-            </div>
-        )
-      )}
+      {contentToRender}
     </div>
   );
 };
