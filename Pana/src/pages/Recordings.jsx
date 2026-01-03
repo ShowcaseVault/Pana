@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AudioRecorder from '../components/AudioRecorder';
 import RecordingCard from '../components/RecordingCard';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -17,15 +17,15 @@ const Recordings = () => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [recordingToDelete, setRecordingToDelete] = useState(null);
 
-  // Define handler for SSE events
-  const handleTranscriptionComplete = (recordingId, transcriptionId) => {
+  // Define handler for SSE events (memoized so SSE connection isn't recreated on re-renders)
+  const handleTranscriptionComplete = useCallback((recordingId, transcriptionId) => {
     setRecordings(prev => prev.map(rec => {
-        if (String(rec.id) === String(recordingId)) {
-            return { ...rec, transcription_status: 'completed', transcription_id: transcriptionId };
-        }
-        return rec;
+      if (String(rec.id) === String(recordingId)) {
+        return { ...rec, transcription_status: 'completed', transcription_id: transcriptionId };
+      }
+      return rec;
     }));
-  };
+  }, []);
 
   // Activate the listener
   useTranscriptionSSE(handleTranscriptionComplete);
@@ -110,7 +110,7 @@ const Recordings = () => {
     try {
       const res = await axiosClient.delete(API_ROUTES.RECORDINGS.DELETE(recordingToDelete));
       if (res.data.code === 'SUCCESS') {
-        setRecordings(prev => prev.filter(rec => rec.id !== recordingToDelete));
+        setRecordings(prev => prev.filter(rec => String(rec.id) !== String(recordingToDelete)));
         toast.success("Recording deleted");
       } else {
         toast.error("Failed to delete recording");

@@ -107,14 +107,7 @@ const AudioRecorder = ({ onRecordingComplete }) => {
     }
   };
 
-  const handleStop = async () => {
-    if (duration < 10) {
-      toast.error("Recording must be at least 10 seconds long.");
-      stopRecording();
-      resetRecording(); // Reset timer when too short
-      return;
-    }
-    
+  const handleStop = async () => {    
     stopRecording();
     setIsProcessing(true);
     

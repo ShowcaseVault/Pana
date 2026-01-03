@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
 import { API_ROUTES, BASE_URL } from '../api/routes';
 import axiosClient from '../api/axiosClient';
@@ -10,6 +11,8 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
   const [currentText, setCurrentText] = useState("");
   const [loadingTranscription, setLoadingTranscription] = useState(false);
   const audioRef = useRef(null);
+  const menuBtnRef = useRef(null);
+  const [menuPos, setMenuPos] = useState(null);
 
   useEffect(() => {
     return () => {
@@ -168,6 +171,15 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     if (onDelete) onDelete(recording.id);
   };
 
+  useEffect(() => {
+    if (showMenu && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    } else {
+      setMenuPos(null);
+    }
+  }, [showMenu]);
+
   return (
     <div className="recording-card-wrapper">
       <div className={`recording-card ${showMenu ? 'menu-open' : ''}`}>
@@ -235,16 +247,23 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
         )}
         
         <div className="menu-container">
-          <button className={`menu-button ${showMenu ? 'active' : ''}`} onClick={toggleMenu}>
+          <button ref={menuBtnRef} className={`menu-button ${showMenu ? 'active' : ''}`} onClick={toggleMenu}>
             <MoreHorizontal size={18} />
           </button>
           
-          {showMenu && (
-            <div className="dropdown-menu">
-              <button className="dropdown-item delete" onClick={handleDelete}>
-                Delete
-              </button>
-            </div>
+          {showMenu && menuPos && createPortal(
+            (
+              <div
+                className="dropdown-menu"
+                onClick={(e) => e.stopPropagation()}
+                style={{ position: 'fixed', top: `${menuPos.top}px`, right: `${menuPos.right}px`, zIndex: 20000 }}
+              >
+                <button className="dropdown-item delete" onClick={handleDelete}>
+                  Delete
+                </button>
+              </div>
+            ),
+            document.body
           )}
         </div>
       </div>
@@ -267,12 +286,13 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
           transition: all 0.2s ease;
           cursor: pointer;
           position: relative;
+          overflow: visible;
           min-height: 72px;
           z-index: 1;
         }
 
         .recording-card.menu-open {
-          z-index: 50;
+          z-index: 10000;
         }
         
         .recording-card:hover {
@@ -282,7 +302,7 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
         }
 
         .recording-card:hover.menu-open {
-          z-index: 50;
+          z-index: 10000;
         }
         
         .play-button-wrapper {
@@ -395,7 +415,7 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
         .menu-container {
           position: relative;
           margin-left: auto;
-          z-index: 100;
+          z-index: 11000;
         }
 
         .menu-button {
@@ -427,9 +447,14 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
           box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
           border: 1px solid #f3f4f6;
           padding: 4px;
-          z-index: 200;
+          z-index: 11000;
           min-width: 120px;
           animation: fadeIn 0.15s ease-out;
+        }
+
+        /* Elevate the whole wrapper above siblings when the menu is open */
+        .recording-card-wrapper:has(.recording-card.menu-open) {
+          z-index: 12000;
         }
 
         @keyframes fadeIn {
