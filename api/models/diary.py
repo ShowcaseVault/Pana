@@ -1,7 +1,7 @@
 from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.sql import func
 
-from api.connections.database_creation import Base
+from api.connections import Base
 
 
 class Diary(Base):

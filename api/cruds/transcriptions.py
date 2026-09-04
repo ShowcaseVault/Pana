@@ -43,7 +43,7 @@ async def create_transcription(
         is_deleted=False,
     )
     db.add(new_transcription)
-    await db.commit()
+    await db.flush()
     await db.refresh(new_transcription)
     return TranscriptionResponse.model_validate(new_transcription)
 
@@ -126,7 +126,7 @@ async def update_transcription(
     for key, value in data.items():
         setattr(transcription, key, value)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(transcription)
     return TranscriptionResponse.model_validate(transcription)
 
@@ -141,5 +141,5 @@ async def delete_transcription(
         return False
 
     transcription.is_deleted = True
-    await db.commit()
+    await db.flush()
     return True

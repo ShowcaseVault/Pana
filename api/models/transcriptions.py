@@ -13,7 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from api.connections.database_creation import Base
+from api.connections import Base
 from api.schemas.transcriptions import TranscriptionStatus
 
 

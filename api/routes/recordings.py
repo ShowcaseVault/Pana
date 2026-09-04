@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_authorized_db_user
-from api.connections.database_connection import get_async_db_session
+from api.connections import get_async_db_session
 from api.cruds.recordings import (
     create_recording,
     delete_recording,
@@ -60,7 +60,10 @@ async def create_recording_endpoint(
     )
 
     # 3. enqueue celery task
+    # Commit before dispatching: the worker runs in another process and would
+    # not see rows still sitting in this request's open transaction.
     if transcription:
+        await db.commit()
         transcribe_audio_task.apply_async(args=[transcription.id], queue="default")
 
     return SuccessResponse(data=new_recording, message="Recording created successfully")

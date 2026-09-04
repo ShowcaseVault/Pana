@@ -72,7 +72,7 @@ async def create_or_update_diary(
         )
         db.add(diary)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(diary)
 
     return DiaryResponse.model_validate(diary)

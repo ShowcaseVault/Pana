@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Any
 
-from api.connections.redis_connection import get_cache_redis
+from api.connections import get_cache_redis
 
 logger = logging.getLogger(__name__)
 

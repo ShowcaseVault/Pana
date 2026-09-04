@@ -7,7 +7,7 @@ from api.auth.jwt_utils import (
     create_refresh_token,
 )
 from api.config.config import settings
-from api.connections.database_connection import get_async_db_session
+from api.connections import get_async_db_session
 from api.cruds.authentication import (
     clear_auth_cookies,
     create_or_update_user,
@@ -16,8 +16,6 @@ from api.cruds.authentication import (
     get_google_login,
 )
 from api.schemas.return_response import FailureResponse, SuccessResponse
-
-CONFIG = settings
 
 router = APIRouter(tags=["Authentication"])
 
@@ -57,40 +55,40 @@ async def google_callback(
             }
         )
 
-        access_max_age = int(CONFIG.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
-        refresh_max_age = int(CONFIG.REFRESH_TOKEN_EXPIRE_DAYS) * 86400
+        access_max_age = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
+        refresh_max_age = int(settings.REFRESH_TOKEN_EXPIRE_DAYS) * 86400
 
-        redirect_response = RedirectResponse(url=f"{CONFIG.CLIENT_URL}")
+        redirect_response = RedirectResponse(url=f"{settings.CLIENT_URL}")
 
         redirect_response.set_cookie(
-            CONFIG.ACCESS_COOKIE_NAME,
+            settings.ACCESS_COOKIE_NAME,
             access_token,
             httponly=True,
-            secure=CONFIG.COOKIE_SECURE,
-            samesite=CONFIG.COOKIE_SAMESITE,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
             max_age=access_max_age,
         )
         redirect_response.set_cookie(
-            CONFIG.REFRESH_COOKIE_NAME,
+            settings.REFRESH_COOKIE_NAME,
             refresh_token,
             httponly=True,
-            secure=CONFIG.COOKIE_SECURE,
-            samesite=CONFIG.COOKIE_SAMESITE,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
             max_age=refresh_max_age,
         )
 
         return redirect_response
 
     except HTTPException as e:
-        return RedirectResponse(f"{CONFIG.CLIENT_URL}/login?error={str(e.detail)}")
+        return RedirectResponse(f"{settings.CLIENT_URL}/login?error={str(e.detail)}")
     except Exception:
-        return RedirectResponse(f"{CONFIG.CLIENT_URL}/login?error=Google_Session_Failed")
+        return RedirectResponse(f"{settings.CLIENT_URL}/login?error=Google_Session_Failed")
 
 
 @router.post("/auth/refresh")
 def auth_refresh(request: Request, response: Response):
     try:
-        token = request.cookies.get(CONFIG.REFRESH_COOKIE_NAME)
+        token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
         if not token:
             auth = request.headers.get("authorization")
             if auth and auth.lower().startswith("bearer "):
@@ -100,13 +98,13 @@ def auth_refresh(request: Request, response: Response):
 
         new_access = get_auth_refresh(token)
 
-        access_max_age = int(CONFIG.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
+        access_max_age = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
         response.set_cookie(
-            CONFIG.ACCESS_COOKIE_NAME,
+            settings.ACCESS_COOKIE_NAME,
             new_access,
             httponly=True,
-            secure=CONFIG.COOKIE_SECURE,
-            samesite=CONFIG.COOKIE_SAMESITE,
+            secure=settings.COOKIE_SECURE,
+            samesite=settings.COOKIE_SAMESITE,
             max_age=access_max_age,
         )
         return SuccessResponse(

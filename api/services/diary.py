@@ -2,22 +2,18 @@ import json
 from datetime import datetime
 from typing import Any
 
-import httpx
-
-from api.config.client import llm_client
-from api.config.config import settings as CONFIG
+from api.config.config import settings
+from api.connections import get_groq_client, get_http_client
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from prompts.diary_ai import DIARY_AI_PROMPT
 
 
 async def get_location_by_lat_long(lat: float, long: float) -> str:
-    headers = {"User-Agent": "PanaLocation/1.0"}
-    location_url_full = CONFIG.LOCATION_URL.format(lat=lat, long=long)
-    async with httpx.AsyncClient() as client:
-        response = await client.get(location_url_full, headers=headers)
-        data = response.json()
-        return data.get("name")
+    location_url_full = settings.LOCATION_URL.format(lat=lat, long=long)
+    response = await get_http_client().get(location_url_full)
+    data = response.json()
+    return data.get("name")
 
 
 async def ensure_all_transcriptions(recordings: list[Recording], db: Any, user_id: int):
@@ -25,15 +21,25 @@ async def ensure_all_transcriptions(recordings: list[Recording], db: Any, user_i
     from api.schemas.transcriptions import TranscriptionCreate
     from celery_service.tasks.transcription import transcribe_audio_task
 
+    queued: list[int] = []
     for recording in recordings:
         transcription = getattr(recording, "transcription", None)
         if not transcription:
             payload = TranscriptionCreate(recording_id=recording.id)
             new_trans = await create_transcription(db=db, payload=payload, user_id=user_id)
             if new_trans:
-                transcribe_audio_task.apply_async(args=[new_trans.id], queue="high_priority")
+                queued.append(new_trans.id)
         elif transcription.status != "completed":
-            transcribe_audio_task.apply_async(args=[transcription.id], queue="high_priority")
+            queued.append(transcription.id)
+
+    if not queued:
+        return
+
+    # Commit before dispatching: the workers run in other processes and would
+    # not see transcriptions still sitting in this request's open transaction.
+    await db.commit()
+    for transcription_id in queued:
+        transcribe_audio_task.apply_async(args=[transcription_id], queue="high_priority")
 
 
 async def generate_diary_from_recordings(
@@ -50,7 +56,7 @@ async def generate_diary_from_recordings(
         if not transcription or not transcription.text:
             continue
 
-        if (transcription.confidence or 0) <= CONFIG.TRANSCRIPTION_CONFIDENCE_THRESHOLD:
+        if (transcription.confidence or 0) <= settings.TRANSCRIPTION_CONFIDENCE_THRESHOLD:
             continue
 
         # Resolve location
@@ -87,12 +93,12 @@ async def generate_diary_from_recordings(
     )
 
     try:
-        response = await llm_client.chat.completions.create(
+        response = await get_groq_client().chat.completions.create(
             messages=[
                 {"role": "system", "content": DIARY_AI_PROMPT},
                 {"role": "user", "content": user_message},
             ],
-            model=CONFIG.GROQ_MODEL_LARGE,
+            model=settings.GROQ_MODEL_LARGE,
             response_format={"type": "json_object"},
         )
 

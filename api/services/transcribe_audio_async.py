@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
-from api.config.client import transcription_client
-from api.config.config import settings as CONFIG
+from api.config.config import settings
+from api.connections import get_groq_client
 
 
 async def compute_confidence(segment):
@@ -17,12 +17,12 @@ async def transcribe_audio_file(file_path: str):
     """
     Transcribes the audio file using the configured client.
     """
-    file_name = f"{CONFIG.RECORDINGS_DIR}/{file_path}"
+    file_name = f"{settings.RECORDINGS_DIR}/{file_path}"
     with open(file_name, "rb") as file:
-        transcription = await transcription_client.audio.transcriptions.create(
+        transcription = await get_groq_client().audio.transcriptions.create(
             file=file,
-            model=CONFIG.TRANSCRIPTION_MODEL,
-            prompt=CONFIG.AUDIO_TRANSCRIBE_PROMPT,
+            model=settings.TRANSCRIPTION_MODEL,
+            prompt=settings.AUDIO_TRANSCRIBE_PROMPT,
             response_format="verbose_json",
             timestamp_granularities=["word", "segment"],
             temperature=0.0,

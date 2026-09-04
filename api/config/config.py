@@ -28,6 +28,9 @@ class Settings(BaseSettings):
         "https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={long}"
     )
 
+    # Outbound HTTP. Nominatim rejects requests without an identifying agent.
+    HTTP_USER_AGENT: str = "PanaLocation/1.0"
+
     # Recordings: on-disk directory for uploaded audio, served at /recordings.
     RECORDINGS_DIR: str = "recordings"
 

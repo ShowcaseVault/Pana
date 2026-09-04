@@ -2,8 +2,9 @@ import asyncio
 import json
 import logging
 
-from api.config.redis_client import get_redis_client
-from api.connections.database_connection import get_sync_db_session
+from sqlalchemy.orm import Session
+
+from api.connections import get_redis_client, get_sync_db_session
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.transcriptions import TranscriptionStatus
@@ -17,9 +18,11 @@ logger = logging.getLogger(__name__)
 def transcribe_audio_task(transcription_id: int):
     logger.info(f"Starting transcription task for ID: {transcription_id}")
 
-    db_gen = get_sync_db_session()
-    db = next(db_gen)
+    with get_sync_db_session() as db:
+        _run_transcription(db, transcription_id)
 
+
+def _run_transcription(db: Session, transcription_id: int) -> None:
     try:
         # Fetch Transcription and associated Recording
         transcription = db.query(Transcription).filter(Transcription.id == transcription_id).first()
@@ -81,5 +84,3 @@ def transcribe_audio_task(transcription_id: int):
 
     except Exception as e:
         logger.exception(f"Unexpected error in task: {e}")
-    finally:
-        db.close()

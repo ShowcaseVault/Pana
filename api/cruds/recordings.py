@@ -58,7 +58,7 @@ async def create_recording(
         location_text=location_text,
     )
     db.add(new_recording)
-    await db.commit()
+    await db.flush()
     await db.refresh(new_recording)
     return RecordingResponse.model_validate(new_recording)
 
@@ -144,7 +144,7 @@ async def update_recording(
     if "recorded_at" in update_data:
         recording.recording_date = update_data["recorded_at"].date()
 
-    await db.commit()
+    await db.flush()
     await db.refresh(recording)
     return RecordingResponse.model_validate(recording)
 
@@ -160,7 +160,7 @@ async def delete_recording(db: AsyncSession, recording_id: int, user_id: int) ->
 
     recording.is_deleted = True
     transcription.is_deleted = True
-    await db.commit()
+    await db.flush()
     await db.refresh(recording)
     await db.refresh(transcription)
     return True

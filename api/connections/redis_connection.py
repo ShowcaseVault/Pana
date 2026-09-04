@@ -1,6 +1,6 @@
 """Redis connection used by the cache layer.
 
-Separate from `api.config.redis_client`, which serves pub/sub: that one returns
+Separate from `pubsub_connection`, which serves pub/sub: that one returns
 bytes, this one decodes to `str` because cached values are JSON. It also points
 at its own Redis database, so a pattern delete from the cache never walks the
 pub/sub keyspace.

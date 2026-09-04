@@ -14,12 +14,10 @@ from api.auth.jwt_utils import (
 from api.config.config import settings
 from api.models.users import User
 
-CONFIG = settings
-
 
 def clear_auth_cookies(response: Response) -> None:
-    access_cookie = str(CONFIG.ACCESS_COOKIE_NAME)
-    refresh_cookie = str(CONFIG.REFRESH_COOKIE_NAME)
+    access_cookie = str(settings.ACCESS_COOKIE_NAME)
+    refresh_cookie = str(settings.REFRESH_COOKIE_NAME)
 
     response.delete_cookie(access_cookie)
     response.delete_cookie(refresh_cookie)
@@ -28,45 +26,45 @@ def clear_auth_cookies(response: Response) -> None:
         access_cookie,
         "",
         httponly=True,
-        secure=CONFIG.COOKIE_SECURE,
-        samesite=CONFIG.COOKIE_SAMESITE,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         max_age=0,
     )
     response.set_cookie(
         refresh_cookie,
         "",
         httponly=True,
-        secure=CONFIG.COOKIE_SECURE,
-        samesite=CONFIG.COOKIE_SAMESITE,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
         max_age=0,
     )
 
 
 def get_google_login():
     params = {
-        "client_id": CONFIG.GOOGLE_CLIENT_ID,
-        "redirect_uri": CONFIG.GOOGLE_REDIRECT_URI,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
         "response_type": "code",
         "scope": "openid email profile",
         "prompt": "consent",
         "access_type": "offline",
     }
 
-    url = CONFIG.GOOGLE_AUTH_URL + "?" + urlencode(params)
+    url = settings.GOOGLE_AUTH_URL + "?" + urlencode(params)
 
     return url
 
 
 def get_google_callback(code: str):
 
-    token_url = CONFIG.GOOGLE_TOKEN_URL
+    token_url = settings.GOOGLE_TOKEN_URL
 
     data = {
-        "client_id": CONFIG.GOOGLE_CLIENT_ID,
-        "client_secret": CONFIG.GOOGLE_CLIENT_SECRET,
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "client_secret": settings.GOOGLE_CLIENT_SECRET,
         "code": code,
         "grant_type": "authorization_code",
-        "redirect_uri": CONFIG.GOOGLE_REDIRECT_URI,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
     }
 
     token_response = requests.post(token_url, data=data).json()
@@ -78,7 +76,7 @@ def get_google_callback(code: str):
 
     try:
         user_info = google_id_token.verify_oauth2_token(
-            id_token, google_requests.Request(), CONFIG.GOOGLE_CLIENT_ID, clock_skew_in_seconds=60
+            id_token, google_requests.Request(), settings.GOOGLE_CLIENT_ID, clock_skew_in_seconds=60
         )
     except Exception:
         raise HTTPException(status_code=400, detail="Could not get user info") from None
@@ -117,12 +115,12 @@ async def create_or_update_user(db: AsyncSession, user_info: dict):
     if not user:
         user = User(google_id=sub, email=email, name=name, picture=picture)
         db.add(user)
-        await db.commit()
+        await db.flush()
         await db.refresh(user)
     else:
         user.name = name
         user.picture = picture
-        await db.commit()
+        await db.flush()
         await db.refresh(user)
 
     return user

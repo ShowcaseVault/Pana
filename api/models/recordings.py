@@ -2,7 +2,7 @@ from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, Str
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from api.connections.database_creation import Base
+from api.connections import Base
 
 
 class Recording(Base):

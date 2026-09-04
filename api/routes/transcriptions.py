@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_authorized_db_user
-from api.connections.database_connection import get_async_db_session
+from api.connections import get_async_db_session
 from api.cruds.transcriptions import (
     create_transcription,
     delete_transcription,

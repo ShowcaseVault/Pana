@@ -5,9 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth.get_user_by_sub import get_user_by_sub
 from api.auth.jwt_utils import decode_access_token
 from api.config.config import settings
-from api.connections.database_connection import get_async_db_session
-
-CONFIG = settings
+from api.connections import get_async_db_session
 
 # Add security scheme for Swagger UI
 security = HTTPBearer(auto_error=False)
@@ -37,7 +35,7 @@ def get_current_user(
         token = _extract_bearer_token(request.headers.get("authorization"))
 
     if not token:
-        token = request.cookies.get(CONFIG.ACCESS_COOKIE_NAME)
+        token = request.cookies.get(settings.ACCESS_COOKIE_NAME)
 
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")

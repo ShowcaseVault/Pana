@@ -6,11 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from api.config.config import settings
+
+# Lifecycle functions are imported from their modules rather than the package:
+# the lifespan below is the only caller that should be starting or stopping a
+# connection, so they are deliberately not part of the package surface.
 from api.connections.database_connection import (
     async_disconnect,
     create_database_if_not_exists,
     setup_engine_and_session,
 )
+from api.connections.http_connection import http_disconnect
+from api.connections.llm_connection import llm_disconnect
+from api.connections.pubsub_connection import pubsub_disconnect
 from api.connections.redis_connection import redis_disconnect, setup_redis_client
 
 # Routes
@@ -26,7 +33,6 @@ from api.routes import (
 from api.utils.logging_config import setup_logging
 
 # Load environment variables
-CONFIG = settings
 
 # Configure logging once for the application
 setup_logging()
@@ -43,12 +49,15 @@ async def lifespan(app: FastAPI):
     logger.info("Application lifespan shutdown: disconnecting datastores")
     await async_disconnect()
     await redis_disconnect()
+    pubsub_disconnect()
+    await llm_disconnect()
+    await http_disconnect()
     logger.info("Application shutdown cleanup complete")
 
 
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
-    docs_url, redoc_url = ("/doc", "/redoc") if CONFIG.SHOW_DOCS else (None, None)
+    docs_url, redoc_url = ("/doc", "/redoc") if settings.SHOW_DOCS else (None, None)
 
     app = FastAPI(
         title="Pana-API",
@@ -71,10 +80,10 @@ def create_app() -> FastAPI:
     )
     logger.info("CORS middleware configured to allow all origins")
 
-    os.makedirs(CONFIG.RECORDINGS_DIR, exist_ok=True)
+    os.makedirs(settings.RECORDINGS_DIR, exist_ok=True)
     app.mount(
         "/recordings",
-        StaticFiles(directory=CONFIG.RECORDINGS_DIR),
+        StaticFiles(directory=settings.RECORDINGS_DIR),
         name="recordings",
     )
 

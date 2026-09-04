@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_current_user
-from api.connections.database_connection import get_async_db_session
+from api.connections import get_async_db_session
 from api.cruds.home import get_user_profile
 from api.schemas.return_response import FailureResponse, SuccessResponse
 

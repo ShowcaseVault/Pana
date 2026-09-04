@@ -1,4 +1,4 @@
-from api.connections.database_creation import Base
+from api.connections import Base
 
 from .diary import Diary
 from .recordings import Recording
