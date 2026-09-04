@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     CACHE_L1_TTL: int = 60
     CACHE_L2_TTL: int = 3600
 
+    # LOGGING. Rotation is per file: LOG_MAX_BYTES is the size at which a file
+    # rolls over, LOG_BACKUP_COUNT how many rolled files are kept alongside it.
+    LOG_DIR: str = "logs"
+    LOG_LEVEL: str = "INFO"
+    LOG_MAX_BYTES: int = 3 * 1024 * 1024
+    LOG_BACKUP_COUNT: int = 3
+
     # SYSTEM
     SERVER_HOST: str = "0.0.0.0"
     SERVER_PORT: int = 8000
@@ -89,10 +96,6 @@ class Settings(BaseSettings):
     SHOW_DOCS: bool = True
     CLIENT_URL: str = "http://localhost:5173/home"
 
-    # CORS: browser origins allowed to call this API.
-    # NoDecode: pydantic-settings would otherwise JSON-decode a list field
-    # inside the env source, before any validator runs, so a plain
-    # comma-separated value could never be parsed.
     ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
 
     # Authentication

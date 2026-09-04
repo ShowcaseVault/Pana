@@ -1,69 +1,87 @@
+"""Application logging.
+
+One rotating file per concern, plus a console stream. Rotation is bounded:
+each file rolls at `LOG_MAX_BYTES` and keeps `LOG_BACKUP_COUNT` older copies,
+so total disk use per logger is capped at (count + 1) * max_bytes and never
+grows without limit on a long-running worker.
+
+`setup_logging()` is called by both the API factory and the Celery worker
+startup hook, and is idempotent -- calling it twice does not double every
+record.
+"""
+
 import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-LOG_DIR = os.path.join(os.getcwd(), "logs")
-LOG_FILE = os.path.join(LOG_DIR, "app.log")
+from api.config.config import settings
 
 
-def setup_logging(level: int = logging.INFO) -> None:
-    """Configure application-wide logging once.
+CATEGORY_LOGGERS: dict[str, str] = {
+    "database": "database.log",
+    "api.errors": "errors.log",
+    "celery_service": "celery.log",
+}
 
-    - Creates logs directory if missing
-    - Sets root logger level
-    - Adds console and rotating file handlers with consistent formatting
-    - Sets up domain-specific loggers writing to separate files
-    - Avoids duplicate handlers on repeated calls
-    """
-    os.makedirs(LOG_DIR, exist_ok=True)
+_configured = False
 
-    root = logging.getLogger()
-    root.setLevel(level)
 
-    # Ensure idempotent setup
-    if getattr(setup_logging, "_configured", False):
+def _log_dir() -> str:
+    """Absolute path of the log directory, created if missing."""
+    path = settings.LOG_DIR
+    if not os.path.isabs(path):
+        path = os.path.join(os.getcwd(), path)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _rotating_handler(path: str, formatter: logging.Formatter) -> RotatingFileHandler:
+    handler = RotatingFileHandler(
+        path,
+        maxBytes=settings.LOG_MAX_BYTES,
+        backupCount=settings.LOG_BACKUP_COUNT,
+        encoding="utf-8",
+    )
+    handler.setFormatter(formatter)
+    return handler
+
+
+def setup_logging(level: int | str | None = None) -> None:
+    """Configure root and per-category logging. Safe to call more than once."""
+    global _configured
+    if _configured:
         return
 
+    resolved = level if level is not None else settings.LOG_LEVEL
+    if isinstance(resolved, str):
+        resolved = logging.getLevelNamesMapping().get(resolved.upper(), logging.INFO)
+
+    log_dir = _log_dir()
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Console handler
-    ch = logging.StreamHandler()
-    ch.setLevel(level)
-    ch.setFormatter(formatter)
-    root.addHandler(ch)
+    root = logging.getLogger()
+    root.setLevel(resolved)
 
-    # General rotating file handler (optional aggregate log)
-    fh = RotatingFileHandler(LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=5)
-    fh.setLevel(level)
-    fh.setFormatter(formatter)
-    root.addHandler(fh)
+    console = logging.StreamHandler()
+    console.setFormatter(formatter)
+    root.addHandler(console)
+    root.addHandler(_rotating_handler(os.path.join(log_dir, "app.log"), formatter))
 
-    def setup_category_logger(name: str, filename: str) -> None:
-        """Create a named logger that writes only to its own file (no propagation)."""
+    # Category loggers keep propagate=True, so their records reach app.log as
+    # well as their own file. app.log stays the single place to read a request
+    # end to end; the per-category file is for reading one concern in isolation.
+    for name, filename in CATEGORY_LOGGERS.items():
         logger = logging.getLogger(name)
-        logger.setLevel(level)
-        logger.propagate = not name.startswith(
-            "elastic_search"
-        )  # avoid duplicate records to root handlers
-        if logger.handlers:
-            return
-        file_path = os.path.join(LOG_DIR, filename)
-        handler = RotatingFileHandler(file_path, maxBytes=5 * 1024 * 1024, backupCount=5)
-        handler.setLevel(level)
-        handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        logger.setLevel(resolved)
+        if not logger.handlers:
+            logger.addHandler(_rotating_handler(os.path.join(log_dir, filename), formatter))
 
-    # Domain-specific loggers
-    setup_category_logger("auth", "auth_logs.log")
-    setup_category_logger("database", "database.log")
-    setup_category_logger("aibot", "aibot.log")
-    # Reduce verbosity of noisy third-party loggers if needed
+    # Third-party loggers that are noisy at INFO.
     logging.getLogger("asyncio").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn").setLevel(logging.INFO)
-    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
-    setup_logging._configured = True  # type: ignore[attr-defined]
+    _configured = True
