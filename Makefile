@@ -1,6 +1,8 @@
 DATASTORES ?= docker compose -f docker-compose.datastores.yml
 COMPOSE    ?= docker compose
 UV         ?= uv
+NPM        ?= npm
+FE_DIR     ?= Pana
 
 CELERY := $(UV) run celery -A celery_service.celery_app worker --loglevel=info
 
@@ -12,10 +14,13 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs api celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: help install install-fe up down logs be fe fe-build celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
+
+install-frontend:
+	$(NPM) --prefix $(FE_DIR) install
 
 # --- Development datastores -------------------------------------------------
 
@@ -27,8 +32,14 @@ down:
 
 # --- Application processes (run on the host) --------------------------------
 
-api:
+backend:
 	$(UV) run python backend.py
+
+frontend:
+	$(NPM) --prefix $(FE_DIR) run dev
+
+frontend-build:
+	$(NPM) --prefix $(FE_DIR) run build
 
 celery:
 	$(CELERY) -P $(CELERY_POOL) -Q high_priority,default -n worker@%h
@@ -79,10 +90,13 @@ deploy-down:
 # --- Make Help -----------------------------
 help:
 	@echo "make install         sync the Python environment with uv"
+	@echo "make install-fe      install the frontend dependencies"
 	@echo "make up              start Postgres and Redis for development"
 	@echo "make down            stop the development datastores"
 	@echo "make logs            tail the datastore logs"
-	@echo "make api             run the FastAPI server"
+	@echo "make be              run the FastAPI server"
+	@echo "make fe              run the frontend dev server"
+	@echo "make fe-build        build the frontend for production"
 	@echo "make celery          run one worker consuming both queues"
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"
