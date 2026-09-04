@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     REDIS_BROKER_URL: str = "redis://localhost:6379"
     REDIS_RESULT_BACKEND: str = "redis://localhost:6379"
     REDIS_PUBSUB_URL: str = "redis://localhost:6379"
+    REDIS_CACHE_URL: str = "redis://localhost:6379/3"
+
+    # Cache
+    # L1 lives in the process (per-worker); L2 is shared across workers via Redis.
+    CACHE_ENABLED: bool = True
+    CACHE_KEY_PREFIX: str = "pana"
+    CACHE_L1_MAXSIZE: int = 500
+    CACHE_L1_TTL: int = 60
+    CACHE_L2_TTL: int = 3600
 
     # SYSTEM
     SERVER_HOST: str = "0.0.0.0"

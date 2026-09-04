@@ -12,7 +12,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install up down logs api celery celery-high celery-default lint format check alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: help install up down logs api celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -46,6 +46,9 @@ lint:
 
 format:
 	$(UV) run ruff format .
+
+test:
+	$(UV) run pytest
 
 check:
 	$(UV) run ruff check .
@@ -85,6 +88,7 @@ help:
 	@echo "make celery-default  run the default priority worker only"
 	@echo "make lint            check code with ruff"
 	@echo "make format          format code with ruff"
+	@echo "make test            run the test suite"
 	@echo "make check           lint and format check, no writes (CI)"
 	@echo "make alembic-up      apply migrations up to head"
 	@echo "make alembic-create MSG=\"...\"  create an empty revision"

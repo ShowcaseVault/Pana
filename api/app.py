@@ -11,6 +11,7 @@ from api.connections.database_connection import (
     create_database_if_not_exists,
     setup_engine_and_session,
 )
+from api.connections.redis_connection import redis_disconnect, setup_redis_client
 
 # Routes
 from api.routes import (
@@ -33,13 +34,15 @@ logger = logging.getLogger(__name__)
 
 
 async def lifespan(app: FastAPI):
-    logger.info("Application lifespan startup: initializing database")
+    logger.info("Application lifespan startup: initializing datastores")
     await create_database_if_not_exists()
     await setup_engine_and_session()
+    await setup_redis_client()
     logger.info("Application lifespan started successfully")
     yield
-    logger.info("Application lifespan shutdown: disconnecting database")
+    logger.info("Application lifespan shutdown: disconnecting datastores")
     await async_disconnect()
+    await redis_disconnect()
     logger.info("Application shutdown cleanup complete")
 
 
