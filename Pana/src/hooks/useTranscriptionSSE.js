@@ -17,12 +17,12 @@ export const useTranscriptionSSE = (onTranscriptionComplete) => {
             onTranscriptionComplete(data.recording_id, data.transcription_id);
           }
         }
-      } catch (e) {
+      } catch (_e) {
         // quiet failure
       }
     };
 
-    eventSource.onerror = (err) => {
+    eventSource.onerror = (_err) => {
         // Quietly fail or log debug info. 
     };
 

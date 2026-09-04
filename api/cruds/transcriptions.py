@@ -1,4 +1,3 @@
-from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,8 +5,8 @@ from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.transcriptions import (
     TranscriptionCreate,
-    TranscriptionUpdate,
     TranscriptionResponse,
+    TranscriptionUpdate,
 )
 
 
@@ -20,7 +19,7 @@ async def create_transcription(
         select(Recording).where(
             Recording.id == payload.recording_id,
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     recording = recording_result.scalars().first()
@@ -30,7 +29,7 @@ async def create_transcription(
     existing_result = await db.execute(
         select(Transcription).where(
             Transcription.recording_id == payload.recording_id,
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
         )
     )
     existing = existing_result.scalars().first()
@@ -41,10 +40,9 @@ async def create_transcription(
         recording_id=payload.recording_id,
         model_name=payload.model_name,
         status=payload.status or "pending",
-        is_deleted=False,
     )
     db.add(new_transcription)
-    await db.commit()
+    await db.flush()
     await db.refresh(new_transcription)
     return TranscriptionResponse.model_validate(new_transcription)
 
@@ -54,15 +52,15 @@ async def get_all_transcription(
     skip: int,
     limit: int,
     user_id: int,
-    status: Optional[str] = None,
+    status: str | None = None,
 ):
     query_stmt = (
         select(Transcription)
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
         .order_by(Transcription.created_at.desc())
         .offset(skip)
@@ -70,15 +68,15 @@ async def get_all_transcription(
     )
     if status:
         query_stmt = query_stmt.filter(Transcription.status == status)
-    
+
     count_stmt = (
         select(func.count())
         .select_from(Transcription)
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     if status:
@@ -91,10 +89,7 @@ async def get_all_transcription(
 
     return {
         "total": total,
-        "data": [
-            TranscriptionResponse.model_validate(t)
-            for t in transcriptions
-        ],
+        "data": [TranscriptionResponse.model_validate(t) for t in transcriptions],
     }
 
 
@@ -108,9 +103,9 @@ async def get_transcription_by_id(
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
             Transcription.id == transcription_id,
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     return result.scalars().first()
@@ -130,7 +125,7 @@ async def update_transcription(
     for key, value in data.items():
         setattr(transcription, key, value)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(transcription)
     return TranscriptionResponse.model_validate(transcription)
 
@@ -144,6 +139,6 @@ async def delete_transcription(
     if not transcription:
         return False
 
-    transcription.is_deleted = True
-    await db.commit()
+    transcription.soft_delete()
+    await db.flush()
     return True

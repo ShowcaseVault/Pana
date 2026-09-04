@@ -1,10 +1,11 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
-from pydantic.config import ConfigDict
 from enum import Enum as PyEnum
 
-from api.config.config import config
+from pydantic import BaseModel
+from pydantic.config import ConfigDict
+
+from api.config.config import settings
+
 
 class TranscriptionStatus(str, PyEnum):
     pending = "pending"
@@ -12,34 +13,37 @@ class TranscriptionStatus(str, PyEnum):
     completed = "completed"
     failed = "failed"
 
+
 class TranscriptionCreate(BaseModel):
     recording_id: int
-    model_name: str = config.TRANSCRIPTION_MODEL
+    model_name: str = settings.TRANSCRIPTION_MODEL
     status: TranscriptionStatus = TranscriptionStatus.pending.value
     created_at: datetime = datetime.now()
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class TranscriptionUpdate(BaseModel):
-    text: Optional[str]
-    language: Optional[str]
-    confidence: Optional[float]
-    status: Optional[TranscriptionStatus]
-    transcribed_at: Optional[datetime]
+    text: str | None
+    language: str | None
+    confidence: float | None
+    status: TranscriptionStatus | None
+    transcribed_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class TranscriptionResponse(BaseModel):
     id: int
     recording_id: int
-    text: Optional[str]
-    language: Optional[str]
-    confidence: Optional[float]
-    model_name: Optional[str]
+    text: str | None
+    language: str | None
+    confidence: float | None
+    model_name: str | None
     status: TranscriptionStatus
     created_at: datetime
-    transcribed_at: Optional[datetime]
-    words: Optional[list] = None
+    transcribed_at: datetime | None
+    words: list | None = None
     is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,14 +1,30 @@
-# Ignore all .env files everywhere
+# Environment
 .env
 **/.env
 
-test.py
-logs
-
-misc/
-
-recordings/
-
-# Ignore all __pycache__ directories everywhere
+# Python
 __pycache__/
 **/__pycache__/
+*.py[cod]
+
+# uv / virtualenv
+.venv/
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+
+# Claude
+CLAUDE.md
+.claude/
+
+# Local data and scratch
+test.py
+logs
+misc/
+recordings/
+
+# Frontend
+node_modules/
+dist/
+*.local

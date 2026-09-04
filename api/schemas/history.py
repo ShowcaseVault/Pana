@@ -1,14 +1,15 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import date
-from pydantic.config import ConfigDict
+
+from pydantic import BaseModel
+
 
 class HistoryCalendar(BaseModel):
-    year : int
-    month : int
-    days_in_month : int
-    diary_days : List[int] = []
-    recording_days : List[int] = []
+    year: int
+    month: int
+    days_in_month: int
+    diary_days: list[int] = []
+    recording_days: list[int] = []
+
 
 class HistoryFetch(BaseModel):
-    history_date: Optional[date] = None
+    history_date: date | None = None

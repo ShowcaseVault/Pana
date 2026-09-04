@@ -1,68 +1,58 @@
-import uuid
-from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Text,
-    Date,
-    DateTime,
-    ForeignKey,
-    Float,
-    Enum,
-    Boolean
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from sqlalchemy import inspect
+from datetime import date, datetime
+from typing import TYPE_CHECKING
 
-from api.connections.database_creation import Base
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, func, inspect
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-class Recording(Base):
+from api.models.base import BaseModel
+
+if TYPE_CHECKING:
+    from api.models.transcriptions import Transcription
+    from api.models.users import User
+
+
+class Recording(BaseModel):
     __tablename__ = "recordings"
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(
-        Integer,
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
         index=True,
     )
-    file_path = Column(Text, nullable=False)
-    duration_seconds = Column(Integer)
-    recorded_at = Column(DateTime(timezone=True), nullable=False)
-    recording_date = Column(Date, nullable=False, index=True, server_default=func.current_date())
-    location_text = Column(String, nullable=True)
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
+    file_path: Mapped[str] = mapped_column(Text)
+    duration_seconds: Mapped[int | None] = mapped_column()
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    recording_date: Mapped[date] = mapped_column(
+        Date, index=True, server_default=func.current_date()
     )
-    is_deleted = Column(Boolean, default=False)
-    # One-to-one relationship
-    transcription = relationship(
-        "Transcription",
+    location_text: Mapped[str | None] = mapped_column(String)
+
+    user: Mapped["User"] = relationship(back_populates="recordings")
+    # One-to-one
+    transcription: Mapped["Transcription | None"] = relationship(
         back_populates="recording",
         uselist=False,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
+
+    # The three properties below return None when the relationship was not
+    # eager-loaded, so serializing a Recording never triggers a lazy load (which
+    # raises under async SQLAlchemy).
 
     @property
     def transcription_status(self):
-        state = inspect(self)
-        if "transcription" in state.unloaded:
+        if "transcription" in inspect(self).unloaded:
             return None
         return self.transcription.status.value if self.transcription else None
 
     @property
     def transcription_id(self):
-        state = inspect(self)
-        if "transcription" in state.unloaded:
+        if "transcription" in inspect(self).unloaded:
             return None
         return self.transcription.id if self.transcription else None
 
     @property
     def transcription_confidence(self):
-        state = inspect(self)
-        if "transcription" in state.unloaded:
+        if "transcription" in inspect(self).unloaded:
             return None
         return self.transcription.confidence if self.transcription else None

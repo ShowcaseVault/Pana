@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useSpring, animated } from '@react-spring/web';
 
 const FluidWaveVisualizer = ({ audioData = [], isRecording = false }) => {
   const [time, setTime] = useState(0);
@@ -51,15 +50,8 @@ const FluidWaveVisualizer = ({ audioData = [], isRecording = false }) => {
     let path = `M ${points[0].x} ${points[0].y}`;
     
     for (let i = 1; i < points.length - 1; i++) {
-      const prev = points[i - 1];
       const curr = points[i];
       const next = points[i + 1];
-      
-      // Calculate control points for smooth curve
-      const cp1x = prev.x + (curr.x - prev.x) * 0.5;
-      const cp1y = prev.y + (curr.y - prev.y) * 0.5;
-      const cp2x = curr.x + (next.x - curr.x) * 0.5;
-      const cp2y = curr.y + (next.y - curr.y) * 0.5;
       
       path += ` Q ${curr.x} ${curr.y} ${(curr.x + next.x) / 2} ${(curr.y + next.y) / 2}`;
     }

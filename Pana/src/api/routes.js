@@ -5,7 +5,13 @@
 export const BASE_URL =
   import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
 
+// Versioned root shared by every application route. Must match the backend's
+// API_PREFIX + API_VERSION; a version bump is this one line.
+export const API_ROOT = import.meta.env.VITE_API_ROOT || "/api/v1";
+
 export const API_ROUTES = {
+  // Auth sits outside the versioned root: the Google callback URL is
+  // registered with Google and cannot move between versions.
   AUTH: {
     GOOGLE_LOGIN: "/auth/google",
     GOOGLE_CALLBACK: "/auth/google/callback",
@@ -13,24 +19,25 @@ export const API_ROUTES = {
     REFRESH: "/auth/refresh", // POST
     LOGOUT: "/auth/logout", // POST
   },
-  HOME: "/api/home", // GET - Home page data
+  HOME: `${API_ROOT}/home`, // GET - Home page data
   RECORDINGS: {
-    LIST: "/api/recordings",
-    CREATE: "/api/recordings",
-    DETAIL: (id) => `/api/recordings/${id}`,
-    UPDATE: (id) => `/api/recordings/${id}`,
-    DELETE: (id) => `/api/recordings/${id}`,
+    LIST: `${API_ROOT}/recordings`,
+    CREATE: `${API_ROOT}/recordings`,
+    DETAIL: (id) => `${API_ROOT}/recordings/${id}`,
+    UPDATE: (id) => `${API_ROOT}/recordings/${id}`,
+    DELETE: (id) => `${API_ROOT}/recordings/${id}`,
   },
-  TRANSCRIPTION_EVENTS: "/api/transcription-events",
+  TRANSCRIPTION_EVENTS: `${API_ROOT}/transcription-events`,
   TRANSCRIPTIONS: {
-    DETAIL: (id) => `/api/transcriptions/${id}`,
+    DETAIL: (id) => `${API_ROOT}/transcriptions/${id}`,
   },
   DIARY: {
-    CREATE: "/api/diary",
-    GET: "/api/diary",
+    CREATE: `${API_ROOT}/diary`,
+    GET: `${API_ROOT}/diary`,
   },
   HISTORY: {
-    CALENDAR: (year, month) => `/api/history/calendar/${year}/${month}`,
+    CALENDAR: (year, month) => `${API_ROOT}/history/calendar/${year}/${month}`,
   },
-  AUDIO_BASE: "/recordings",
+  // Audio is now served by an authenticated route, not a static mount.
+  AUDIO_BASE: `${API_ROOT}/recordings/file`,
 };

@@ -1,17 +1,18 @@
-""" The Util Function to check if the Recordings exist in folder as well as in database """
+"""The Util Function to check if the Recordings exist in folder as well as in database"""
+
 from pathlib import Path
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config.config import settings
 from api.models.recordings import Recording
 
-recordings_dir = Path(settings.UPLOAD_DIR)
+recordings_dir = Path(settings.RECORDINGS_DIR)
+
 
 async def check_recordings_exist(db: AsyncSession):
-    result = await db.execute(
-        select(Recording).where(Recording.is_deleted == False)
-    )
+    result = await db.execute(select(Recording).where(Recording.deleted_at.is_(None)))
     recordings = result.scalars().all()
 
     db_paths: set[str] = set()

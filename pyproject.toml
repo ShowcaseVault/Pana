@@ -1,0 +1,81 @@
+[project]
+name = "pana"
+version = "0.0.0"
+description = "Pana backend: FastAPI API and Celery workers."
+requires-python = ">=3.12"
+dependencies = [
+    # Environment
+    "python-dotenv",
+    "pydantic-settings",
+    "langchain",
+    "langchain-community",
+    "langchain-experimental==0.3.4",
+    "langchain-openai==0.3.9",
+    # Transcription
+    "groq",
+    # Server-side
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    # Database
+    "sqlalchemy",
+    "psycopg2-binary",
+    "asyncpg",
+    # Migration
+    "alembic",
+    # Encryption
+    "bcrypt==4.0.0",
+    "passlib",
+    "python-jose",
+    # Authentication
+    "google-auth",
+    "google-auth-oauthlib",
+    # Task Queue
+    "celery",
+    "redis",
+    "cachetools>=7.1.8",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.14",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = ["alembic/versions", ".venv", "Pana"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes: undefined names, unused imports
+    "I",   # isort: import ordering
+    "B",   # bugbear: likely bugs
+    "UP",  # pyupgrade: modern syntax
+    "SIM", # simplify
+    "C4",  # comprehensions
+]
+ignore = [
+    "E501",  # line length is handled by the formatter
+    "B008",  # FastAPI relies on function calls (Depends) in argument defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["F401"]
+# `str, PyEnum` keeps the values JSON-serializable; StrEnum would change behavior.
+"api/schemas/transcriptions.py" = ["UP042"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"

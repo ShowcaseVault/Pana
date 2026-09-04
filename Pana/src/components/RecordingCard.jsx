@@ -4,7 +4,7 @@ import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
 import { API_ROUTES, BASE_URL } from '../api/routes';
 import axiosClient from '../api/axiosClient';
 
-const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
+const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [words, setWords] = useState([]);
@@ -95,7 +95,11 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     } else {
       if (!audioRef.current) {
         const url = `${BASE_URL}${API_ROUTES.AUDIO_BASE}/${recording.file_path}`;
-        audioRef.current = new Audio(url);
+        audioRef.current = new Audio();
+        // The audio route is authenticated, and the API is a different origin
+        // from the dev server, so the element must be told to send cookies.
+        audioRef.current.crossOrigin = 'use-credentials';
+        audioRef.current.src = url;
       }
       if (String(recording.transcription_status || '').toLowerCase() === 'completed') {
         fetchTranscription();
@@ -115,6 +119,15 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  useEffect(() => {
+    if (showMenu && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    } else {
+      setMenuPos(null);
+    }
+  }, [showMenu]);
 
   if (compact) {
     return (
@@ -171,14 +184,6 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     if (onDelete) onDelete(recording.id);
   };
 
-  useEffect(() => {
-    if (showMenu && menuBtnRef.current) {
-      const rect = menuBtnRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-    } else {
-      setMenuPos(null);
-    }
-  }, [showMenu]);
 
   return (
     <div className="recording-card-wrapper">

@@ -1,6 +1,5 @@
 import calendar
 from datetime import date as _date
-from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,16 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.models.diary import Diary
 from api.models.recordings import Recording
 from api.schemas.history import HistoryCalendar
-from api.schemas.recordings import RecordingResponse
-from api.schemas.diary import DiaryResponse
 
 
-async def fetch_calendar(
-    db: AsyncSession,
-    user_id: int,
-    year: int,
-    month: int
-):
+async def fetch_calendar(db: AsyncSession, user_id: int, year: int, month: int):
     today = _date.today()
     target_year = year or today.year
     target_month = month or today.month
@@ -37,7 +29,7 @@ async def fetch_calendar(
     # Fetch diary days within the month
     diary_stmt = select(Diary.diary_date).where(
         Diary.user_id == user_id,
-        Diary.is_deleted == False,
+        Diary.deleted_at.is_(None),
         Diary.diary_date >= start_date,
         Diary.diary_date <= end_date,
     )
@@ -47,7 +39,7 @@ async def fetch_calendar(
     # Fetch recording days within the month
     rec_stmt = select(Recording.recording_date).where(
         Recording.user_id == user_id,
-        Recording.is_deleted == False,
+        Recording.deleted_at.is_(None),
         Recording.recording_date >= start_date,
         Recording.recording_date <= end_date,
     )
@@ -57,7 +49,7 @@ async def fetch_calendar(
     return HistoryCalendar(
         year=target_year,
         month=target_month,
-        days_in_month= days_in_month.days,
+        days_in_month=days_in_month.days,
         diary_days=diary_days,
         recording_days=recording_days,
     )

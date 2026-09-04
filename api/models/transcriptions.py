@@ -1,48 +1,33 @@
-from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Text,
-    DateTime,
-    ForeignKey,
-    Float,
-    Enum,
-    Boolean,
-    JSON
-)
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+from datetime import datetime
+from typing import TYPE_CHECKING
 
-from api.connections.database_creation import Base
+from sqlalchemy import JSON, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from api.models.base import BaseModel
 from api.schemas.transcriptions import TranscriptionStatus
 
+if TYPE_CHECKING:
+    from api.models.recordings import Recording
 
-class Transcription(Base):
+
+class Transcription(BaseModel):
     __tablename__ = "transcriptions"
 
-    id = Column(Integer, primary_key=True, index=True)
-    recording_id = Column(
-        Integer,
+    recording_id: Mapped[int] = mapped_column(
         ForeignKey("recordings.id", ondelete="CASCADE"),
-        nullable=False,
         unique=True,
         index=True,
     )
-    text = Column(Text, nullable=True)
-    language = Column(String, nullable=True)
-    confidence = Column(Float, nullable=True)
-    model_name = Column(String, nullable=True)
-    status = Column(
+    text: Mapped[str | None] = mapped_column(Text)
+    language: Mapped[str | None] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column()
+    model_name: Mapped[str | None] = mapped_column(String)
+    status: Mapped[TranscriptionStatus] = mapped_column(
         Enum(TranscriptionStatus, name="transcription_status"),
-        nullable=False,
-        default=TranscriptionStatus.pending.value,
+        default=TranscriptionStatus.pending,
     )
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-    transcribed_at = Column(DateTime(timezone=True), nullable=True)
-    words = Column(JSON, nullable=True)
-    is_deleted = Column(Boolean, default=False)
-    recording = relationship("Recording", back_populates="transcription")
+    transcribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    words: Mapped[list | None] = mapped_column(JSON)
+
+    recording: Mapped["Recording"] = relationship(back_populates="transcription")

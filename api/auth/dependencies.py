@@ -1,71 +1,52 @@
-from typing import Optional, Dict
-from fastapi import Request, HTTPException, status, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-from api.config.config import settings
-from api.auth.jwt_utils import decode_access_token
-
-from fastapi import Depends
+from fastapi import Depends, Request, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from api.connections.database_connection import get_async_db_session
-from api.auth.get_user_by_sub import get_user_by_sub
 
-
-CONFIG = settings
+from api.auth.jwt_utils import decode_access_token
+from api.auth.tokens import token_from_request
+from api.config.config import settings
+from api.connections import get_async_db_session
+from api.exceptions import UnauthorizedError
+from api.models.users import User
+from api.repositories import UserRepository
 
 # Add security scheme for Swagger UI
 security = HTTPBearer(auto_error=False)
 
-def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
-    if not authorization:
-        return None
-    parts = authorization.split()
-    if len(parts) == 2 and parts[0].lower() == "bearer":
-        return parts[1]
-    return None
-
 
 def get_current_user(
     request: Request,
-    token_auth: Optional[HTTPAuthorizationCredentials] = Security(security)
-) -> Dict:
-    """
-    Reads access token from Authorization: Bearer <token> header, or from cookie.
-    Decodes and returns JWT payload. Raises 401 if missing/invalid.
-    """
-    token = None
-    if token_auth:
-        token = token_auth.credentials
-    
-    if not token:
-        token = _extract_bearer_token(request.headers.get("authorization"))
-        
-    if not token:
-        token = request.cookies.get(CONFIG.ACCESS_COOKIE_NAME)
+    _swagger_auth: HTTPAuthorizationCredentials | None = Security(security),
+) -> dict:
+    """Return the access token's claims, from the header or the cookie.
 
+    The `Security` parameter is what puts the padlock on the Swagger page; the
+    token itself is read off the request, since `HTTPBearer` sees only the
+    header and this accepts a cookie too.
+    """
+    token = token_from_request(request, settings.ACCESS_COOKIE_NAME)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise UnauthorizedError("Not authenticated")
 
     try:
-        payload = decode_access_token(token)
-        return payload
+        return decode_access_token(token)
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise UnauthorizedError("Invalid or expired token") from None
+
 
 async def get_authorized_db_user(
-    current_user: Dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db_session)
-) -> object:
+    current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_async_db_session)
+) -> User:
     """
     Dependency that retrieves the user from the database based on the JWT 'sub' claim.
     Raises 401 if the user is not found (meaning token is valid but user is gone).
     """
-    sub = current_user.get('sub')
+    sub = current_user.get("sub")
     if not sub:
-         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing sub claim")
-         
-    user = await get_user_by_sub(db, sub)
+        raise UnauthorizedError("Token missing sub claim")
+
+    user = await UserRepository(db).get_by_google_id(sub)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-        
+        raise UnauthorizedError("User not found")
+
     return user

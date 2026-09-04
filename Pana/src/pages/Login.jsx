@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_ROUTES } from '../api/routes';
+import { API_ROUTES, BASE_URL } from '../api/routes';
 import { useAuth } from '../context/useAuth';
 import '../styles/themes.css';
 
@@ -15,8 +15,7 @@ const Login = () => {
   }, [user, loading, navigate]);
 
   const handleGoogleClick = () => {
-    const baseUrl = import.meta.env.VITE_BASE_API_URL || 'http://localhost:8000';
-    window.location.href = `${baseUrl}${API_ROUTES.AUTH.GOOGLE_LOGIN}`;
+    window.location.href = `${BASE_URL}${API_ROUTES.AUTH.GOOGLE_LOGIN}`;
   };
 
   if (loading || user) {
