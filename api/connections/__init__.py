@@ -20,7 +20,6 @@ from api.connections.database_connection import (
     setup_engine_and_session,
     sync_disconnect,
 )
-from api.connections.database_creation import Base
 from api.connections.http_connection import get_http_client, http_disconnect
 from api.connections.llm_connection import get_groq_client, llm_disconnect
 from api.connections.pubsub_connection import (
@@ -35,8 +34,6 @@ from api.connections.redis_connection import (
 )
 
 __all__ = [
-    # Declarative base
-    "Base",
     # Getters
     "get_async_db_session",
     "get_async_redis_client",

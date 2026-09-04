@@ -22,7 +22,7 @@ async def create_or_update_diary(
         select(Recording)
         .where(
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
             Recording.recording_date == target_date,
         )
         .options(joinedload(Recording.transcription))
@@ -35,7 +35,7 @@ async def create_or_update_diary(
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
             Recording.user_id == user_id,
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Transcription.transcribed_at == target_date,
         )
     )
@@ -48,7 +48,7 @@ async def create_or_update_diary(
 
     diary_result = await db.execute(
         select(Diary).where(
-            Diary.user_id == user_id, Diary.diary_date == target_date, Diary.is_deleted == False
+            Diary.user_id == user_id, Diary.diary_date == target_date, Diary.deleted_at.is_(None)
         )
     )
     diary: Diary | None = diary_result.scalars().first()
@@ -59,7 +59,7 @@ async def create_or_update_diary(
         diary.content = summary.get("content")
         diary.actions = summary.get("actions")
         diary.recording_file_paths = [r.file_path for r in recordings]
-        diary.is_deleted = False
+        diary.deleted_at = None
     else:
         diary = Diary(
             user_id=user_id,
@@ -68,7 +68,6 @@ async def create_or_update_diary(
             content=summary.get("content"),
             actions=summary.get("actions"),
             recording_file_paths=[r.file_path for r in recordings],
-            is_deleted=False,
         )
         db.add(diary)
 
@@ -86,7 +85,7 @@ async def get_diary(
     target_date = date or _date.today()
 
     stmt = select(Diary).where(
-        Diary.user_id == user_id, Diary.diary_date == target_date, Diary.is_deleted == False
+        Diary.user_id == user_id, Diary.diary_date == target_date, Diary.deleted_at.is_(None)
     )
 
     result = await db.execute(stmt)
@@ -96,7 +95,7 @@ async def get_diary(
         stmt_recording = select(Recording.file_path).where(
             Recording.user_id == user_id,
             Recording.recording_date == target_date,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
 
         rec_result = await db.execute(stmt_recording)

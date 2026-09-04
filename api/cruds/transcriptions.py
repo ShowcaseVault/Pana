@@ -19,7 +19,7 @@ async def create_transcription(
         select(Recording).where(
             Recording.id == payload.recording_id,
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     recording = recording_result.scalars().first()
@@ -29,7 +29,7 @@ async def create_transcription(
     existing_result = await db.execute(
         select(Transcription).where(
             Transcription.recording_id == payload.recording_id,
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
         )
     )
     existing = existing_result.scalars().first()
@@ -40,7 +40,6 @@ async def create_transcription(
         recording_id=payload.recording_id,
         model_name=payload.model_name,
         status=payload.status or "pending",
-        is_deleted=False,
     )
     db.add(new_transcription)
     await db.flush()
@@ -59,9 +58,9 @@ async def get_all_transcription(
         select(Transcription)
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
         .order_by(Transcription.created_at.desc())
         .offset(skip)
@@ -75,9 +74,9 @@ async def get_all_transcription(
         .select_from(Transcription)
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     if status:
@@ -104,9 +103,9 @@ async def get_transcription_by_id(
         .join(Recording, Recording.id == Transcription.recording_id)
         .where(
             Transcription.id == transcription_id,
-            Transcription.is_deleted == False,
+            Transcription.deleted_at.is_(None),
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     return result.scalars().first()
@@ -140,6 +139,6 @@ async def delete_transcription(
     if not transcription:
         return False
 
-    transcription.is_deleted = True
+    transcription.soft_delete()
     await db.flush()
     return True

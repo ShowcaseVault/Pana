@@ -12,7 +12,7 @@ recordings_dir = Path(settings.RECORDINGS_DIR)
 
 
 async def check_recordings_exist(db: AsyncSession):
-    result = await db.execute(select(Recording).where(Recording.is_deleted == False))
+    result = await db.execute(select(Recording).where(Recording.deleted_at.is_(None)))
     recordings = result.scalars().all()
 
     db_paths: set[str] = set()

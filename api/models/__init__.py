@@ -1,8 +1,13 @@
-from api.connections import Base
+"""SQLAlchemy models.
 
-from .diary import Diary
-from .recordings import Recording
-from .transcriptions import Transcription
-from .users import User
+Every model must be imported here: Alembic autogenerate only sees what has been
+registered on `Base.metadata` by import time.
+"""
 
-__all__ = ["Base", "User", "Recording", "Transcription", "Diary"]
+from api.models.base import Base, BaseModel
+from api.models.diary import Diary
+from api.models.recordings import Recording
+from api.models.transcriptions import Transcription
+from api.models.users import User
+
+__all__ = ["Base", "BaseModel", "User", "Recording", "Transcription", "Diary"]

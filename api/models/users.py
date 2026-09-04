@@ -1,22 +1,33 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
-from sqlalchemy.sql import func
+from typing import TYPE_CHECKING
 
-from api.connections import Base
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from api.models.base import BaseModel
+
+if TYPE_CHECKING:
+    from api.models.diary import Diary
+    from api.models.recordings import Recording
 
 
-class User(Base):
+class User(BaseModel):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
-    google_id = Column(String, unique=True, index=True, nullable=False)
-    email = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String, nullable=True)
-    picture = Column(String, nullable=True)
+    google_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    name: Mapped[str | None] = mapped_column(String)
+    picture: Mapped[str | None] = mapped_column(String)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    recordings: Mapped[list["Recording"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    diaries: Mapped[list["Diary"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
-    is_deleted = Column(Boolean, default=False)
-
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User(email={self.email}, google_id={self.google_id})>"

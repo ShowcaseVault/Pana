@@ -72,7 +72,7 @@ async def get_recording_by_id(db: AsyncSession, recording_id: int, user_id: int)
         .where(
             Recording.id == recording_id,
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
         .options(joinedload(Recording.transcription))
     )
@@ -97,7 +97,7 @@ async def get_all_recordings(
     def apply_filters(stmt):
         conditions = [
             Recording.user_id == user_id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         ]
         if not list_all:
             conditions.append(func.date(Recording.recorded_at) == recording_date)
@@ -158,8 +158,8 @@ async def delete_recording(db: AsyncSession, recording_id: int, user_id: int) ->
     if not recording or not transcription:
         return False
 
-    recording.is_deleted = True
-    transcription.is_deleted = True
+    recording.soft_delete()
+    transcription.soft_delete()
     await db.flush()
     await db.refresh(recording)
     await db.refresh(transcription)

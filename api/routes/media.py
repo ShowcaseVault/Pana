@@ -56,7 +56,7 @@ async def get_recording_file(
         select(Recording).where(
             Recording.file_path == normalized,
             Recording.user_id == user.id,
-            Recording.is_deleted == False,
+            Recording.deleted_at.is_(None),
         )
     )
     recording = result.scalars().first()

@@ -29,7 +29,7 @@ async def fetch_calendar(db: AsyncSession, user_id: int, year: int, month: int):
     # Fetch diary days within the month
     diary_stmt = select(Diary.diary_date).where(
         Diary.user_id == user_id,
-        Diary.is_deleted == False,
+        Diary.deleted_at.is_(None),
         Diary.diary_date >= start_date,
         Diary.diary_date <= end_date,
     )
@@ -39,7 +39,7 @@ async def fetch_calendar(db: AsyncSession, user_id: int, year: int, month: int):
     # Fetch recording days within the month
     rec_stmt = select(Recording.recording_date).where(
         Recording.user_id == user_id,
-        Recording.is_deleted == False,
+        Recording.deleted_at.is_(None),
         Recording.recording_date >= start_date,
         Recording.recording_date <= end_date,
     )
