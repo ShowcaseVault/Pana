@@ -16,7 +16,6 @@ from logging.handlers import RotatingFileHandler
 
 from api.config.config import settings
 
-
 CATEGORY_LOGGERS: dict[str, str] = {
     "database": "database.log",
     "api.errors": "errors.log",

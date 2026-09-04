@@ -105,6 +105,12 @@ class Settings(BaseSettings):
     GOOGLE_AUTH_URL: str | None = None
     GOOGLE_TOKEN_URL: str | None = None
 
+    # Native apps sign in with their own Google client, so an id_token minted
+    # for iOS or Android carries a different `aud` than the web client's. Each
+    # platform's client ID is listed here to be accepted at verification;
+    # empty until a mobile app exists.
+    GOOGLE_MOBILE_CLIENT_IDS: Annotated[list[str], NoDecode] = []
+
     # JWT / Sessions
     JWT_ACCESS_SECRET_KEY: str
     JWT_REFRESH_SECRET_KEY: str
@@ -138,6 +144,19 @@ class Settings(BaseSettings):
         if not version or "/" in version:
             raise ValueError(f"API_VERSION must be a single segment like 'v1', got {value!r}")
         return version
+
+    @field_validator("GOOGLE_MOBILE_CLIENT_IDS", mode="before")
+    @classmethod
+    def _split_mobile_client_ids(cls, value: object) -> object:
+        """Accept a comma-separated string or a JSON list from the environment."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                return json.loads(text)
+            return [item.strip() for item in text.split(",") if item.strip()]
+        return value
 
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod

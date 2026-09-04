@@ -10,9 +10,12 @@ Import from here rather than from the individual modules:
 """
 
 from api.repositories.google_oauth_repository import GoogleOAuthRepository
+from api.repositories.refresh_token_repository import RefreshTokenRepository, hash_token
 from api.repositories.user_repository import UserRepository
 
 __all__ = [
     "GoogleOAuthRepository",
+    "RefreshTokenRepository",
     "UserRepository",
+    "hash_token",
 ]

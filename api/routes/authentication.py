@@ -11,13 +11,21 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth.cookies import clear_auth_cookies, set_access_cookie, set_auth_cookies
+from api.auth.cookies import clear_auth_cookies, set_auth_cookies
 from api.auth.tokens import token_from_request
 from api.config.config import settings
 from api.connections import get_async_db_session, get_http_client
 from api.exceptions import AppError, UnauthorizedError, error_docs
-from api.repositories import GoogleOAuthRepository, UserRepository
-from api.schemas.authentication import AccessToken
+from api.repositories import (
+    GoogleOAuthRepository,
+    RefreshTokenRepository,
+    UserRepository,
+)
+from api.schemas.authentication import (
+    AuthTokens,
+    GoogleIdTokenRequest,
+    RefreshTokenRequest,
+)
 from api.schemas.response import ApiResponse
 from api.services.authentication import AuthService
 
@@ -36,30 +44,28 @@ def get_auth_service(
     """Build the auth service with the repositories it needs."""
     return AuthService(
         user_repository=UserRepository(db),
+        token_repository=RefreshTokenRepository(db),
         oauth_repository=GoogleOAuthRepository(http_client),
     )
 
 
-def get_token_service(
+def get_oauth_service(
     http_client: httpx.AsyncClient = Depends(get_http_client),
 ) -> AuthService:
     """The auth service without a database session.
 
-    Building the consent URL and refreshing an access token touch no rows, so
-    these routes must not check out a connection from the pool to serve a
-    request that would never use it.
+    Only the consent URL is built this way: it touches no rows, so the route
+    must not check a connection out of the pool to serve a request that would
+    never use it. Every other auth route reads or writes tokens.
     """
-    return AuthService(
-        user_repository=None,
-        oauth_repository=GoogleOAuthRepository(http_client),
-    )
+    return AuthService(oauth_repository=GoogleOAuthRepository(http_client))
 
 
-# ── Routes ───────────────────────────────────────────────────────────────────
+# ── Browser routes: tokens travel in httpOnly cookies ────────────────────────
 
 
 @router.get("/auth/google")
-def google_login(service: AuthService = Depends(get_token_service)) -> RedirectResponse:
+def google_login(service: AuthService = Depends(get_oauth_service)) -> RedirectResponse:
     """Send the browser to Google's consent screen."""
     return RedirectResponse(service.google_login_url())
 
@@ -87,27 +93,85 @@ async def google_callback(
 
 
 @router.post("/auth/refresh", responses=error_docs(401))
-def auth_refresh(
+async def auth_refresh(
     request: Request,
     response: Response,
-    service: AuthService = Depends(get_token_service),
-) -> ApiResponse[AccessToken]:
-    """Reissue an access token from the refresh token."""
+    service: AuthService = Depends(get_auth_service),
+) -> ApiResponse[None]:
+    """Rotate the session: spend the refresh token, set a fresh pair.
+
+    Both cookies are replaced, since rotation issues a new refresh token as
+    well. The body carries no tokens -- a browser client reads them from the
+    cookies it cannot see, and putting them in JSON would only expose them to
+    scripts.
+    """
     token = token_from_request(request, settings.REFRESH_COOKIE_NAME)
     if not token:
         raise UnauthorizedError("Missing refresh token")
 
-    access_token = service.refresh_access_token(token)
-    set_access_cookie(response, access_token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+    tokens = await service.rotate_refresh_token(token)
+    set_auth_cookies(response, tokens)
 
-    return ApiResponse(
-        data=AccessToken(access_token=access_token),
-        message="Token refreshed",
-    )
+    return ApiResponse(data=None, message="Token refreshed")
 
 
 @router.post("/auth/logout")
-def auth_logout(response: Response) -> ApiResponse[None]:
-    """Drop both auth cookies. No service call: nothing server-side to revoke."""
+async def auth_logout(
+    request: Request,
+    response: Response,
+    service: AuthService = Depends(get_auth_service),
+) -> ApiResponse[None]:
+    """Revoke this session and clear the cookies.
+
+    The refresh token is revoked server-side, so a copy taken from the browser
+    beforehand is dead too. The access token stays valid until it expires --
+    minutes, by design, which is the trade for not checking the database on
+    every request.
+    """
+    token = token_from_request(request, settings.REFRESH_COOKIE_NAME)
+    await service.logout(token)
     clear_auth_cookies(response)
+    return ApiResponse(data=None, message="Logged out")
+
+
+# ── Native routes: tokens travel in the body, for the device keychain ────────
+#
+# A mobile app completes Google sign-in through the platform SDK, so there is
+# no redirect and no authorization code to redeem -- it posts the id_token it
+# already holds. Nothing here sets a cookie: the app stores both tokens itself
+# and sends the access token as `Authorization: Bearer <token>`.
+
+
+@router.post("/auth/mobile/google", responses=error_docs(401, 502))
+async def mobile_google_login(
+    payload: GoogleIdTokenRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> ApiResponse[AuthTokens]:
+    """Exchange a Google id_token from a native SDK for our own token pair."""
+    tokens = await service.login_with_google_id_token(payload.id_token)
+    return ApiResponse(data=tokens, message="Logged in")
+
+
+@router.post("/auth/mobile/refresh", responses=error_docs(401))
+async def mobile_auth_refresh(
+    payload: RefreshTokenRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> ApiResponse[AuthTokens]:
+    """Rotate the session, returning a new pair for the device to store.
+
+    The refresh token sent here is spent. The app must replace both stored
+    tokens with the ones returned, or its next refresh looks like a replay and
+    the session is revoked.
+    """
+    tokens = await service.rotate_refresh_token(payload.refresh_token)
+    return ApiResponse(data=tokens, message="Token refreshed")
+
+
+@router.post("/auth/mobile/logout", responses=error_docs(401))
+async def mobile_auth_logout(
+    payload: RefreshTokenRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> ApiResponse[None]:
+    """Revoke the session a device's refresh token belongs to."""
+    await service.logout(payload.refresh_token)
     return ApiResponse(data=None, message="Logged out")

@@ -8,6 +8,7 @@ from api.models.base import BaseModel
 if TYPE_CHECKING:
     from api.models.diary import Diary
     from api.models.recordings import Recording
+    from api.models.refresh_tokens import RefreshToken
 
 
 class User(BaseModel):
@@ -24,6 +25,11 @@ class User(BaseModel):
         passive_deletes=True,
     )
     diaries: Mapped[list["Diary"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
         passive_deletes=True,

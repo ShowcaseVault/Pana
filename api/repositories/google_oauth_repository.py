@@ -14,7 +14,7 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 
 from api.config.config import settings
-from api.exceptions import ExternalServiceError
+from api.exceptions import ExternalServiceError, UnauthorizedError
 
 logger = logging.getLogger("auth.google")
 
@@ -79,24 +79,50 @@ class GoogleOAuthRepository:
         `google-auth` fetches Google's certificates with blocking `requests`, so
         the call runs in a worker thread: doing it inline would stall the event
         loop for the length of a network round trip on every login.
+
+        Audience is checked here rather than by `verify_oauth2_token`, which
+        takes a single value. Each client that can sign a user in -- the web
+        client, and one per mobile platform -- mints tokens with its own `aud`,
+        and all of them are legitimate. Passing `audience=None` skips only that
+        one check; the signature, issuer, and expiry are still verified.
         """
-        client_id = self._client_id()
 
         def _verify() -> dict[str, Any]:
             return google_id_token.verify_oauth2_token(
                 id_token,
                 google_requests.Request(),
-                client_id,
+                audience=None,
                 # Google's clock and ours are never exactly aligned, and a
                 # token issued a second "in the future" is not a failure.
                 clock_skew_in_seconds=60,
             )
 
         try:
-            return await anyio.to_thread.run_sync(_verify)
+            claims = await anyio.to_thread.run_sync(_verify)
         except Exception:
             logger.exception("Google identity token verification failed")
             raise ExternalServiceError("Could not verify Google identity token") from None
+
+        self._check_audience(claims)
+        return claims
+
+    def _check_audience(self, claims: dict[str, Any]) -> None:
+        """Reject a token minted for some other application.
+
+        Without this, any valid Google id_token from any project would be
+        accepted -- including one an attacker obtained from an unrelated app --
+        so this is what ties a token to us.
+        """
+        audience = claims.get("aud")
+        allowed = self.allowed_audiences()
+
+        if audience not in allowed:
+            logger.warning("Rejected Google id_token for unexpected audience %r", audience)
+            raise UnauthorizedError("Google token was issued for a different application")
+
+    def allowed_audiences(self) -> set[str]:
+        """Every Google client ID permitted to sign a user in."""
+        return {self._client_id(), *settings.GOOGLE_MOBILE_CLIENT_IDS}
 
     def _client_id(self) -> str:
         return self._required(settings.GOOGLE_CLIENT_ID, "GOOGLE_CLIENT_ID")

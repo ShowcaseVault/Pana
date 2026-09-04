@@ -4,7 +4,7 @@ Separate from `api.schemas.users`, which describes the user as a resource.
 Nothing here outlives a login or a refresh.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GoogleProfile(BaseModel):
@@ -25,8 +25,17 @@ class AuthTokens(BaseModel):
     refresh_max_age: int
 
 
-class AccessToken(BaseModel):
-    """A reissued access token, as returned by the refresh endpoint."""
+class GoogleIdTokenRequest(BaseModel):
+    """A native app posting the id_token its Google SDK returned."""
 
-    access_token: str
-    token_type: str = "bearer"
+    id_token: str = Field(min_length=1, description="The id_token from the Google Sign-In SDK")
+
+
+class RefreshTokenRequest(BaseModel):
+    """A native app asking for a new access token.
+
+    The refresh token travels in the body because a mobile client keeps it in
+    the device keychain rather than in a cookie.
+    """
+
+    refresh_token: str = Field(min_length=1)
