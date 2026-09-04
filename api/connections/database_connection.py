@@ -11,7 +11,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session,sessionmaker
 from typing import Any, AsyncGenerator, Optional
 
-from api.connections.database_creation import Base
 from api.config.config import settings
 
 CONFIG = settings
@@ -97,26 +96,6 @@ async def setup_engine_and_session() -> None:
 
     except Exception as e:
         logger.exception("Error setting up engine or connection")
-        raise
-
-
-async def create_all_tables() -> None:
-    """
-    Create all tables defined on the global Base using the async engine.
-    Must be called after setup_engine_and_session().
-    """
-    if not engine:
-        raise ConnectionError(
-            "Engine not set up. Call setup_engine_and_session() first."
-        )
-
-    try:
-        logger.info("Ensuring all tables are created")
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("Tables ensured/created")
-    except Exception as e:
-        logger.exception("Error creating tables")
         raise
 
 

@@ -10,7 +10,6 @@ from api.config.config import settings
 from api.connections.database_connection import (
     create_database_if_not_exists,
     setup_engine_and_session,
-    create_all_tables,
     async_disconnect,
 )
 
@@ -35,12 +34,10 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-# Tables are created using async engine in startup event.
 async def lifespan(app: FastAPI):
     logger.info("Application lifespan startup: initializing database")
     await create_database_if_not_exists()
     await setup_engine_and_session()
-    await create_all_tables()
     logger.info("Application lifespan started successfully")
     yield
     logger.info("Application lifespan shutdown: disconnecting database")

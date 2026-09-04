@@ -32,12 +32,16 @@ class config:
     GEMINI_MODEL = "gemini-2.5-flash"
 
     # Database
-    DATABASE_URL = "postgresql://pana:pana@localhost:5433/pana-db"
-    POSTGRES_USER='pana'
-    POSTGRES_PASSWORD='pana'
-    POSTGRES_HOST='localhost'
-    POSTGRES_PORT='5433'
-    POSTGRES_DB='pana-db'
+    POSTGRES_USER = os.getenv("POSTGRES_USER", "pana")
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "pana")
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5433")
+    POSTGRES_DB = os.getenv("POSTGRES_DB", "pana-db")
+    DATABASE_URL = os.getenv(
+        "DATABASE_URL",
+        f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
+        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}",
+    )
 
     # Redis
     REDIS_BROKER_URL = os.getenv("REDIS_BROKER_URL", "redis://localhost:6379")
