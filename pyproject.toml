@@ -72,6 +72,7 @@ ignore = [
 # SQLAlchemy filters need `col == False`; `not col` would evaluate in Python.
 "api/cruds/*.py" = ["E712"]
 "api/utils/check_recordings_exist.py" = ["E712"]
+"api/routes/media.py" = ["E712"]
 # `str, PyEnum` keeps the values JSON-serializable; StrEnum would change behavior.
 "api/schemas/transcriptions.py" = ["UP042"]
 

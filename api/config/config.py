@@ -1,7 +1,10 @@
+import json
 from functools import lru_cache
+from typing import Annotated
+from urllib.parse import urlparse
 
-from pydantic import computed_field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import computed_field, field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from prompts.audio_transcribe import AUDIO_TRANSCRIBE_PROMPT
 
@@ -75,9 +78,22 @@ class Settings(BaseSettings):
     # SYSTEM
     SERVER_HOST: str = "0.0.0.0"
     SERVER_PORT: int = 8000
+
+    # API. Every application router is mounted under API_PREFIX/API_VERSION,
+    # so a breaking change ships as a new version rather than in place.
+    APP_NAME: str = "Pana-API"
+    APP_VERSION: str = "0.1.0"
+    API_PREFIX: str = "/api"
+    API_VERSION: str = "v1"
     SERVER_RELOAD: bool = True
     SHOW_DOCS: bool = True
     CLIENT_URL: str = "http://localhost:5173/home"
+
+    # CORS: browser origins allowed to call this API.
+    # NoDecode: pydantic-settings would otherwise JSON-decode a list field
+    # inside the env source, before any validator runs, so a plain
+    # comma-separated value could never be parsed.
+    ALLOWED_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
 
     # Authentication
     GOOGLE_CLIENT_ID: str | None = None
@@ -96,6 +112,78 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_NAME: str = "refresh_token"
     COOKIE_SECURE: bool = False
     COOKIE_SAMESITE: str = "lax"
+
+    @computed_field
+    @property
+    def API_ROOT(self) -> str:
+        """Base path shared by every application router, e.g. `/api/v1`."""
+        return f"{self.API_PREFIX.rstrip('/')}/{self.API_VERSION.strip('/')}"
+
+    @field_validator("API_PREFIX")
+    @classmethod
+    def _check_api_prefix(cls, value: str) -> str:
+        """Require a leading slash and no trailing one, so joins stay predictable."""
+        if not value.startswith("/"):
+            raise ValueError(f"API_PREFIX must start with '/', got {value!r}")
+        return value.rstrip("/") or "/"
+
+    @field_validator("API_VERSION")
+    @classmethod
+    def _check_api_version(cls, value: str) -> str:
+        """Expect a bare version segment such as `v1`, not a path."""
+        version = value.strip("/")
+        if not version or "/" in version:
+            raise ValueError(f"API_VERSION must be a single segment like 'v1', got {value!r}")
+        return version
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        """Accept a comma-separated string from the environment.
+
+        A JSON list is still accepted, so both
+        `ALLOWED_ORIGINS=http://a,http://b` and `["http://a","http://b"]` work.
+        """
+        if isinstance(value, str):
+            text = value.strip()
+            if text.startswith("["):
+                return json.loads(text)
+            return [item.strip() for item in text.split(",") if item.strip()]
+        return value
+
+    @field_validator("ALLOWED_ORIGINS")
+    @classmethod
+    def _check_origins(cls, origins: list[str]) -> list[str]:
+        """Reject values a browser will not accept as an Origin.
+
+        An origin is scheme + host + optional port, nothing more. A wildcard, a
+        trailing path, or a missing scheme all silently break CORS at runtime,
+        so they fail here instead.
+        """
+        if not origins:
+            raise ValueError("ALLOWED_ORIGINS must list at least one origin")
+
+        for origin in origins:
+            if origin == "*":
+                raise ValueError(
+                    "ALLOWED_ORIGINS cannot be '*': credentials are enabled and "
+                    "browsers reject a wildcard origin on credentialed requests. "
+                    "List the frontend origins explicitly."
+                )
+
+            parsed = urlparse(origin)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                raise ValueError(
+                    f"Invalid origin {origin!r}: expected scheme://host[:port], "
+                    "e.g. http://localhost:5173"
+                )
+            if parsed.path or parsed.query or parsed.fragment:
+                raise ValueError(
+                    f"Invalid origin {origin!r}: an origin carries no path, "
+                    f"try {parsed.scheme}://{parsed.netloc}"
+                )
+
+        return origins
 
     @computed_field
     @property

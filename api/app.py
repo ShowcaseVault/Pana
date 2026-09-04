@@ -1,106 +1,142 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from api.config.config import settings
-
-# Lifecycle functions are imported from their modules rather than the package:
-# the lifespan below is the only caller that should be starting or stopping a
-# connection, so they are deliberately not part of the package surface.
-from api.connections.database_connection import (
+from api.connections import (
     async_disconnect,
     create_database_if_not_exists,
+    http_disconnect,
+    llm_disconnect,
+    pubsub_disconnect,
+    redis_disconnect,
     setup_engine_and_session,
+    setup_redis_client,
 )
-from api.connections.http_connection import http_disconnect
-from api.connections.llm_connection import llm_disconnect
-from api.connections.pubsub_connection import pubsub_disconnect
-from api.connections.redis_connection import redis_disconnect, setup_redis_client
-
-# Routes
 from api.routes import (
     authentication,
     diary,
     history,
     home,
+    media,
     recordings,
     transcription_event,
     transcriptions,
 )
 from api.utils.logging_config import setup_logging
 
-# Load environment variables
-
-# Configure logging once for the application
-setup_logging()
 logger = logging.getLogger(__name__)
 
+# Routers mounted under the versioned API root (e.g. /api/v1).
+API_ROUTERS = (
+    home.router,
+    recordings.router,
+    transcriptions.router,
+    transcription_event.router,
+    history.router,
+    diary.router,
+    media.router,
+)
 
+
+@asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Open every external connection on startup and close them on shutdown."""
     logger.info("Application lifespan startup: initializing datastores")
     await create_database_if_not_exists()
     await setup_engine_and_session()
     await setup_redis_client()
+
+    # Created here rather than in create_app so that importing the module has
+    # no filesystem side effect.
+    os.makedirs(settings.RECORDINGS_DIR, exist_ok=True)
+
     logger.info("Application lifespan started successfully")
+
     yield
+
     logger.info("Application lifespan shutdown: disconnecting datastores")
-    await async_disconnect()
-    await redis_disconnect()
-    pubsub_disconnect()
-    await llm_disconnect()
-    await http_disconnect()
+    await _shutdown()
     logger.info("Application shutdown cleanup complete")
+
+
+async def _shutdown() -> None:
+    """Close each connection independently.
+
+    One failing teardown must not skip the rest, or a bad shutdown leaks every
+    connection after it in the sequence.
+    """
+    for name, close in (
+        ("database", async_disconnect),
+        ("cache redis", redis_disconnect),
+        ("pubsub redis", pubsub_disconnect),
+        ("llm", llm_disconnect),
+        ("http", http_disconnect),
+    ):
+        try:
+            result = close()
+            if result is not None:
+                await result
+        except Exception:
+            logger.exception("Error closing %s connection", name)
 
 
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
-    docs_url, redoc_url = ("/doc", "/redoc") if settings.SHOW_DOCS else (None, None)
+    setup_logging()
+
+    # The schema is as revealing as the docs pages, so it is hidden with them.
+    docs_url, redoc_url, openapi_url = (
+        ("/doc", "/redoc", "/openapi.json") if settings.SHOW_DOCS else (None, None, None)
+    )
 
     app = FastAPI(
-        title="Pana-API",
+        title=settings.APP_NAME,
         description="API for Pana UI.",
-        version="0.0.0",
+        version=settings.APP_VERSION,
         lifespan=lifespan,
         docs_url=docs_url,
         redoc_url=redoc_url,
-        prefix="api",
+        openapi_url=openapi_url,
     )
     logger.info("FastAPI application instance created")
 
-    # Enable CORS
+    # CORS. Origins are listed explicitly rather than wildcarded: auth rides on
+    # cookies, and a browser refuses a credentialed request against "*".
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.ALLOWED_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    logger.info("CORS middleware configured to allow all origins")
+    logger.info("CORS middleware configured for origins: %s", settings.ALLOWED_ORIGINS)
 
-    os.makedirs(settings.RECORDINGS_DIR, exist_ok=True)
-    app.mount(
-        "/recordings",
-        StaticFiles(directory=settings.RECORDINGS_DIR),
-        name="recordings",
-    )
-
-    # Include routers
+    # Authentication sits outside the versioned root: the Google callback URL is
+    # registered with Google and cannot move when the API version changes.
     app.include_router(authentication.router)
-    app.include_router(home.router, prefix="/api")
-    app.include_router(recordings.router, prefix="/api")
-    app.include_router(transcriptions.router, prefix="/api")
-    app.include_router(transcription_event.router, prefix="/api")
-    app.include_router(history.router, prefix="/api")
-    app.include_router(diary.router, prefix="/api")
+    for router in API_ROUTERS:
+        app.include_router(router, prefix=settings.API_ROOT)
+    logger.info("Routers mounted under %s", settings.API_ROOT)
 
-    # Test route
-    @app.get("/", include_in_schema=False)
-    async def root():
-        logger.info("Health check endpoint '/' called")
-        return {"message": "Hello from Pana API!!"}
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        """Log the failure and return a generic body.
+
+        The exception text can name tables, files, or credentials, so it stays
+        in the log rather than the response.
+        """
+        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+    @app.get("/health", include_in_schema=False)
+    async def health() -> dict[str, str]:
+        """Liveness probe. Deliberately quiet: monitors call it constantly."""
+        return {"status": "ok", "version": settings.APP_VERSION}
 
     return app
 

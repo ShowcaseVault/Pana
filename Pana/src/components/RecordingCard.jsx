@@ -95,7 +95,11 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     } else {
       if (!audioRef.current) {
         const url = `${BASE_URL}${API_ROUTES.AUDIO_BASE}/${recording.file_path}`;
-        audioRef.current = new Audio(url);
+        audioRef.current = new Audio();
+        // The audio route is authenticated, and the API is a different origin
+        // from the dev server, so the element must be told to send cookies.
+        audioRef.current.crossOrigin = 'use-credentials';
+        audioRef.current.src = url;
       }
       if (String(recording.transcription_status || '').toLowerCase() === 'completed') {
         fetchTranscription();
