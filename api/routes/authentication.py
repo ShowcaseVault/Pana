@@ -1,121 +1,113 @@
+"""Authentication endpoints.
+
+Routes do three things: read the request, call the service, shape the response.
+Data access lives in the repositories the service holds.
+"""
+
+import logging
+
+import httpx
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.auth.jwt_utils import (
-    create_access_token,
-    create_refresh_token,
-)
+from api.auth.cookies import clear_auth_cookies, set_access_cookie, set_auth_cookies
+from api.auth.tokens import token_from_request
 from api.config.config import settings
-from api.connections import get_async_db_session
-from api.cruds.authentication import (
-    clear_auth_cookies,
-    create_or_update_user,
-    get_auth_refresh,
-    get_google_callback,
-    get_google_login,
-)
+from api.connections import get_async_db_session, get_http_client
 from api.exceptions import AppError, UnauthorizedError, error_docs
+from api.repositories import GoogleOAuthRepository, UserRepository
+from api.schemas.authentication import AccessToken
 from api.schemas.response import ApiResponse
+from api.services.authentication import AuthService
+
+logger = logging.getLogger("auth")
 
 router = APIRouter(tags=["Authentication"])
 
 
-@router.get("/auth/google")
-def google_login():
+# ── Dependencies ─────────────────────────────────────────────────────────────
 
-    url = get_google_login()
-    return RedirectResponse(url)
+
+def get_auth_service(
+    db: AsyncSession = Depends(get_async_db_session),
+    http_client: httpx.AsyncClient = Depends(get_http_client),
+) -> AuthService:
+    """Build the auth service with the repositories it needs."""
+    return AuthService(
+        user_repository=UserRepository(db),
+        oauth_repository=GoogleOAuthRepository(http_client),
+    )
+
+
+def get_token_service(
+    http_client: httpx.AsyncClient = Depends(get_http_client),
+) -> AuthService:
+    """The auth service without a database session.
+
+    Building the consent URL and refreshing an access token touch no rows, so
+    these routes must not check out a connection from the pool to serve a
+    request that would never use it.
+    """
+    return AuthService(
+        user_repository=None,
+        oauth_repository=GoogleOAuthRepository(http_client),
+    )
+
+
+# ── Routes ───────────────────────────────────────────────────────────────────
+
+
+@router.get("/auth/google")
+def google_login(service: AuthService = Depends(get_token_service)) -> RedirectResponse:
+    """Send the browser to Google's consent screen."""
+    return RedirectResponse(service.google_login_url())
 
 
 @router.get("/auth/google/callback")
 async def google_callback(
-    code: str, response: Response, db: AsyncSession = Depends(get_async_db_session)
-):
+    code: str,
+    service: AuthService = Depends(get_auth_service),
+) -> RedirectResponse:
+    """Complete the Google flow, set the auth cookies, and return to the client."""
     try:
-        user_info = get_google_callback(code)
-        await create_or_update_user(db, user_info)
-
-        # Token variables needed for token generation below
-        sub = str(user_info.get("sub") or user_info.get("email") or "")
-        email = str(user_info.get("email") or "")
-        name = str(user_info.get("name") or "")
-
-        # Token Generation
-        access_token = create_access_token(
-            {
-                "sub": sub,
-                "email": email,
-                "name": name,
-            }
-        )
-        refresh_token = create_refresh_token(
-            {
-                "sub": sub,
-                "email": email,
-            }
-        )
-
-        access_max_age = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
-        refresh_max_age = int(settings.REFRESH_TOKEN_EXPIRE_DAYS) * 86400
-
-        redirect_response = RedirectResponse(url=f"{settings.CLIENT_URL}")
-
-        redirect_response.set_cookie(
-            settings.ACCESS_COOKIE_NAME,
-            access_token,
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite=settings.COOKIE_SAMESITE,
-            max_age=access_max_age,
-        )
-        redirect_response.set_cookie(
-            settings.REFRESH_COOKIE_NAME,
-            refresh_token,
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite=settings.COOKIE_SAMESITE,
-            max_age=refresh_max_age,
-        )
-
-        return redirect_response
-
+        tokens = await service.login_with_google(code)
     except AppError as e:
-        # OAuth failures land in a browser mid-redirect, so the user goes back
-        # to the login page with a reason rather than getting a JSON body.
+        # This lands in a browser mid-redirect, so the user goes back to the
+        # login page with a reason rather than getting a JSON body.
+        logger.warning("Google callback failed: %s", e.message)
         return RedirectResponse(f"{settings.CLIENT_URL}/login?error={e.message}")
     except Exception:
+        logger.exception("Unhandled error in Google callback")
         return RedirectResponse(f"{settings.CLIENT_URL}/login?error=Google_Session_Failed")
+
+    response = RedirectResponse(url=settings.CLIENT_URL)
+    set_auth_cookies(response, tokens)
+    return response
 
 
 @router.post("/auth/refresh", responses=error_docs(401))
-def auth_refresh(request: Request, response: Response) -> ApiResponse[dict]:
-    token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
-    if not token:
-        auth = request.headers.get("authorization")
-        if auth and auth.lower().startswith("bearer "):
-            token = auth.split()[1]
+def auth_refresh(
+    request: Request,
+    response: Response,
+    service: AuthService = Depends(get_token_service),
+) -> ApiResponse[AccessToken]:
+    """Reissue an access token from the refresh token."""
+    token = token_from_request(request, settings.REFRESH_COOKIE_NAME)
     if not token:
         raise UnauthorizedError("Missing refresh token")
 
-    new_access = get_auth_refresh(token)
+    access_token = service.refresh_access_token(token)
+    set_access_cookie(response, access_token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
 
-    access_max_age = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
-    response.set_cookie(
-        settings.ACCESS_COOKIE_NAME,
-        new_access,
-        httponly=True,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
-        max_age=access_max_age,
-    )
     return ApiResponse(
-        data={"access_token": new_access, "token_type": "bearer"},
+        data=AccessToken(access_token=access_token),
         message="Token refreshed",
     )
 
 
 @router.post("/auth/logout")
 def auth_logout(response: Response) -> ApiResponse[None]:
+    """Drop both auth cookies. No service call: nothing server-side to revoke."""
     clear_auth_cookies(response)
     return ApiResponse(data=None, message="Logged out")
