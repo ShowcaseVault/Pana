@@ -39,7 +39,7 @@ async def create_recording(
     
     filename = f"{time_str}{file_extension}"
     relative_path = Path(user_sub) / date_str / filename
-    full_path = Path(settings.UPLOAD_DIR) / relative_path
+    full_path = Path(settings.RECORDINGS_DIR) / relative_path
     
     # Ensure dir exists
     os.makedirs(full_path.parent, exist_ok=True)

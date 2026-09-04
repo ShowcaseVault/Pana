@@ -4,7 +4,7 @@ from datetime import datetime
 from pydantic.config import ConfigDict
 from enum import Enum as PyEnum
 
-from api.config.config import config
+from api.config.config import settings
 
 class TranscriptionStatus(str, PyEnum):
     pending = "pending"
@@ -14,7 +14,7 @@ class TranscriptionStatus(str, PyEnum):
 
 class TranscriptionCreate(BaseModel):
     recording_id: int
-    model_name: str = config.TRANSCRIPTION_MODEL
+    model_name: str = settings.TRANSCRIPTION_MODEL
     status: TranscriptionStatus = TranscriptionStatus.pending.value
     created_at: datetime = datetime.now()
 

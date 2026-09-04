@@ -70,8 +70,12 @@ def create_app() -> FastAPI:
     )
     logger.info("CORS middleware configured to allow all origins")
 
-    os.makedirs("recordings", exist_ok=True)
-    app.mount("/recordings", StaticFiles(directory="recordings"), name="recordings")
+    os.makedirs(CONFIG.RECORDINGS_DIR, exist_ok=True)
+    app.mount(
+        "/recordings",
+        StaticFiles(directory=CONFIG.RECORDINGS_DIR),
+        name="recordings",
+    )
 
     # Include routers
     app.include_router(authentication.router)

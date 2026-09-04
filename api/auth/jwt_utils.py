@@ -12,7 +12,7 @@ def create_access_token(data: Dict, expires_minutes: int | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
     to_encode.update({"exp": expire, "type": "access"})
-    return jwt.encode(to_encode, CONFIG.JWT_SECRET_KEY, algorithm=CONFIG.JWT_ALGORITHM)
+    return jwt.encode(to_encode, CONFIG.JWT_ACCESS_SECRET_KEY, algorithm=CONFIG.JWT_ALGORITHM)
 
 
 def create_refresh_token(data: Dict, expires_days: int | None = None) -> str:
@@ -24,7 +24,7 @@ def create_refresh_token(data: Dict, expires_days: int | None = None) -> str:
 
 
 def decode_access_token(token: str) -> Dict:
-    payload = jwt.decode(token, CONFIG.JWT_SECRET_KEY, algorithms=[CONFIG.JWT_ALGORITHM])
+    payload = jwt.decode(token, CONFIG.JWT_ACCESS_SECRET_KEY, algorithms=[CONFIG.JWT_ALGORITHM])
     if payload.get("type") != "access":
         raise JWTError("Invalid token type")
     return payload

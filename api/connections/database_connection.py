@@ -69,10 +69,7 @@ async def setup_engine_and_session() -> None:
     """
     global engine, async_session, connection
 
-    db_url = (
-        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-    )
+    db_url = CONFIG.ASYNC_DATABASE_URL
 
     try:
         logger.info("Setting up async SQLAlchemy engine and session")
@@ -167,10 +164,7 @@ def get_sync_db_session():
     global sync_engine, SyncSession
 
     if not sync_engine:
-        db_url = (
-            f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-            f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-        )
+        db_url = CONFIG.DATABASE_URL
         sync_engine = create_engine(db_url, echo=False)
         SyncSession = sessionmaker(bind=sync_engine)
 

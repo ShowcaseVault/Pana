@@ -16,8 +16,7 @@ async def transcribe_audio_file(file_path: str):
     """
     Transcribes the audio file using the configured client.
     """
-    BASE_DIR = CONFIG.BASE_DIR
-    file_name = BASE_DIR+"/"+file_path
+    file_name = f"{CONFIG.RECORDINGS_DIR}/{file_path}"
     with open(file_name, "rb") as file:
 
         transcription = await transcription_client.audio.transcriptions.create(

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from api.config.config import settings
 from api.models.recordings import Recording
 
-recordings_dir = Path(settings.UPLOAD_DIR)
+recordings_dir = Path(settings.RECORDINGS_DIR)
 
 async def check_recordings_exist(db: AsyncSession):
     result = await db.execute(
