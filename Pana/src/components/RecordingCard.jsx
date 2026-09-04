@@ -4,7 +4,7 @@ import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
 import { API_ROUTES, BASE_URL } from '../api/routes';
 import axiosClient from '../api/axiosClient';
 
-const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
+const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [words, setWords] = useState([]);
@@ -120,6 +120,15 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    if (showMenu && menuBtnRef.current) {
+      const rect = menuBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    } else {
+      setMenuPos(null);
+    }
+  }, [showMenu]);
+
   if (compact) {
     return (
       <div className="recording-card-compact">
@@ -175,14 +184,6 @@ const RecordingCard = ({ recording, onPlay, onDelete, compact = false, showMenu 
     if (onDelete) onDelete(recording.id);
   };
 
-  useEffect(() => {
-    if (showMenu && menuBtnRef.current) {
-      const rect = menuBtnRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-    } else {
-      setMenuPos(null);
-    }
-  }, [showMenu]);
 
   return (
     <div className="recording-card-wrapper">

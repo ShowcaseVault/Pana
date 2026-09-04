@@ -23,3 +23,8 @@ test.py
 logs
 misc/
 recordings/
+
+# Frontend
+node_modules/
+dist/
+*.local

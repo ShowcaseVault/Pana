@@ -10,7 +10,7 @@ export default defineConfig([
     files: ['**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,
-      reactHooks.configs.flat.recommended,
+      reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
     languageOptions: {
@@ -23,7 +23,23 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Leading underscore marks something deliberately unused: an ignored
+      // catch binding, or a positional argument kept for signature clarity.
+      'no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^[A-Z_]',
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+  {
+    // Config files run in Node, not the browser.
+    files: ['*.config.js', 'vite.config.js', 'eslint.config.js'],
+    languageOptions: {
+      globals: globals.node,
     },
   },
 ])

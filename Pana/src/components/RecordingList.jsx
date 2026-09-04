@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import { API_ROUTES } from "../api/routes";
+import { useTranscriptionSSE } from "../hooks/useTranscriptionSSE";
 import { Play, Calendar, Clock, MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -11,51 +12,24 @@ const RecordingList = ({ refreshTrigger }) => {
     fetchRecordings();
   }, [refreshTrigger]);
 
-  useEffect(() => {
-    const baseURL =
-      import.meta.env.VITE_BASE_API_URL || "http://localhost:8000";
-    const eventSource = new EventSource(
-      `${baseURL}${API_ROUTES.TRANSCRIPTION_EVENTS}/`
+  // Subscribe through the shared hook rather than opening a second
+  // EventSource: the URL and reconnect behaviour then live in one place.
+  const handleTranscriptionComplete = useCallback((recordingId, _transcriptionId) => {
+    setRecordings((prev) =>
+      prev.map((rec) =>
+        String(rec.id) === String(recordingId)
+          ? { ...rec, transcription_status: "completed" }
+          : rec
+      )
     );
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.status === "completed" && data.recording_id) {
-          setRecordings((prev) =>
-            prev.map((rec) =>
-              String(rec.id) === String(data.recording_id)
-                ? {
-                    ...rec,
-                    transcription_status: "completed",
-                    ...(typeof data.confidence === 'number'
-                      ? { transcription_confidence: data.confidence }
-                      : {}),
-                  }
-                : rec
-            )
-          );
-          if (data.recording_id) {
-             toast.success("Transcription completed!");
-          }
-          // Re-fetch to ensure latest confidence and fields are loaded
-          setTimeout(() => {
-            fetchRecordings();
-          }, 250);
-        }
-      } catch (e) {
-        // quiet failure
-      }
-    };
-
-    eventSource.onerror = (err) => {
-       // quiet
-    };
-
-    return () => {
-      eventSource.close();
-    };
+    toast.success("Transcription completed!");
+    // Re-fetch so confidence and the other derived fields arrive too.
+    setTimeout(() => {
+      fetchRecordings();
+    }, 250);
   }, []);
+
+  useTranscriptionSSE(handleTranscriptionComplete);
 
   const fetchRecordings = async () => {
     try {
@@ -80,7 +54,7 @@ const RecordingList = ({ refreshTrigger }) => {
       await axiosClient.delete(API_ROUTES.RECORDINGS.DELETE(id));
       toast.success("Recording deleted");
       fetchRecordings();
-    } catch (e) {
+    } catch (_e) {
       toast.error("Delete failed");
     }
   };

@@ -47,7 +47,7 @@ const Diary = () => {
       } else {
         setDiary(null);
       }
-    } catch (error) {
+    } catch (_error) {
       // 404 is expected if diary doesn't exist
       setDiary(null);
     }

@@ -7,7 +7,9 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
   const [activeId, setActiveId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const audioRef = useRef(new Audio());
+  // crossOrigin is set at creation because the audio route is authenticated
+  // and served from a different origin than the dev server.
+  const audioRef = useRef(Object.assign(new Audio(), { crossOrigin: 'use-credentials' }));
 
   const { diary_date, mood, content, actions } = diary;
 
@@ -42,6 +44,9 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
     
     // Create new audio instance if needed (though ref persists)
     if (!audioRef.current) audioRef.current = new Audio();
+    // The audio route is authenticated and cross-origin, so the element has to
+    // be told to send cookies.
+    audioRef.current.crossOrigin = 'use-credentials';
       
     // Clean path logic
     let filePath = recording.file_path;
@@ -207,7 +212,10 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
                         const [h, m, s] = filename.split('.')[0].split('-');
                         if (datePart) createdAt = new Date(datePart);
                         if (h && m && s) createdAt.setHours(h, m, s);
-                    } catch (e) {}
+                    } catch {
+                        // Filename is not the expected date format; fall back
+                        // to the default createdAt.
+                    }
 
                     return {
                         id: path, // Use path as ID for playback key

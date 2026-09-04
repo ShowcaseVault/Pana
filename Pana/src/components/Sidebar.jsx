@@ -20,17 +20,10 @@ const Sidebar = () => {
     { icon: Calendar, label: 'Calendar', path: `/calendar/${currentYearMonth}` },
   ];
 
-  const isCalendarActive = (path, currentPath) => {
-    if (path.startsWith('/calendar')) {
-      return currentPath.startsWith('/calendar');
-    }
-    return path === currentPath;
-  };
-
   const handleLogout = async () => {
     try {
       await axiosClient.post(API_ROUTES.AUTH.LOGOUT);
-    } catch (e) {
+    } catch (_e) {
       // Even if backend logout fails, clear local state and redirect.
     } finally {
       logout();

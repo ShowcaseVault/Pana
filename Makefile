@@ -6,7 +6,6 @@ FE_DIR     ?= Pana
 
 CELERY := $(UV) run celery -A celery_service.celery_app worker --loglevel=info
 
-# Windows cannot fork, so Celery needs the solo pool there.
 ifeq ($(OS),Windows_NT)
 CELERY_POOL ?= solo
 else
@@ -14,7 +13,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-fe up down logs be fe fe-build celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: help install install-frontend up down logs backend frontend frontend-build lint-frontend lint-frontend-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -58,6 +57,12 @@ lint:
 format:
 	$(UV) run ruff format .
 
+lint-frontend:
+	$(NPM) --prefix $(FE_DIR) run lint
+
+lint-frontend-fix:
+	$(NPM) --prefix $(FE_DIR) run lint:fix
+
 test:
 	$(UV) run pytest
 
@@ -90,18 +95,19 @@ deploy-down:
 # --- Make Help -----------------------------
 help:
 	@echo "make install         sync the Python environment with uv"
-	@echo "make install-fe      install the frontend dependencies"
+	@echo "make install-frontend  install the frontend dependencies"
 	@echo "make up              start Postgres and Redis for development"
 	@echo "make down            stop the development datastores"
 	@echo "make logs            tail the datastore logs"
-	@echo "make be              run the FastAPI server"
-	@echo "make fe              run the frontend dev server"
-	@echo "make fe-build        build the frontend for production"
+	@echo "make backend         run the FastAPI server"
+	@echo "make frontend        run the frontend dev server"
+	@echo "make frontend-build  build the frontend for production"
 	@echo "make celery          run one worker consuming both queues"
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"
 	@echo "make lint            check code with ruff"
 	@echo "make format          format code with ruff"
+	@echo "make lint-frontend   check the frontend with eslint"
 	@echo "make test            run the test suite"
 	@echo "make check           lint and format check, no writes (CI)"
 	@echo "make alembic-up      apply migrations up to head"

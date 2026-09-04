@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_ROUTES, BASE_URL } from './routes';
 
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_BASE_API_URL || 'http://localhost:8000', // Fallback or use env
+  baseURL: BASE_URL,
   withCredentials: true, // Critical for cookies
   headers: {
     'Content-Type': 'application/json',
@@ -18,9 +19,6 @@ axiosClient.interceptors.response.use(
       originalRequest._retry = true;
       try {
         // Attempt to refresh token
-        // We need to import API_ROUTES here, but circular dependency might be an issue if routes.js imports something.
-        // routes.js is pure constants so it's fine.
-        const { API_ROUTES } = await import('./routes'); 
         await axiosClient.post(API_ROUTES.AUTH.REFRESH);
         // Retry original request
         return axiosClient(originalRequest);

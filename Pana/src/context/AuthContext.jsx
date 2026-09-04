@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await getUser();
       setUser(response.data.data);
-    } catch (error) {
+    } catch (_error) {
       setUser(null);
     } finally {
       setLoading(false);
