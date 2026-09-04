@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,8 @@ from api.cruds.authentication import (
     get_google_callback,
     get_google_login,
 )
-from api.schemas.return_response import FailureResponse, SuccessResponse
+from api.exceptions import AppError, UnauthorizedError, error_docs
+from api.schemas.response import ApiResponse
 
 router = APIRouter(tags=["Authentication"])
 
@@ -79,48 +80,42 @@ async def google_callback(
 
         return redirect_response
 
-    except HTTPException as e:
-        return RedirectResponse(f"{settings.CLIENT_URL}/login?error={str(e.detail)}")
+    except AppError as e:
+        # OAuth failures land in a browser mid-redirect, so the user goes back
+        # to the login page with a reason rather than getting a JSON body.
+        return RedirectResponse(f"{settings.CLIENT_URL}/login?error={e.message}")
     except Exception:
         return RedirectResponse(f"{settings.CLIENT_URL}/login?error=Google_Session_Failed")
 
 
-@router.post("/auth/refresh")
-def auth_refresh(request: Request, response: Response):
-    try:
-        token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
-        if not token:
-            auth = request.headers.get("authorization")
-            if auth and auth.lower().startswith("bearer "):
-                token = auth.split()[1]
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing refresh token")
+@router.post("/auth/refresh", responses=error_docs(401))
+def auth_refresh(request: Request, response: Response) -> ApiResponse[dict]:
+    token = request.cookies.get(settings.REFRESH_COOKIE_NAME)
+    if not token:
+        auth = request.headers.get("authorization")
+        if auth and auth.lower().startswith("bearer "):
+            token = auth.split()[1]
+    if not token:
+        raise UnauthorizedError("Missing refresh token")
 
-        new_access = get_auth_refresh(token)
+    new_access = get_auth_refresh(token)
 
-        access_max_age = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
-        response.set_cookie(
-            settings.ACCESS_COOKIE_NAME,
-            new_access,
-            httponly=True,
-            secure=settings.COOKIE_SECURE,
-            samesite=settings.COOKIE_SAMESITE,
-            max_age=access_max_age,
-        )
-        return SuccessResponse(
-            data={"access_token": new_access, "token_type": "bearer"},
-            message="Token refreshed",
-        )
-    except HTTPException as e:
-        return FailureResponse(message=str(e.detail))
-    except Exception:
-        return FailureResponse(message="Refresh Failed")
+    access_max_age = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
+    response.set_cookie(
+        settings.ACCESS_COOKIE_NAME,
+        new_access,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
+        max_age=access_max_age,
+    )
+    return ApiResponse(
+        data={"access_token": new_access, "token_type": "bearer"},
+        message="Token refreshed",
+    )
 
 
 @router.post("/auth/logout")
-def auth_logout(response: Response):
-    try:
-        clear_auth_cookies(response)
-        return SuccessResponse(data=None, message="Logged out")
-    except Exception:
-        return FailureResponse(message="Logout Failed")
+def auth_logout(response: Response) -> ApiResponse[None]:
+    clear_auth_cookies(response)
+    return ApiResponse(data=None, message="Logged out")

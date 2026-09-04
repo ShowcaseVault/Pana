@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Request, Security, status
+from fastapi import Depends, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +6,7 @@ from api.auth.get_user_by_sub import get_user_by_sub
 from api.auth.jwt_utils import decode_access_token
 from api.config.config import settings
 from api.connections import get_async_db_session
+from api.exceptions import UnauthorizedError
 
 # Add security scheme for Swagger UI
 security = HTTPBearer(auto_error=False)
@@ -38,15 +39,13 @@ def get_current_user(
         token = request.cookies.get(settings.ACCESS_COOKIE_NAME)
 
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise UnauthorizedError("Not authenticated")
 
     try:
         payload = decode_access_token(token)
         return payload
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
-        ) from None
+        raise UnauthorizedError("Invalid or expired token") from None
 
 
 async def get_authorized_db_user(
@@ -58,12 +57,10 @@ async def get_authorized_db_user(
     """
     sub = current_user.get("sub")
     if not sub:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing sub claim"
-        )
+        raise UnauthorizedError("Token missing sub claim")
 
     user = await get_user_by_sub(db, sub)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise UnauthorizedError("User not found")
 
     return user

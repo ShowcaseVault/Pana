@@ -2,9 +2,8 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from api.config.config import settings
 from api.connections import (
@@ -17,6 +16,7 @@ from api.connections import (
     setup_engine_and_session,
     setup_redis_client,
 )
+from api.exceptions import register_exception_handlers
 from api.routes import (
     authentication,
     diary,
@@ -123,15 +123,7 @@ def create_app() -> FastAPI:
         app.include_router(router, prefix=settings.API_ROOT)
     logger.info("Routers mounted under %s", settings.API_ROOT)
 
-    @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-        """Log the failure and return a generic body.
-
-        The exception text can name tables, files, or credentials, so it stays
-        in the log rather than the response.
-        """
-        logger.exception("Unhandled error on %s %s", request.method, request.url.path)
-        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+    register_exception_handlers(app)
 
     @app.get("/health", include_in_schema=False)
     async def health() -> dict[str, str]:

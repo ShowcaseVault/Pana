@@ -3,13 +3,14 @@ import shutil
 from datetime import date
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from api.config.config import settings
 from api.cruds.transcriptions import get_transcription_by_id
+from api.exceptions import AppError
 from api.models.recordings import Recording
 from api.schemas.recordings import RecordingCreate, RecordingResponse, RecordingUpdate
 
@@ -45,7 +46,7 @@ async def create_recording(
         with open(full_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Could not save file: {e!s}") from e
+        raise AppError("Could not save the uploaded file") from e
 
     file_path_str = str(relative_path).replace("\\", "/")
 

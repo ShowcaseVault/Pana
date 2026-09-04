@@ -1,7 +1,7 @@
 from urllib.parse import urlencode
 
 import requests
-from fastapi import HTTPException, Response
+from fastapi import Response
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +12,7 @@ from api.auth.jwt_utils import (
     decode_refresh_token,
 )
 from api.config.config import settings
+from api.exceptions import ExternalServiceError, UnauthorizedError
 from api.models.users import User
 
 
@@ -70,7 +71,7 @@ def get_google_callback(code: str):
     token_response = requests.post(token_url, data=data).json()
 
     if "error" in token_response:
-        raise HTTPException(status_code=400, detail=token_response)
+        raise ExternalServiceError("Google token exchange failed", data=token_response)
 
     id_token = token_response["id_token"]
 
@@ -79,14 +80,14 @@ def get_google_callback(code: str):
             id_token, google_requests.Request(), settings.GOOGLE_CLIENT_ID, clock_skew_in_seconds=60
         )
     except Exception:
-        raise HTTPException(status_code=400, detail="Could not get user info") from None
+        raise ExternalServiceError("Could not verify Google identity token") from None
 
     return user_info
 
 
 def get_auth_refresh(token: str):
     if not token:
-        raise HTTPException(status_code=401, detail="Missing refresh token")
+        raise UnauthorizedError("Missing refresh token")
 
     payload = decode_refresh_token(token)
     subject = str(payload.get("sub") or "")

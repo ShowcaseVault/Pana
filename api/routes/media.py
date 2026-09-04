@@ -10,7 +10,7 @@ database instead.
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.auth.dependencies import get_authorized_db_user
 from api.config.config import settings
 from api.connections import get_async_db_session
+from api.exceptions import NotFoundError, error_docs
 from api.models.recordings import Recording
 
 logger = logging.getLogger(__name__)
@@ -34,12 +35,12 @@ def _resolve_within_recordings(file_path: str) -> Path:
     candidate = (root / file_path).resolve()
 
     if candidate != root and root not in candidate.parents:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording not found")
+        raise NotFoundError("Recording not found")
 
     return candidate
 
 
-@router.get("/{file_path:path}")
+@router.get("/{file_path:path}", responses=error_docs(401, 404))
 async def get_recording_file(
     file_path: str,
     user=Depends(get_authorized_db_user),
@@ -63,11 +64,11 @@ async def get_recording_file(
 
     if recording is None:
         logger.warning("Denied recording access for user %s: %s", user.id, normalized)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording not found")
+        raise NotFoundError("Recording not found")
 
     full_path = _resolve_within_recordings(normalized)
     if not full_path.is_file():
         logger.error("Recording row %s has no file on disk: %s", recording.id, normalized)
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recording not found")
+        raise NotFoundError("Recording not found")
 
     return FileResponse(full_path, filename=full_path.name)
