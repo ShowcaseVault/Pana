@@ -1,6 +1,5 @@
 import calendar
 from datetime import date as _date
-from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,16 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.models.diary import Diary
 from api.models.recordings import Recording
 from api.schemas.history import HistoryCalendar
-from api.schemas.recordings import RecordingResponse
-from api.schemas.diary import DiaryResponse
 
 
-async def fetch_calendar(
-    db: AsyncSession,
-    user_id: int,
-    year: int,
-    month: int
-):
+async def fetch_calendar(db: AsyncSession, user_id: int, year: int, month: int):
     today = _date.today()
     target_year = year or today.year
     target_month = month or today.month
@@ -57,7 +49,7 @@ async def fetch_calendar(
     return HistoryCalendar(
         year=target_year,
         month=target_month,
-        days_in_month= days_in_month.days,
+        days_in_month=days_in_month.days,
         diary_days=diary_days,
         recording_days=recording_days,
     )

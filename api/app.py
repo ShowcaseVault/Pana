@@ -1,29 +1,27 @@
-import os
 import logging
+import os
 
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from api.config.config import settings
-
 from api.connections.database_connection import (
+    async_disconnect,
     create_database_if_not_exists,
     setup_engine_and_session,
-    async_disconnect,
 )
 
 # Routes
 from api.routes import (
     authentication,
+    diary,
+    history,
     home,
     recordings,
-    transcriptions,
     transcription_event,
-    history,
-    diary,
+    transcriptions,
 )
-
 from api.utils.logging_config import setup_logging
 
 # Load environment variables

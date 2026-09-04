@@ -1,21 +1,18 @@
+from urllib.parse import urlencode
+
 import requests
+from fastapi import HTTPException, Response
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from api.models.users import User
-
-from fastapi import HTTPException
-from fastapi import Response
-from urllib.parse import urlencode
-from google.oauth2 import id_token as google_id_token
-from google.auth.transport import requests as google_requests
 
 from api.auth.jwt_utils import (
     create_access_token,
     decode_refresh_token,
 )
-
 from api.config.config import settings
-
+from api.models.users import User
 
 CONFIG = settings
 
@@ -44,6 +41,7 @@ def clear_auth_cookies(response: Response) -> None:
         max_age=0,
     )
 
+
 def get_google_login():
     params = {
         "client_id": CONFIG.GOOGLE_CLIENT_ID,
@@ -51,12 +49,13 @@ def get_google_login():
         "response_type": "code",
         "scope": "openid email profile",
         "prompt": "consent",
-        "access_type": "offline"
+        "access_type": "offline",
     }
 
     url = CONFIG.GOOGLE_AUTH_URL + "?" + urlencode(params)
 
     return url
+
 
 def get_google_callback(code: str):
 
@@ -79,15 +78,13 @@ def get_google_callback(code: str):
 
     try:
         user_info = google_id_token.verify_oauth2_token(
-            id_token,
-            google_requests.Request(),
-            CONFIG.GOOGLE_CLIENT_ID,
-            clock_skew_in_seconds=60
+            id_token, google_requests.Request(), CONFIG.GOOGLE_CLIENT_ID, clock_skew_in_seconds=60
         )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail="Could not get user info")
-    
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not get user info") from None
+
     return user_info
+
 
 def get_auth_refresh(token: str):
     if not token:
@@ -104,6 +101,7 @@ def get_auth_refresh(token: str):
 
     return new_access
 
+
 async def create_or_update_user(db: AsyncSession, user_info: dict):
     # User Data
     sub = str(user_info.get("sub") or "")
@@ -117,12 +115,7 @@ async def create_or_update_user(db: AsyncSession, user_info: dict):
     user = result.scalars().first()
 
     if not user:
-        user = User(
-            google_id=sub,
-            email=email,
-            name=name,
-            picture=picture
-        )
+        user = User(google_id=sub, email=email, name=name, picture=picture)
         db.add(user)
         await db.commit()
         await db.refresh(user)
@@ -131,5 +124,5 @@ async def create_or_update_user(db: AsyncSession, user_info: dict):
         user.picture = picture
         await db.commit()
         await db.refresh(user)
-    
+
     return user

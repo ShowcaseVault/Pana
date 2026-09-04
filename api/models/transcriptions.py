@@ -1,17 +1,17 @@
 from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Text,
-    DateTime,
-    ForeignKey,
-    Float,
-    Enum,
+    JSON,
     Boolean,
-    JSON
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
 )
-from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
 from api.connections.database_creation import Base
 from api.schemas.transcriptions import TranscriptionStatus

@@ -1,7 +1,5 @@
 from datetime import date as _date
 
-from typing import List, Optional
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -10,13 +8,13 @@ from api.models.diary import Diary
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.diary import DiaryResponse
-from api.schemas.history import HistoryFetch
 from api.services.diary import generate_diary_from_recordings
+
 
 async def create_or_update_diary(
     db: AsyncSession,
     user_id: int,
-    date: Optional[_date] = None,
+    date: _date | None = None,
 ) -> DiaryResponse:
     target_date = date or _date.today()
 
@@ -30,7 +28,7 @@ async def create_or_update_diary(
         .options(joinedload(Recording.transcription))
     )
     rec_result = await db.execute(rec_stmt)
-    recordings: List[Recording] = rec_result.scalars().all()
+    recordings: list[Recording] = rec_result.scalars().all()
 
     tra_stmt = (
         select(Transcription)
@@ -43,20 +41,17 @@ async def create_or_update_diary(
     )
 
     tra_result = await db.execute(tra_stmt)
-    transcriptions: List[Transcription] = tra_result.scalars().all()
+    transcriptions: list[Transcription] = tra_result.scalars().all()
 
     # Diary Creating Service
     summary = await generate_diary_from_recordings(db, user_id, recordings, transcriptions)
 
     diary_result = await db.execute(
-        select(Diary)
-        .where(
-            Diary.user_id == user_id,
-            Diary.diary_date == target_date,
-            Diary.is_deleted == False
+        select(Diary).where(
+            Diary.user_id == user_id, Diary.diary_date == target_date, Diary.is_deleted == False
         )
     )
-    diary: Optional[Diary] = diary_result.scalars().first()
+    diary: Diary | None = diary_result.scalars().first()
 
     if diary:
         diary.diary_date = target_date
@@ -82,37 +77,30 @@ async def create_or_update_diary(
 
     return DiaryResponse.model_validate(diary)
 
+
 async def get_diary(
     db: AsyncSession,
     user_id: int,
-    date: Optional[_date] = None,
+    date: _date | None = None,
 ) -> DiaryResponse:
     target_date = date or _date.today()
 
-    stmt = (
-        select(Diary)
-        .where(
-            Diary.user_id == user_id,
-            Diary.diary_date == target_date,
-            Diary.is_deleted == False
-        )
+    stmt = select(Diary).where(
+        Diary.user_id == user_id, Diary.diary_date == target_date, Diary.is_deleted == False
     )
 
     result = await db.execute(stmt)
-    diary: Optional[Diary] = result.scalars().first()
+    diary: Diary | None = result.scalars().first()
 
     if not diary:
-        stmt_recording = (
-            select(Recording.file_path)
-            .where(
-                Recording.user_id == user_id,
-                Recording.recording_date == target_date,
-                Recording.is_deleted == False
-            )
+        stmt_recording = select(Recording.file_path).where(
+            Recording.user_id == user_id,
+            Recording.recording_date == target_date,
+            Recording.is_deleted == False,
         )
 
         rec_result = await db.execute(stmt_recording)
-        recordings: List[str] = rec_result.scalars().all()
+        recordings: list[str] = rec_result.scalars().all()
 
         return DiaryResponse(
             diary_date=target_date,

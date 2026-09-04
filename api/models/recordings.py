@@ -1,22 +1,9 @@
-import uuid
-from sqlalchemy import (
-    Column,
-    String,
-    Integer,
-    Text,
-    Date,
-    DateTime,
-    ForeignKey,
-    Float,
-    Enum,
-    Boolean
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, inspect
 from sqlalchemy.orm import relationship
-from sqlalchemy import inspect
+from sqlalchemy.sql import func
 
 from api.connections.database_creation import Base
+
 
 class Recording(Base):
     __tablename__ = "recordings"

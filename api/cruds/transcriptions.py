@@ -1,4 +1,3 @@
-from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,8 +5,8 @@ from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
 from api.schemas.transcriptions import (
     TranscriptionCreate,
-    TranscriptionUpdate,
     TranscriptionResponse,
+    TranscriptionUpdate,
 )
 
 
@@ -54,7 +53,7 @@ async def get_all_transcription(
     skip: int,
     limit: int,
     user_id: int,
-    status: Optional[str] = None,
+    status: str | None = None,
 ):
     query_stmt = (
         select(Transcription)
@@ -70,7 +69,7 @@ async def get_all_transcription(
     )
     if status:
         query_stmt = query_stmt.filter(Transcription.status == status)
-    
+
     count_stmt = (
         select(func.count())
         .select_from(Transcription)
@@ -91,10 +90,7 @@ async def get_all_transcription(
 
     return {
         "total": total,
-        "data": [
-            TranscriptionResponse.model_validate(t)
-            for t in transcriptions
-        ],
+        "data": [TranscriptionResponse.model_validate(t) for t in transcriptions],
     }
 
 

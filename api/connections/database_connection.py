@@ -1,15 +1,12 @@
-import asyncpg
 import logging
+from collections.abc import AsyncGenerator
+from typing import Any
 
-from sqlalchemy import text
+import asyncpg
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import (
-    create_async_engine,
-    async_sessionmaker
-)
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session,sessionmaker
-from typing import Any, AsyncGenerator, Optional
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from api.config.config import settings
 
@@ -25,13 +22,13 @@ POSTGRES_PASSWORD = CONFIG.POSTGRES_PASSWORD
 POSTGRES_DB = CONFIG.POSTGRES_DB
 
 # Globals
-engine: Optional[Any] = None
-async_session: Optional[async_sessionmaker] = None
-connection: Optional[asyncpg.Connection] = None
+engine: Any | None = None
+async_session: async_sessionmaker | None = None
+connection: asyncpg.Connection | None = None
 
 # Sync Globals (for Celery)
-sync_engine: Optional[Any] = None
-SyncSession: Optional[sessionmaker] = None
+sync_engine: Any | None = None
+SyncSession: sessionmaker | None = None
 
 
 async def create_database_if_not_exists() -> None:
@@ -58,7 +55,7 @@ async def create_database_if_not_exists() -> None:
             logger.info("Database '%s' already exists", POSTGRES_DB)
 
         await default_conn.close()
-    except Exception as e:
+    except Exception:
         logger.exception("Error creating database")
         raise
 
@@ -91,7 +88,7 @@ async def setup_engine_and_session() -> None:
             POSTGRES_PORT,
         )
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error setting up engine or connection")
         raise
 
@@ -116,9 +113,7 @@ async def get_async_db_session() -> AsyncGenerator[Any, None]:
     Get an async DB session (with commit/rollback handling).
     """
     if not async_session:
-        raise ConnectionError(
-            "Not connected to database. Call setup_engine_and_session() first."
-        )
+        raise ConnectionError("Not connected to database. Call setup_engine_and_session() first.")
 
     async with async_session() as session:
         try:
@@ -152,7 +147,7 @@ async def async_disconnect() -> bool:
 
         logger.info("Disconnected from database")
         return True
-    except Exception as e:
+    except Exception:
         logger.exception("Async disconnection error")
         return False
 

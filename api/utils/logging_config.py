@@ -2,7 +2,6 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-
 LOG_DIR = os.path.join(os.getcwd(), "logs")
 LOG_FILE = os.path.join(LOG_DIR, "app.log")
 
@@ -46,13 +45,13 @@ def setup_logging(level: int = logging.INFO) -> None:
         """Create a named logger that writes only to its own file (no propagation)."""
         logger = logging.getLogger(name)
         logger.setLevel(level)
-        logger.propagate = not name.startswith("elastic_search")  # avoid duplicate records to root handlers
+        logger.propagate = not name.startswith(
+            "elastic_search"
+        )  # avoid duplicate records to root handlers
         if logger.handlers:
             return
         file_path = os.path.join(LOG_DIR, filename)
-        handler = RotatingFileHandler(
-            file_path, maxBytes=5 * 1024 * 1024, backupCount=5
-        )
+        handler = RotatingFileHandler(file_path, maxBytes=5 * 1024 * 1024, backupCount=5)
         handler.setLevel(level)
         handler.setFormatter(formatter)
         logger.addHandler(handler)

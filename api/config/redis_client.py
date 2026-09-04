@@ -1,12 +1,13 @@
+import logging
+
 import redis
 import redis.asyncio as aioredis
-import logging
 
 from api.config.config import settings as CONFIG
 
 logger = logging.getLogger(__name__)
 
-REDIS_PUBSUB_URL=CONFIG.REDIS_PUBSUB_URL
+REDIS_PUBSUB_URL = CONFIG.REDIS_PUBSUB_URL
 
 
 def get_redis_client():
@@ -18,6 +19,7 @@ def get_redis_client():
     except Exception as e:
         logger.error(f"Failed to connect to Redis: {e}")
         return None
+
 
 def get_async_redis_client():
     try:

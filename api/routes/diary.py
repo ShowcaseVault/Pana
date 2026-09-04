@@ -1,22 +1,20 @@
 from datetime import date
-from typing import Union, Optional
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.schemas.return_response import SuccessResponse, FailureResponse
 from api.auth.dependencies import get_authorized_db_user
 from api.connections.database_connection import get_async_db_session
-
-from api.schemas.diary import DiaryResponse
 from api.cruds import diary as diary_crud
+from api.schemas.return_response import FailureResponse, SuccessResponse
 
 router = APIRouter(prefix="/diary", tags=["Diary"])
 
 
-@router.post("", response_model=Union[SuccessResponse, FailureResponse])
+@router.post("", response_model=SuccessResponse | FailureResponse)
 async def create_diary_endpoint(
-    date: Optional[date] = None,
-    user = Depends(get_authorized_db_user),
+    date: date | None = None,
+    user=Depends(get_authorized_db_user),
     db: AsyncSession = Depends(get_async_db_session),
 ):
     try:
@@ -28,10 +26,11 @@ async def create_diary_endpoint(
     except Exception as e:
         return FailureResponse(message=str(e))
 
-@router.get("", response_model=Union[SuccessResponse, FailureResponse])
+
+@router.get("", response_model=SuccessResponse | FailureResponse)
 async def get_diary_endpoint(
-    date: Optional[date] = None,
-    user = Depends(get_authorized_db_user),
+    date: date | None = None,
+    user=Depends(get_authorized_db_user),
     db: AsyncSession = Depends(get_async_db_session),
 ):
     try:

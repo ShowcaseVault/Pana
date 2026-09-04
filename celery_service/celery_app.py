@@ -1,6 +1,7 @@
 from celery import Celery
 
 from api.config.config import settings
+
 CONFIG = settings
 
 celery_app = Celery(

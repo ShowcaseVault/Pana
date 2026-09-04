@@ -1,22 +1,19 @@
-from typing import Optional, Dict
-from fastapi import Request, HTTPException, status, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-from api.config.config import settings
-from api.auth.jwt_utils import decode_access_token
-
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Request, Security, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from api.connections.database_connection import get_async_db_session
-from api.auth.get_user_by_sub import get_user_by_sub
 
+from api.auth.get_user_by_sub import get_user_by_sub
+from api.auth.jwt_utils import decode_access_token
+from api.config.config import settings
+from api.connections.database_connection import get_async_db_session
 
 CONFIG = settings
 
 # Add security scheme for Swagger UI
 security = HTTPBearer(auto_error=False)
 
-def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+
+def _extract_bearer_token(authorization: str | None) -> str | None:
     if not authorization:
         return None
     parts = authorization.split()
@@ -26,9 +23,8 @@ def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
 
 
 def get_current_user(
-    request: Request,
-    token_auth: Optional[HTTPAuthorizationCredentials] = Security(security)
-) -> Dict:
+    request: Request, token_auth: HTTPAuthorizationCredentials | None = Security(security)
+) -> dict:
     """
     Reads access token from Authorization: Bearer <token> header, or from cookie.
     Decodes and returns JWT payload. Raises 401 if missing/invalid.
@@ -36,10 +32,10 @@ def get_current_user(
     token = None
     if token_auth:
         token = token_auth.credentials
-    
+
     if not token:
         token = _extract_bearer_token(request.headers.get("authorization"))
-        
+
     if not token:
         token = request.cookies.get(CONFIG.ACCESS_COOKIE_NAME)
 
@@ -50,22 +46,26 @@ def get_current_user(
         payload = decode_access_token(token)
         return payload
     except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        ) from None
+
 
 async def get_authorized_db_user(
-    current_user: Dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db_session)
+    current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_async_db_session)
 ) -> object:
     """
     Dependency that retrieves the user from the database based on the JWT 'sub' claim.
     Raises 401 if the user is not found (meaning token is valid but user is gone).
     """
-    sub = current_user.get('sub')
+    sub = current_user.get("sub")
     if not sub:
-         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing sub claim")
-         
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing sub claim"
+        )
+
     user = await get_user_by_sub(db, sub)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-        
+
     return user

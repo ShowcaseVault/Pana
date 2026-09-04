@@ -1,23 +1,26 @@
-from fastapi import APIRouter, Depends, Response, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.cruds.authentication import get_google_callback, get_google_login, get_auth_refresh, create_or_update_user, clear_auth_cookies
-from api.schemas.return_response import SuccessResponse, FailureResponse
 from api.auth.jwt_utils import (
     create_access_token,
     create_refresh_token,
-    decode_refresh_token,
 )
-from api.auth.dependencies import get_current_user
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from api.connections.database_connection import get_async_db_session
-
 from api.config.config import settings
+from api.connections.database_connection import get_async_db_session
+from api.cruds.authentication import (
+    clear_auth_cookies,
+    create_or_update_user,
+    get_auth_refresh,
+    get_google_callback,
+    get_google_login,
+)
+from api.schemas.return_response import FailureResponse, SuccessResponse
 
 CONFIG = settings
 
 router = APIRouter(tags=["Authentication"])
+
 
 @router.get("/auth/google")
 def google_login():
@@ -25,12 +28,15 @@ def google_login():
     url = get_google_login()
     return RedirectResponse(url)
 
+
 @router.get("/auth/google/callback")
-async def google_callback(code: str, response: Response, db: AsyncSession = Depends(get_async_db_session)):
+async def google_callback(
+    code: str, response: Response, db: AsyncSession = Depends(get_async_db_session)
+):
     try:
         user_info = get_google_callback(code)
         await create_or_update_user(db, user_info)
-        
+
         # Token variables needed for token generation below
         sub = str(user_info.get("sub") or user_info.get("email") or "")
         email = str(user_info.get("email") or "")
@@ -53,7 +59,7 @@ async def google_callback(code: str, response: Response, db: AsyncSession = Depe
 
         access_max_age = int(CONFIG.ACCESS_TOKEN_EXPIRE_MINUTES) * 60
         refresh_max_age = int(CONFIG.REFRESH_TOKEN_EXPIRE_DAYS) * 86400
-        
+
         redirect_response = RedirectResponse(url=f"{CONFIG.CLIENT_URL}")
 
         redirect_response.set_cookie(
@@ -79,6 +85,7 @@ async def google_callback(code: str, response: Response, db: AsyncSession = Depe
         return RedirectResponse(f"{CONFIG.CLIENT_URL}/login?error={str(e.detail)}")
     except Exception:
         return RedirectResponse(f"{CONFIG.CLIENT_URL}/login?error=Google_Session_Failed")
+
 
 @router.post("/auth/refresh")
 def auth_refresh(request: Request, response: Response):
@@ -119,4 +126,3 @@ def auth_logout(response: Response):
         return SuccessResponse(data=None, message="Logged out")
     except Exception:
         return FailureResponse(message="Logout Failed")
-
