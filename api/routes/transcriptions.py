@@ -1,97 +1,109 @@
+"""Transcription endpoints.
+
+Only the two read endpoints are mounted. Creating, updating, and deleting a
+transcription are the transcription worker's job, not a client's, so those
+routes stay defined but unregistered -- see the note above each one.
+"""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_authorized_db_user
 from api.connections import get_async_db_session
-from api.cruds.transcriptions import (
-    create_transcription,
-    delete_transcription,
-    get_all_transcription,
-    get_transcription_by_id,
-    update_transcription,
-)
-from api.exceptions import BadRequestError, NotFoundError, error_docs
+from api.exceptions import error_docs
+from api.models.users import User
+from api.repositories import RecordingRepository, TranscriptionRepository
 from api.schemas.response import ApiResponse
 from api.schemas.transcriptions import (
     TranscriptionCreate,
+    TranscriptionListResponse,
     TranscriptionResponse,
     TranscriptionStatus,
     TranscriptionUpdate,
 )
+from api.services.transcriptions import TranscriptionService
 
 router = APIRouter(prefix="/transcriptions", tags=["Transcriptions"])
 
 
-# @router.post("", responses=error_docs(400, 401, 404))
-async def create_transcription_endpoint(
-    payload: TranscriptionCreate,
-    user=Depends(get_authorized_db_user),
+def get_transcription_service(
     db: AsyncSession = Depends(get_async_db_session),
-) -> ApiResponse[TranscriptionResponse]:
-    new_transcription = await create_transcription(
-        db=db,
-        payload=payload,
-        user_id=user.id,
+) -> TranscriptionService:
+    """Build the transcription service with the repositories it needs."""
+    return TranscriptionService(
+        transcriptions=TranscriptionRepository(db),
+        recordings=RecordingRepository(db),
     )
-    if new_transcription is None:
-        raise NotFoundError("Recording not found")
-    if new_transcription is False:
-        raise BadRequestError("Transcription already exists for this recording")
-
-    return ApiResponse(data=new_transcription, message="Transcription created successfully")
 
 
 @router.get("", responses=error_docs(401))
-async def get_transcriptions_endpoint(
+async def list_transcriptions(
     skip: int = 0,
     limit: int = 100,
     status: TranscriptionStatus | None = None,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
-) -> ApiResponse[list[TranscriptionResponse]]:
-    status_value = status.value if status else None
-    transcriptions = await get_all_transcription(db, skip, limit, user.id, status_value)
-    return ApiResponse(data=transcriptions, message="Transcriptions retrieved successfully")
-
-
-@router.get("/{transcription_id}", responses=error_docs(401, 404))
-async def get_transcription_endpoint(
-    transcription_id: int,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
-) -> ApiResponse[TranscriptionResponse]:
-    transcription = await get_transcription_by_id(db, transcription_id, user.id)
-    if not transcription:
-        raise NotFoundError("Transcription not found")
-
+    user: User = Depends(get_authorized_db_user),
+    service: TranscriptionService = Depends(get_transcription_service),
+) -> ApiResponse[TranscriptionListResponse]:
+    """List the user's transcriptions, newest first."""
+    transcriptions, total = await service.list(
+        user.id,
+        skip=skip,
+        limit=limit,
+        status=status.value if status else None,
+    )
     return ApiResponse(
-        data=TranscriptionResponse.model_validate(transcription),
-        message="Transcription retrieved successfully",
+        data=TranscriptionListResponse(total=total, data=transcriptions),
+        message="Transcriptions retrieved successfully",
     )
 
 
-# @router.patch("/{transcription_id}", responses=error_docs(401, 404))
-async def update_transcription_endpoint(
+@router.get("/{transcription_id}", responses=error_docs(401, 404))
+async def get_transcription(
     transcription_id: int,
-    update_data: TranscriptionUpdate,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
+    user: User = Depends(get_authorized_db_user),
+    service: TranscriptionService = Depends(get_transcription_service),
 ) -> ApiResponse[TranscriptionResponse]:
-    transcription = await update_transcription(db, transcription_id, update_data, user.id)
-    if not transcription:
-        raise NotFoundError("Transcription not found")
+    """Return one transcription."""
+    transcription = await service.get(transcription_id, user.id)
+    return ApiResponse(data=transcription, message="Transcription retrieved successfully")
 
+
+# ── Not mounted ──────────────────────────────────────────────────────────────
+#
+# Transcriptions are created by uploading a recording and written by the Celery
+# worker. These stay here, converted and ready, because exposing them is a
+# decision about the product rather than about this code: add the decorator to
+# mount one.
+
+
+async def create_transcription(
+    payload: TranscriptionCreate,
+    user: User = Depends(get_authorized_db_user),
+    service: TranscriptionService = Depends(get_transcription_service),
+) -> ApiResponse[TranscriptionResponse]:
+    """Queue a transcription for a recording that has none."""
+    transcription = await service.create(
+        payload.recording_id, user.id, model_name=payload.model_name
+    )
+    return ApiResponse(data=transcription, message="Transcription created successfully")
+
+
+async def update_transcription(
+    transcription_id: int,
+    changes: TranscriptionUpdate,
+    user: User = Depends(get_authorized_db_user),
+    service: TranscriptionService = Depends(get_transcription_service),
+) -> ApiResponse[TranscriptionResponse]:
+    """Update a transcription's text, status, or metadata."""
+    transcription = await service.update(transcription_id, user.id, changes)
     return ApiResponse(data=transcription, message="Transcription updated successfully")
 
 
-# @router.delete("/{transcription_id}", responses=error_docs(401, 404))
-async def delete_transcription_endpoint(
+async def delete_transcription(
     transcription_id: int,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
+    user: User = Depends(get_authorized_db_user),
+    service: TranscriptionService = Depends(get_transcription_service),
 ) -> ApiResponse[None]:
-    deleted = await delete_transcription(db, transcription_id, user.id)
-    if not deleted:
-        raise NotFoundError("Transcription not found")
-
+    """Soft-delete a transcription."""
+    await service.delete(transcription_id, user.id)
     return ApiResponse(data=None, message="Transcription deleted successfully")

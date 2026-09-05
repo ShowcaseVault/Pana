@@ -47,3 +47,10 @@ class TranscriptionResponse(BaseModel):
     is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TranscriptionListResponse(BaseModel):
+    """One page of transcriptions, with the count of everything that matched."""
+
+    total: int
+    data: list[TranscriptionResponse]

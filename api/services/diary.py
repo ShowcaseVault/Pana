@@ -17,18 +17,20 @@ async def get_location_by_lat_long(lat: float, long: float) -> str:
 
 
 async def ensure_all_transcriptions(recordings: list[Recording], db: Any, user_id: int):
-    from api.cruds.transcriptions import create_transcription
-    from api.schemas.transcriptions import TranscriptionCreate
+    from api.repositories import TranscriptionRepository
     from celery_service.tasks.transcription import transcribe_audio_task
+
+    # These recordings were loaded for this user, so ownership is already
+    # established and the repository is used directly rather than through the
+    # service, which would re-check it once per recording.
+    transcriptions = TranscriptionRepository(db)
 
     queued: list[int] = []
     for recording in recordings:
         transcription = getattr(recording, "transcription", None)
         if not transcription:
-            payload = TranscriptionCreate(recording_id=recording.id)
-            new_trans = await create_transcription(db=db, payload=payload, user_id=user_id)
-            if new_trans:
-                queued.append(new_trans.id)
+            created = await transcriptions.create(recording_id=recording.id)
+            queued.append(created.id)
         elif transcription.status != "completed":
             queued.append(transcription.id)
 
