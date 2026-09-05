@@ -46,8 +46,8 @@ class Settings(BaseSettings):
     # LLM1
     LLM1: str = "Groq"
     GROQ_API_KEY: str | None = None
-    GROQ_MODEL_SMALL: str = "llama-3.1-8b-instant"
-    GROQ_MODEL_LARGE: str = "meta-llama/llama-4-maverick-17b-128e-instruct"
+    GROQ_MODEL_SMALL: str = "qwen/qwen3.8-27b"
+    GROQ_MODEL_LARGE: str = "openai/gpt-oss-120b"
 
     # LLM2
     LLM2: str = "Gemini"

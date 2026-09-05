@@ -1,0 +1,142 @@
+"""Database access for recordings."""
+
+from datetime import date
+
+from sqlalchemy import desc, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
+
+from api.models.recordings import Recording
+from api.schemas.recordings import RecordingResponse
+
+
+class RecordingRepository:
+    """Every read and write of the `recordings` table goes through here."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def create(
+        self,
+        *,
+        user_id: int,
+        file_path: str,
+        duration_seconds: int,
+        recorded_at,
+        location_text: str | None,
+    ) -> Recording:
+        """Insert a recording row for a file already written to disk."""
+        recording = Recording(
+            user_id=user_id,
+            file_path=file_path,
+            duration_seconds=duration_seconds,
+            recorded_at=recorded_at,
+            recording_date=recorded_at.date(),
+            location_text=location_text,
+        )
+        self.db.add(recording)
+        await self.db.flush()
+        await self.db.refresh(recording)
+        return recording
+
+    async def get_for_user(self, recording_id: int, user_id: int) -> Recording | None:
+        """Find one live recording belonging to this user.
+
+        Ownership is part of the query, not a check afterwards: a recording
+        belonging to someone else is simply not found, so it cannot leak
+        through a forgotten comparison.
+
+        The transcription is eager-loaded because `RecordingResponse` reads it,
+        and a lazy load would raise under async SQLAlchemy.
+        """
+        stmt = (
+            select(Recording)
+            .where(
+                Recording.id == recording_id,
+                Recording.user_id == user_id,
+                Recording.deleted_at.is_(None),
+            )
+            .options(joinedload(Recording.transcription))
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def list_for_user(
+        self,
+        user_id: int,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        recording_date: date | None = None,
+        list_all: bool = False,
+    ) -> tuple[list[RecordingResponse], int]:
+        """Return one page of a user's recordings, newest first, and the total.
+
+        The total counts every row matching the filter, not just this page, so
+        a client can show how many there are without fetching them all.
+
+        Rows are converted here: this is the read boundary, so nothing above it
+        has to hold a live ORM object just to serialize it.
+        """
+        conditions = [
+            Recording.user_id == user_id,
+            Recording.deleted_at.is_(None),
+        ]
+        if not list_all:
+            conditions.append(func.date(Recording.recorded_at) == recording_date)
+
+        page_stmt = (
+            select(Recording)
+            .where(*conditions)
+            .order_by(desc(Recording.recorded_at))
+            .options(joinedload(Recording.transcription))
+            .offset(skip)
+            .limit(limit)
+        )
+        count_stmt = select(func.count()).select_from(Recording).where(*conditions)
+
+        page = (await self.db.execute(page_stmt)).unique().scalars().all()
+        total = (await self.db.execute(count_stmt)).scalar_one()
+        return [RecordingResponse.model_validate(row) for row in page], total
+
+    async def get_by_path(self, file_path: str, user_id: int) -> Recording | None:
+        """Find one of the user's live recordings by its stored path.
+
+        Backs serving the audio file: the row is what proves the caller owns
+        the bytes, so the path alone is never enough.
+        """
+        stmt = select(Recording).where(
+            Recording.file_path == file_path,
+            Recording.user_id == user_id,
+            Recording.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def all_live_file_paths(self) -> list[str]:
+        """Every live recording's stored path, across all users.
+
+        For reconciling the database against the files on disk, which is an
+        administrative sweep rather than a per-user read.
+        """
+        stmt = select(Recording.file_path).where(
+            Recording.deleted_at.is_(None),
+            Recording.file_path.is_not(None),
+        )
+        result = await self.db.execute(stmt)
+        return [path for path in result.scalars().all() if path]
+
+    async def owner_id(self, recording_id: int) -> int | None:
+        """Return the user who owns a recording, or None if it is gone."""
+        stmt = select(Recording.user_id).where(
+            Recording.id == recording_id,
+            Recording.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def save(self, recording: Recording) -> Recording:
+        """Flush pending changes to a recording and read it back."""
+        await self.db.flush()
+        await self.db.refresh(recording)
+        return recording

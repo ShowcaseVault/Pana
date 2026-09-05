@@ -14,6 +14,10 @@ Four handlers cover everything the app can raise:
 
 Logging follows severity: expected failures log a single warning line, bugs log
 a full traceback. Nothing logs the response body twice.
+
+Every handler returns through `error_response()`, the error counterpart of
+`success()` in `api.schemas.response` -- one place builds the failure body, so
+it cannot drift from what `error_docs()` documents.
 """
 
 import logging
@@ -33,11 +37,21 @@ def error_response(
     message: str,
     status_code: int,
     data: object = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
-    """Build a failure envelope. Shape matches `schemas.response.ErrorResponse`."""
+    """Build a failure envelope -- the error counterpart of `success()`.
+
+    The body is built from `ErrorResponse` rather than a literal dict, so the
+    shape a client receives and the shape `error_docs()` advertises in OpenAPI
+    cannot drift apart.
+
+    `headers` exists for the failures that carry them: a 401 needs its
+    `WWW-Authenticate`, and a 503 may carry `Retry-After`.
+    """
     return JSONResponse(
         status_code=status_code,
-        content={"success": False, "message": message, "data": data},
+        content=ErrorResponse(message=message, data=data).model_dump(mode="json"),
+        headers=headers,
     )
 
 
@@ -54,7 +68,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         """Expected failure. One warning line, no traceback -- these are normal
         outcomes and a stack trace for every 404 buries the real errors."""
         logger.warning("%s -> %s: %s", _where(request), exc.status_code, exc.message)
-        return error_response(exc.message, exc.status_code, exc.data)
+        return error_response(exc.message, exc.status_code, data=exc.data)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -71,9 +85,10 @@ def register_exception_handlers(app: FastAPI) -> None:
         else:
             logger.warning("%s -> %s: %s", _where(request), exc.status_code, message)
 
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"success": False, "message": message, "data": data},
+        return error_response(
+            message,
+            exc.status_code,
+            data=data,
             headers=getattr(exc, "headers", None),
         )
 

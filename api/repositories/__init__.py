@@ -9,13 +9,35 @@ Import from here rather than from the individual modules:
     from api.repositories import UserRepository
 """
 
+from api.repositories.diary_ai_repository import DiaryAIRepository
+from api.repositories.diary_repository import DiaryRepository
+from api.repositories.event_repository import (
+    TranscriptionEventRepository,
+    publish_transcription_completed,
+)
 from api.repositories.google_oauth_repository import GoogleOAuthRepository
+from api.repositories.history_repository import HistoryRepository
+from api.repositories.location_repository import LocationRepository
+from api.repositories.recording_file_repository import RecordingFileRepository
+from api.repositories.recording_repository import RecordingRepository
 from api.repositories.refresh_token_repository import RefreshTokenRepository, hash_token
+from api.repositories.transcription_repository import TranscriptionRepository
+from api.repositories.transcription_sync_repository import TranscriptionSyncRepository
 from api.repositories.user_repository import UserRepository
 
 __all__ = [
+    "DiaryAIRepository",
+    "DiaryRepository",
     "GoogleOAuthRepository",
+    "TranscriptionEventRepository",
+    "HistoryRepository",
+    "LocationRepository",
+    "RecordingFileRepository",
+    "RecordingRepository",
     "RefreshTokenRepository",
+    "TranscriptionRepository",
+    "TranscriptionSyncRepository",
     "UserRepository",
     "hash_token",
+    "publish_transcription_completed",
 ]

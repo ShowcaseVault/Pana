@@ -1,86 +1,23 @@
-import asyncio
-import json
+"""Transcription task.
+
+The entry point only: it opens a database session and hands off to
+`TranscriptionJob`, which holds the work and can be read without Celery in the
+picture.
+"""
+
 import logging
 
-from sqlalchemy.orm import Session
-
-from api.connections import get_redis_client, get_sync_db_session
-from api.models.recordings import Recording
-from api.models.transcriptions import Transcription
-from api.schemas.transcriptions import TranscriptionStatus
-from api.services.transcribe_audio_async import transcribe_audio_file
+from api.connections import get_sync_db_session
+from api.services.transcription_job import TranscriptionJob
 from celery_service.celery_app import celery_app
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("transcription")
 
 
 @celery_app.task(name="transcribe_audio_task")
-def transcribe_audio_task(transcription_id: int):
-    logger.info(f"Starting transcription task for ID: {transcription_id}")
+def transcribe_audio_task(transcription_id: int) -> None:
+    """Transcribe one recording."""
+    logger.info("Starting transcription task for %s", transcription_id)
 
     with get_sync_db_session() as db:
-        _run_transcription(db, transcription_id)
-
-
-def _run_transcription(db: Session, transcription_id: int) -> None:
-    try:
-        # Fetch Transcription and associated Recording
-        transcription = db.query(Transcription).filter(Transcription.id == transcription_id).first()
-        if not transcription:
-            logger.error(f"Transcription with ID {transcription_id} not found.")
-            return
-
-        recording = db.query(Recording).filter(Recording.id == transcription.recording_id).first()
-        if not recording:
-            logger.error(f"Recording for transcription ID {transcription_id} not found.")
-            transcription.status = TranscriptionStatus.failed.value
-            db.commit()
-            return
-
-        # Update status to processing
-        transcription.status = TranscriptionStatus.processing.value
-        db.commit()
-
-        # Perform Transcription
-        logger.info(f"Transcribing file: {recording.file_path}")
-        try:
-            transcription_data = asyncio.run(transcribe_audio_file(recording.file_path))
-
-            # Update Transcription record
-            transcription.text = transcription_data["text"]
-            transcription.language = transcription_data["language"]
-            transcription.confidence = transcription_data["confidence"]
-            transcription.status = TranscriptionStatus.completed.value
-            transcription.transcribed_at = transcription_data["transcribe_time"]
-            transcription.words = transcription_data["words"]
-
-            db.commit()
-            logger.info(f"Transcription {transcription_id} completed successfully.")
-
-        except Exception as e:
-            logger.exception(f"Error during transcription API call: {e}")
-            transcription.status = TranscriptionStatus.failed.value
-            db.commit()
-            raise e
-        try:
-            redis_client = get_redis_client()
-            status_value = (
-                transcription.status.value
-                if hasattr(transcription.status, "value")
-                else transcription.status
-            )
-            redis_client.publish(
-                "transcription_completed",
-                json.dumps(
-                    {
-                        "transcription_id": transcription.id,
-                        "recording_id": transcription.recording_id,
-                        "status": status_value,
-                    }
-                ),
-            )
-        except Exception as e:
-            logger.exception(f"Error during Publishing transcription information: {e}")
-
-    except Exception as e:
-        logger.exception(f"Unexpected error in task: {e}")
+        TranscriptionJob(db).run(transcription_id)

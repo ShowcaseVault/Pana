@@ -1,125 +1,126 @@
+"""Recording endpoints."""
+
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_authorized_db_user
 from api.connections import get_async_db_session
-from api.cruds.recordings import (
-    create_recording,
-    delete_recording,
-    get_all_recordings,
-    get_recording_by_id,
-    update_recording,
+from api.exceptions import error_docs
+from api.models.users import User
+from api.repositories import (
+    RecordingFileRepository,
+    RecordingRepository,
+    TranscriptionRepository,
 )
-from api.cruds.transcriptions import create_transcription
-from api.exceptions import BadRequestError, NotFoundError, error_docs
-from api.schemas.recordings import RecordingCreate, RecordingResponse, RecordingUpdate
-from api.schemas.response import ApiResponse
-from api.schemas.transcriptions import TranscriptionCreate
+from api.schemas.recordings import RecordingResponse, RecordingUpdate
+from api.schemas.response import (
+    ApiResponse,
+    PaginatedResponse,
+    Pagination,
+    paginated,
+    success,
+)
+from api.services.recordings import RecordingService
 from celery_service.tasks.transcription import transcribe_audio_task
 
 router = APIRouter(prefix="/recordings", tags=["Recordings"])
 
 
-_ALLOWED_AUDIO_EXTENSIONS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".webm", ".flac"}
+def get_recording_service(
+    db: AsyncSession = Depends(get_async_db_session),
+) -> RecordingService:
+    """Build the recording service with the repositories it needs."""
+    return RecordingService(
+        recordings=RecordingRepository(db),
+        transcriptions=TranscriptionRepository(db),
+        files=RecordingFileRepository(),
+    )
 
 
 @router.post("", responses=error_docs(400, 401))
-async def create_recording_endpoint(
+async def create_recording(
     file: UploadFile = File(...),
     duration_seconds: int = Form(...),
     recorded_at: datetime = Form(...),
     location_text: str | None = Form(None),
-    user=Depends(get_authorized_db_user),
+    user: User = Depends(get_authorized_db_user),
     db: AsyncSession = Depends(get_async_db_session),
+    service: RecordingService = Depends(get_recording_service),
 ) -> ApiResponse[RecordingResponse]:
-    content_type = (file.content_type or "").lower()
-    if not content_type.startswith("audio/"):
-        filename = (file.filename or "").lower()
-        if not any(filename.endswith(ext) for ext in _ALLOWED_AUDIO_EXTENSIONS):
-            raise BadRequestError("Uploaded file must be an audio file")
-
-    payload = RecordingCreate(
+    """Upload a recording and queue it for transcription."""
+    recording, transcription_id = await service.create(
+        file=file,
+        user_id=user.id,
+        user_sub=user.google_id,
         duration_seconds=duration_seconds,
         recorded_at=recorded_at,
         location_text=location_text,
     )
 
-    # 1. Create recording
-    new_recording = await create_recording(
-        db=db, file=file, user_id=user.id, user_sub=user.google_id, recording_data=payload
-    )
-
-    # 2. Create transcription
-    create_transcription_payload = TranscriptionCreate(recording_id=new_recording.id)
-    transcription = await create_transcription(
-        db=db,
-        payload=create_transcription_payload,
-        user_id=user.id,
-    )
-
-    # 3. enqueue celery task
-    # Commit before dispatching: the worker runs in another process and would
-    # not see rows still sitting in this request's open transaction.
-    if transcription:
+    if transcription_id is not None:
+        # Commit before dispatching: the worker runs in another process and
+        # would not see rows still sitting in this request's transaction.
         await db.commit()
-        transcribe_audio_task.apply_async(args=[transcription.id], queue="default")
+        transcribe_audio_task.apply_async(args=[transcription_id], queue="default")
 
-    return ApiResponse(data=new_recording, message="Recording created successfully")
+    return success(data=recording, message="Recording created successfully")
 
 
 @router.get("", responses=error_docs(401))
-async def get_recordings_endpoint(
-    skip: int = 0,
-    limit: int = 100,
+async def list_recordings(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=200),
     recording_date: date | None = None,
-    list_all: bool | None = False,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
-) -> ApiResponse[list[RecordingResponse]]:
-    recordings = await get_all_recordings(db, user.id, skip, limit, recording_date, list_all)
-    return ApiResponse(data=recordings, message="Recordings retrieved successfully")
-
-
-@router.get("/{recording_id}", responses=error_docs(401, 404))
-async def get_recording_endpoint(
-    recording_id: int,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
-) -> ApiResponse[RecordingResponse]:
-    recording = await get_recording_by_id(db, recording_id, user.id)
-    if not recording:
-        raise NotFoundError("Recording not found")
-
-    return ApiResponse(
-        data=RecordingResponse.model_validate(recording),
-        message="Recording retrieved successfully",
+    list_all: bool = False,
+    user: User = Depends(get_authorized_db_user),
+    service: RecordingService = Depends(get_recording_service),
+) -> PaginatedResponse[list[RecordingResponse]]:
+    """List the user's recordings. Defaults to today unless `list_all` is set."""
+    recordings, total = await service.list(
+        user.id,
+        page=page,
+        page_size=page_size,
+        recording_date=recording_date,
+        list_all=list_all,
+    )
+    return paginated(
+        data=recordings,
+        message="Recordings retrieved successfully",
+        pagination=Pagination.build(page=page, page_size=page_size, total=total),
     )
 
 
-@router.patch("/{recording_id}", responses=error_docs(401, 404))
-async def update_recording_endpoint(
+@router.get("/{recording_id}", responses=error_docs(401, 404))
+async def get_recording(
     recording_id: int,
-    update_data: RecordingUpdate,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
+    user: User = Depends(get_authorized_db_user),
+    service: RecordingService = Depends(get_recording_service),
 ) -> ApiResponse[RecordingResponse]:
-    recording = await update_recording(db, recording_id, update_data, user.id)
-    if not recording:
-        raise NotFoundError("Recording not found")
+    """Return one recording."""
+    recording = await service.get(recording_id, user.id)
+    return success(data=recording, message="Recording retrieved successfully")
 
-    return ApiResponse(data=recording, message="Recording updated successfully")
+
+@router.patch("/{recording_id}", responses=error_docs(401, 404))
+async def update_recording(
+    recording_id: int,
+    changes: RecordingUpdate,
+    user: User = Depends(get_authorized_db_user),
+    service: RecordingService = Depends(get_recording_service),
+) -> ApiResponse[RecordingResponse]:
+    """Update a recording's metadata."""
+    recording = await service.update(recording_id, user.id, changes)
+    return success(data=recording, message="Recording updated successfully")
 
 
 @router.delete("/{recording_id}", responses=error_docs(401, 404))
-async def delete_recording_endpoint(
+async def delete_recording(
     recording_id: int,
-    user=Depends(get_authorized_db_user),
-    db: AsyncSession = Depends(get_async_db_session),
+    user: User = Depends(get_authorized_db_user),
+    service: RecordingService = Depends(get_recording_service),
 ) -> ApiResponse[None]:
-    deleted = await delete_recording(db, recording_id, user.id)
-    if not deleted:
-        raise NotFoundError("Recording not found")
-
-    return ApiResponse(data=None, message="Recording deleted successfully")
+    """Soft-delete a recording and its transcription."""
+    await service.delete(recording_id, user.id)
+    return success(message="Recording deleted successfully")
