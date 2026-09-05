@@ -17,7 +17,7 @@ from api.repositories import (
     RecordingRepository,
     TranscriptionRepository,
 )
-from api.schemas.recordings import RecordingUpdate
+from api.schemas.recordings import RecordingResponse, RecordingUpdate
 
 logger = logging.getLogger("recordings")
 
@@ -49,7 +49,7 @@ class RecordingService:
         duration_seconds: int,
         recorded_at: datetime,
         location_text: str | None = None,
-    ) -> tuple[Recording, int | None]:
+    ) -> tuple[RecordingResponse, int | None]:
         """Store an upload, record it, and queue it for transcription.
 
         Returns the recording and the id of the transcription to enqueue, or
@@ -76,10 +76,18 @@ class RecordingService:
             user_id,
             transcription.id,
         )
-        return recording, transcription.id
+        return RecordingResponse.model_validate(recording), transcription.id
 
-    async def get(self, recording_id: int, user_id: int) -> Recording:
+    async def get(self, recording_id: int, user_id: int) -> RecordingResponse:
         """Return one of the user's recordings, or raise 404."""
+        return RecordingResponse.model_validate(await self._owned_row(recording_id, user_id))
+
+    async def _owned_row(self, recording_id: int, user_id: int) -> Recording:
+        """Fetch the ORM row behind a recording the user owns, or raise 404.
+
+        Separate from `get` because updating and deleting need the live row,
+        while everything served to a client needs the schema.
+        """
         recording = await self.recordings.get_for_user(recording_id, user_id)
         if recording is None:
             raise NotFoundError("Recording not found")
@@ -89,30 +97,34 @@ class RecordingService:
         self,
         user_id: int,
         *,
-        skip: int = 0,
-        limit: int = 100,
+        page: int = 1,
+        page_size: int = 100,
         recording_date: date | None = None,
         list_all: bool = False,
-    ) -> tuple[list[Recording], int]:
+    ) -> tuple[list[RecordingResponse], int]:
         """Return a page of the user's recordings and the matching total.
 
         Without `list_all` and without an explicit date this answers "today",
-        which is what the home screen asks for.
+        which is what the home screen asks for. Paging is expressed as a page
+        number here and turned into an offset for the repository, so the route
+        and the client speak the same language as the response metadata.
         """
         if not list_all and recording_date is None:
             recording_date = date.today()
 
         return await self.recordings.list_for_user(
             user_id,
-            skip=skip,
-            limit=limit,
+            skip=(page - 1) * page_size,
+            limit=page_size,
             recording_date=recording_date,
             list_all=list_all,
         )
 
-    async def update(self, recording_id: int, user_id: int, changes: RecordingUpdate) -> Recording:
+    async def update(
+        self, recording_id: int, user_id: int, changes: RecordingUpdate
+    ) -> RecordingResponse:
         """Apply a partial update to one of the user's recordings."""
-        recording = await self.get(recording_id, user_id)
+        recording = await self._owned_row(recording_id, user_id)
 
         fields = changes.model_dump(exclude_unset=True)
         for key, value in fields.items():
@@ -123,7 +135,7 @@ class RecordingService:
         if "recorded_at" in fields:
             recording.recording_date = fields["recorded_at"].date()
 
-        return await self.recordings.save(recording)
+        return RecordingResponse.model_validate(await self.recordings.save(recording))
 
     async def delete(self, recording_id: int, user_id: int) -> None:
         """Soft-delete a recording and its transcription.
@@ -131,7 +143,7 @@ class RecordingService:
         The audio file is left on disk: a soft delete is reversible, and
         removing the bytes would make that a lie.
         """
-        recording = await self.get(recording_id, user_id)
+        recording = await self._owned_row(recording_id, user_id)
 
         transcription = await self.transcriptions.get_by_recording(recording.id)
         if transcription is not None:

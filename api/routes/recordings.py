@@ -2,7 +2,7 @@
 
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_authorized_db_user
@@ -14,12 +14,14 @@ from api.repositories import (
     RecordingRepository,
     TranscriptionRepository,
 )
-from api.schemas.recordings import (
-    RecordingListResponse,
-    RecordingResponse,
-    RecordingUpdate,
+from api.schemas.recordings import RecordingResponse, RecordingUpdate
+from api.schemas.response import (
+    ApiResponse,
+    PaginatedResponse,
+    Pagination,
+    paginated,
+    success,
 )
-from api.schemas.response import ApiResponse
 from api.services.recordings import RecordingService
 from celery_service.tasks.transcription import transcribe_audio_task
 
@@ -63,29 +65,30 @@ async def create_recording(
         await db.commit()
         transcribe_audio_task.apply_async(args=[transcription_id], queue="default")
 
-    return ApiResponse(data=recording, message="Recording created successfully")
+    return success(data=recording, message="Recording created successfully")
 
 
 @router.get("", responses=error_docs(401))
 async def list_recordings(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=200),
     recording_date: date | None = None,
     list_all: bool = False,
     user: User = Depends(get_authorized_db_user),
     service: RecordingService = Depends(get_recording_service),
-) -> ApiResponse[RecordingListResponse]:
+) -> PaginatedResponse[list[RecordingResponse]]:
     """List the user's recordings. Defaults to today unless `list_all` is set."""
     recordings, total = await service.list(
         user.id,
-        skip=skip,
-        limit=limit,
+        page=page,
+        page_size=page_size,
         recording_date=recording_date,
         list_all=list_all,
     )
-    return ApiResponse(
-        data=RecordingListResponse(total=total, data=recordings),
+    return paginated(
+        data=recordings,
         message="Recordings retrieved successfully",
+        pagination=Pagination.build(page=page, page_size=page_size, total=total),
     )
 
 
@@ -97,7 +100,7 @@ async def get_recording(
 ) -> ApiResponse[RecordingResponse]:
     """Return one recording."""
     recording = await service.get(recording_id, user.id)
-    return ApiResponse(data=recording, message="Recording retrieved successfully")
+    return success(data=recording, message="Recording retrieved successfully")
 
 
 @router.patch("/{recording_id}", responses=error_docs(401, 404))
@@ -109,7 +112,7 @@ async def update_recording(
 ) -> ApiResponse[RecordingResponse]:
     """Update a recording's metadata."""
     recording = await service.update(recording_id, user.id, changes)
-    return ApiResponse(data=recording, message="Recording updated successfully")
+    return success(data=recording, message="Recording updated successfully")
 
 
 @router.delete("/{recording_id}", responses=error_docs(401, 404))
@@ -120,4 +123,4 @@ async def delete_recording(
 ) -> ApiResponse[None]:
     """Soft-delete a recording and its transcription."""
     await service.delete(recording_id, user.id)
-    return ApiResponse(data=None, message="Recording deleted successfully")
+    return success(message="Recording deleted successfully")

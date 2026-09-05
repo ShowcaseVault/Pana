@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from api.models.recordings import Recording
+from api.schemas.recordings import RecordingResponse
 
 
 class RecordingRepository:
@@ -68,11 +69,14 @@ class RecordingRepository:
         limit: int = 100,
         recording_date: date | None = None,
         list_all: bool = False,
-    ) -> tuple[list[Recording], int]:
+    ) -> tuple[list[RecordingResponse], int]:
         """Return one page of a user's recordings, newest first, and the total.
 
         The total counts every row matching the filter, not just this page, so
         a client can show how many there are without fetching them all.
+
+        Rows are converted here: this is the read boundary, so nothing above it
+        has to hold a live ORM object just to serialize it.
         """
         conditions = [
             Recording.user_id == user_id,
@@ -91,9 +95,9 @@ class RecordingRepository:
         )
         count_stmt = select(func.count()).select_from(Recording).where(*conditions)
 
-        page = (await self.db.execute(page_stmt)).scalars().all()
+        page = (await self.db.execute(page_stmt)).unique().scalars().all()
         total = (await self.db.execute(count_stmt)).scalar_one()
-        return list(page), total
+        return [RecordingResponse.model_validate(row) for row in page], total
 
     async def get_by_path(self, file_path: str, user_id: int) -> Recording | None:
         """Find one of the user's live recordings by its stored path.

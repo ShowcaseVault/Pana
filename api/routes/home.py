@@ -7,7 +7,7 @@ from api.auth.dependencies import get_current_user
 from api.connections import get_async_db_session
 from api.exceptions import error_docs
 from api.repositories import UserRepository
-from api.schemas.response import ApiResponse
+from api.schemas.response import ApiResponse, success
 from api.schemas.users import UserResponse
 from api.services.home import HomeService
 
@@ -26,4 +26,4 @@ async def get_home(
 ) -> ApiResponse[UserResponse]:
     """Return the signed-in user's profile."""
     profile = await service.get_profile(current_user["sub"])
-    return ApiResponse(data=profile, message="User profile retrieved successfully")
+    return success(data=profile, message="User profile retrieved successfully")

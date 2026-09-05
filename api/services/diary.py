@@ -9,7 +9,6 @@ from datetime import date, datetime
 from typing import Any
 
 from api.config.config import settings
-from api.models.diary import Diary
 from api.models.recordings import Recording
 from api.repositories import (
     DiaryAIRepository,
@@ -78,7 +77,7 @@ class DiaryService:
 
     async def generate(
         self, user_id: int, diary_date: date | None = None
-    ) -> tuple[Diary, list[int]]:
+    ) -> tuple[DiaryResponse, list[int]]:
         """Write or rewrite the diary for a day.
 
         Returns the diary and the ids of any transcriptions that need to run.
@@ -100,7 +99,7 @@ class DiaryService:
             actions=summary.get("actions"),
             recording_file_paths=[r.file_path for r in recordings],
         )
-        return diary, pending
+        return DiaryResponse.model_validate(diary), pending
 
     async def _queue_missing_transcriptions(self, recordings: list[Recording]) -> list[int]:
         """Return transcription ids that still need the worker to run.

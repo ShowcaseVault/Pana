@@ -9,7 +9,7 @@ from api.exceptions import error_docs
 from api.models.users import User
 from api.repositories import HistoryRepository
 from api.schemas.history import HistoryCalendar
-from api.schemas.response import ApiResponse
+from api.schemas.response import ApiResponse, success
 from api.services.history import HistoryService
 
 router = APIRouter(prefix="/history", tags=["History"])
@@ -31,4 +31,4 @@ async def get_calendar(
 ) -> ApiResponse[HistoryCalendar]:
     """Return the days of a month the user has diaries or recordings on."""
     result = await service.calendar(user.id, year, month)
-    return ApiResponse(data=result, message="Calendar retrieved successfully")
+    return success(data=result, message="Calendar retrieved successfully")

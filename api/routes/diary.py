@@ -16,7 +16,7 @@ from api.repositories import (
     TranscriptionRepository,
 )
 from api.schemas.diary import DiaryResponse
-from api.schemas.response import ApiResponse
+from api.schemas.response import ApiResponse, success
 from api.services.diary import DiaryService
 from celery_service.tasks.transcription import transcribe_audio_task
 
@@ -52,7 +52,7 @@ async def generate_diary(
         for transcription_id in pending_transcriptions:
             transcribe_audio_task.apply_async(args=[transcription_id], queue="high_priority")
 
-    return ApiResponse(data=diary, message="Diary created/updated successfully")
+    return success(data=diary, message="Diary created/updated successfully")
 
 
 @router.get("", responses=error_docs(401, 404))
@@ -63,4 +63,4 @@ async def get_diary(
 ) -> ApiResponse[DiaryResponse]:
     """Return the diary for a day, empty if it has not been written yet."""
     diary = await service.get(user.id, date)
-    return ApiResponse(data=diary, message="Diary fetched successfully")
+    return success(data=diary, message="Diary fetched successfully")

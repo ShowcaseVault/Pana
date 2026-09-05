@@ -31,14 +31,3 @@ class RecordingResponse(BaseModel):
     transcription_confidence: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class RecordingListResponse(BaseModel):
-    """One page of recordings, with the count of everything that matched.
-
-    `total` counts every recording matching the filter, not just this page, so
-    a client can page without fetching the whole set to learn its size.
-    """
-
-    total: int
-    data: list[RecordingResponse]

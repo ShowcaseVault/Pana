@@ -5,7 +5,7 @@ transcription are the transcription worker's job, not a client's, so those
 routes stay defined but unregistered -- see the note above each one.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.auth.dependencies import get_authorized_db_user
@@ -13,10 +13,15 @@ from api.connections import get_async_db_session
 from api.exceptions import error_docs
 from api.models.users import User
 from api.repositories import RecordingRepository, TranscriptionRepository
-from api.schemas.response import ApiResponse
+from api.schemas.response import (
+    ApiResponse,
+    PaginatedResponse,
+    Pagination,
+    paginated,
+    success,
+)
 from api.schemas.transcriptions import (
     TranscriptionCreate,
-    TranscriptionListResponse,
     TranscriptionResponse,
     TranscriptionStatus,
     TranscriptionUpdate,
@@ -38,22 +43,23 @@ def get_transcription_service(
 
 @router.get("", responses=error_docs(401))
 async def list_transcriptions(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=200),
     status: TranscriptionStatus | None = None,
     user: User = Depends(get_authorized_db_user),
     service: TranscriptionService = Depends(get_transcription_service),
-) -> ApiResponse[TranscriptionListResponse]:
+) -> PaginatedResponse[list[TranscriptionResponse]]:
     """List the user's transcriptions, newest first."""
     transcriptions, total = await service.list(
         user.id,
-        skip=skip,
-        limit=limit,
+        page=page,
+        page_size=page_size,
         status=status.value if status else None,
     )
-    return ApiResponse(
-        data=TranscriptionListResponse(total=total, data=transcriptions),
+    return paginated(
+        data=transcriptions,
         message="Transcriptions retrieved successfully",
+        pagination=Pagination.build(page=page, page_size=page_size, total=total),
     )
 
 
@@ -65,7 +71,7 @@ async def get_transcription(
 ) -> ApiResponse[TranscriptionResponse]:
     """Return one transcription."""
     transcription = await service.get(transcription_id, user.id)
-    return ApiResponse(data=transcription, message="Transcription retrieved successfully")
+    return success(data=transcription, message="Transcription retrieved successfully")
 
 
 # ── Not mounted ──────────────────────────────────────────────────────────────
@@ -85,7 +91,7 @@ async def create_transcription(
     transcription = await service.create(
         payload.recording_id, user.id, model_name=payload.model_name
     )
-    return ApiResponse(data=transcription, message="Transcription created successfully")
+    return success(data=transcription, message="Transcription created successfully")
 
 
 async def update_transcription(
@@ -96,7 +102,7 @@ async def update_transcription(
 ) -> ApiResponse[TranscriptionResponse]:
     """Update a transcription's text, status, or metadata."""
     transcription = await service.update(transcription_id, user.id, changes)
-    return ApiResponse(data=transcription, message="Transcription updated successfully")
+    return success(data=transcription, message="Transcription updated successfully")
 
 
 async def delete_transcription(
@@ -106,4 +112,4 @@ async def delete_transcription(
 ) -> ApiResponse[None]:
     """Soft-delete a transcription."""
     await service.delete(transcription_id, user.id)
-    return ApiResponse(data=None, message="Transcription deleted successfully")
+    return success(message="Transcription deleted successfully")

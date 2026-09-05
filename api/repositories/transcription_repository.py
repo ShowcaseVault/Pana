@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
-from api.schemas.transcriptions import TranscriptionStatus
+from api.schemas.transcriptions import TranscriptionResponse, TranscriptionStatus
 
 
 class TranscriptionRepository:
@@ -77,8 +77,11 @@ class TranscriptionRepository:
         skip: int = 0,
         limit: int = 100,
         status: str | None = None,
-    ) -> tuple[list[Transcription], int]:
-        """Return one page of a user's transcriptions, newest first, and the total."""
+    ) -> tuple[list[TranscriptionResponse], int]:
+        """Return one page of a user's transcriptions, newest first, and the total.
+
+        Rows are converted here: this is the read boundary.
+        """
         conditions = [Recording.user_id == user_id]
         if status:
             conditions.append(Transcription.status == status)
@@ -103,7 +106,7 @@ class TranscriptionRepository:
 
         page = (await self.db.execute(page_stmt)).scalars().all()
         total = (await self.db.execute(count_stmt)).scalar_one()
-        return list(page), total
+        return [TranscriptionResponse.model_validate(row) for row in page], total
 
     async def save(self, transcription: Transcription) -> Transcription:
         """Flush pending changes to a transcription and read it back."""

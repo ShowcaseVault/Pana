@@ -5,7 +5,7 @@ import logging
 from api.exceptions import ConflictError, NotFoundError
 from api.models.transcriptions import Transcription
 from api.repositories import RecordingRepository, TranscriptionRepository
-from api.schemas.transcriptions import TranscriptionUpdate
+from api.schemas.transcriptions import TranscriptionResponse, TranscriptionUpdate
 
 logger = logging.getLogger("transcriptions")
 
@@ -24,7 +24,7 @@ class TranscriptionService:
 
     async def create(
         self, recording_id: int, user_id: int, *, model_name: str | None = None
-    ) -> Transcription:
+    ) -> TranscriptionResponse:
         """Queue a transcription for one of the user's recordings.
 
         The recording is looked up through the repository rather than trusted
@@ -41,10 +41,20 @@ class TranscriptionService:
             # is a clearer 409 than the integrity error the insert would raise.
             raise ConflictError("Transcription already exists for this recording")
 
-        return await self.transcriptions.create(recording_id=recording_id, model_name=model_name)
+        created = await self.transcriptions.create(recording_id=recording_id, model_name=model_name)
+        return TranscriptionResponse.model_validate(created)
 
-    async def get(self, transcription_id: int, user_id: int) -> Transcription:
+    async def get(self, transcription_id: int, user_id: int) -> TranscriptionResponse:
         """Return one of the user's transcriptions, or raise 404."""
+        return TranscriptionResponse.model_validate(
+            await self._owned_row(transcription_id, user_id)
+        )
+
+    async def _owned_row(self, transcription_id: int, user_id: int) -> Transcription:
+        """Fetch the ORM row behind a transcription the user owns, or raise 404.
+
+        Separate from `get` because updating and deleting need the live row.
+        """
         transcription = await self.transcriptions.get_for_user(transcription_id, user_id)
         if transcription is None:
             raise NotFoundError("Transcription not found")
@@ -54,29 +64,29 @@ class TranscriptionService:
         self,
         user_id: int,
         *,
-        skip: int = 0,
-        limit: int = 100,
+        page: int = 1,
+        page_size: int = 100,
         status: str | None = None,
-    ) -> tuple[list[Transcription], int]:
+    ) -> tuple[list[TranscriptionResponse], int]:
         """Return a page of the user's transcriptions and the matching total."""
         return await self.transcriptions.list_for_user(
-            user_id, skip=skip, limit=limit, status=status
+            user_id, skip=(page - 1) * page_size, limit=page_size, status=status
         )
 
     async def update(
         self, transcription_id: int, user_id: int, changes: TranscriptionUpdate
-    ) -> Transcription:
+    ) -> TranscriptionResponse:
         """Apply a partial update to one of the user's transcriptions."""
-        transcription = await self.get(transcription_id, user_id)
+        transcription = await self._owned_row(transcription_id, user_id)
 
         for key, value in changes.model_dump(exclude_unset=True).items():
             setattr(transcription, key, value)
 
-        return await self.transcriptions.save(transcription)
+        return TranscriptionResponse.model_validate(await self.transcriptions.save(transcription))
 
     async def delete(self, transcription_id: int, user_id: int) -> None:
         """Soft-delete a transcription, leaving its recording alone."""
-        transcription = await self.get(transcription_id, user_id)
+        transcription = await self._owned_row(transcription_id, user_id)
         transcription.soft_delete()
         await self.transcriptions.save(transcription)
         logger.info("Transcription %s soft-deleted for user %s", transcription_id, user_id)
