@@ -1,12 +1,12 @@
 import asyncio
-import json
 import logging
 
 from sqlalchemy.orm import Session
 
-from api.connections import get_redis_client, get_sync_db_session
+from api.connections import get_sync_db_session
 from api.models.recordings import Recording
 from api.models.transcriptions import Transcription
+from api.repositories import publish_transcription_completed
 from api.schemas.transcriptions import TranscriptionStatus
 from api.services.transcribe_audio_async import transcribe_audio_file
 from celery_service.celery_app import celery_app
@@ -62,25 +62,19 @@ def _run_transcription(db: Session, transcription_id: int) -> None:
             transcription.status = TranscriptionStatus.failed.value
             db.commit()
             raise e
-        try:
-            redis_client = get_redis_client()
-            status_value = (
-                transcription.status.value
-                if hasattr(transcription.status, "value")
-                else transcription.status
-            )
-            redis_client.publish(
-                "transcription_completed",
-                json.dumps(
-                    {
-                        "transcription_id": transcription.id,
-                        "recording_id": transcription.recording_id,
-                        "status": status_value,
-                    }
-                ),
-            )
-        except Exception as e:
-            logger.exception(f"Error during Publishing transcription information: {e}")
+        status_value = (
+            transcription.status.value
+            if hasattr(transcription.status, "value")
+            else transcription.status
+        )
+        # Published on the owner's channel, so the notification reaches that
+        # user's open streams and nobody else's.
+        publish_transcription_completed(
+            recording.user_id,
+            transcription_id=transcription.id,
+            recording_id=transcription.recording_id,
+            status=status_value,
+        )
 
     except Exception as e:
         logger.exception(f"Unexpected error in task: {e}")

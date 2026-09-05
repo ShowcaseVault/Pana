@@ -95,6 +95,42 @@ class RecordingRepository:
         total = (await self.db.execute(count_stmt)).scalar_one()
         return list(page), total
 
+    async def get_by_path(self, file_path: str, user_id: int) -> Recording | None:
+        """Find one of the user's live recordings by its stored path.
+
+        Backs serving the audio file: the row is what proves the caller owns
+        the bytes, so the path alone is never enough.
+        """
+        stmt = select(Recording).where(
+            Recording.file_path == file_path,
+            Recording.user_id == user_id,
+            Recording.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def all_live_file_paths(self) -> list[str]:
+        """Every live recording's stored path, across all users.
+
+        For reconciling the database against the files on disk, which is an
+        administrative sweep rather than a per-user read.
+        """
+        stmt = select(Recording.file_path).where(
+            Recording.deleted_at.is_(None),
+            Recording.file_path.is_not(None),
+        )
+        result = await self.db.execute(stmt)
+        return [path for path in result.scalars().all() if path]
+
+    async def owner_id(self, recording_id: int) -> int | None:
+        """Return the user who owns a recording, or None if it is gone."""
+        stmt = select(Recording.user_id).where(
+            Recording.id == recording_id,
+            Recording.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
     async def save(self, recording: Recording) -> Recording:
         """Flush pending changes to a recording and read it back."""
         await self.db.flush()
