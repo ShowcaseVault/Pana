@@ -22,6 +22,7 @@ from api.repositories.recording_file_repository import RecordingFileRepository
 from api.repositories.recording_repository import RecordingRepository
 from api.repositories.refresh_token_repository import RefreshTokenRepository, hash_token
 from api.repositories.transcription_repository import TranscriptionRepository
+from api.repositories.transcription_sync_repository import TranscriptionSyncRepository
 from api.repositories.user_repository import UserRepository
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "RecordingRepository",
     "RefreshTokenRepository",
     "TranscriptionRepository",
+    "TranscriptionSyncRepository",
     "UserRepository",
     "hash_token",
     "publish_transcription_completed",
