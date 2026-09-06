@@ -34,23 +34,38 @@
   flex-direction: column;
   flex-shrink: 0;
   align-items: stretch;
-  width: 112px;
+  width: 128px;
   height: 100%;
   padding: var(--space-6) 0 var(--space-4);
   background: var(--paper);
   border-right: 1px solid var(--rule);
 }
 
+/* The mark takes the same shape as a destination -- glyph over word -- so the
+   rail reads as one column rather than a logo with a menu stuck underneath. */
 .rail__mark {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
   margin-bottom: var(--space-7);
-  text-align: center;
+}
+
+/* The monochrome logo, not the app icon: the colourful one is a badge for a
+   home screen, and its teal would compete with the accent, which in Pana means
+   live voice and nothing else. */
+.rail__logo {
+  display: block;
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
 }
 
 .rail__wordmark {
   font-family: var(--font-prose);
-  font-size: var(--step-1);
+  font-size: var(--step-0);
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: var(--ink);
 }
 
@@ -71,11 +86,11 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: var(--space-3) var(--space-1);
+  padding: var(--space-4) var(--space-2);
   color: var(--ink-faint);
   text-align: center;
   text-decoration: none;
@@ -86,10 +101,10 @@
   color: var(--ink);
 }
 
-/* The label is deliberately smaller than the glyph. The icon is what the eye
-   lands on; the word settles which one it is. */
+/* The label is deliberately much smaller than the glyph. The icon is what the
+   eye lands on; the word is only there to settle which one it is. */
 .rail__label {
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.2;
   letter-spacing: 0.01em;
 }
@@ -205,5 +220,10 @@
   .rail__link--active::before {
     width: 22px;
     height: 2px;
+  }
+
+  .rail__icon {
+    width: 24px;
+    height: 24px;
   }
 }

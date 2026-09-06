@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import authService from '../services/auth.service';
 import { useAuth } from '../context/useAuth';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import '../styles/login.css';
 
 /** Google's mark, inline so the page holds no external image request. */
@@ -27,6 +28,8 @@ const GoogleMark = () => (
 );
 
 const Login = () => {
+  useDocumentTitle("Sign in");
+
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [params] = useSearchParams();
@@ -45,6 +48,7 @@ const Login = () => {
   return (
     <div className="login">
       <div className="login__inner">
+        <img className="login__logo" src="/logo-app.png" alt="" width="72" height="72" />
         <h1 className="login__wordmark">Pana</h1>
 
         <p className="login__line">Say what happened. Read it back as a diary.</p>

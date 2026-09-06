@@ -6,6 +6,7 @@ import RecordingCard from '../components/RecordingCard';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useDeleteRecording, useRecordings } from '../hooks/queries/useRecordings';
 import { useDiary } from '../hooks/queries/useDiary';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import '../styles/page.css';
 
 /** "Good morning" / "Good afternoon" / "Good evening", by local hour. */
@@ -44,6 +45,8 @@ const totalMinutes = (recordings) =>
  * one that decides what to do next.
  */
 const Home = () => {
+  useDocumentTitle('Today');
+
   const { user } = useAuth();
   const navigate = useNavigate();
 

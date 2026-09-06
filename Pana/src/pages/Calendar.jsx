@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCalendar } from '../hooks/queries/useCalendar';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import '../styles/calendar.css';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -43,6 +44,8 @@ const LongArrow = ({ direction }) => (
  * one comparison away from an update loop.
  */
 const Calendar = () => {
+  useDocumentTitle('Calendar');
+
   const { year: urlYear, month: urlMonth } = useParams();
   const navigate = useNavigate();
 

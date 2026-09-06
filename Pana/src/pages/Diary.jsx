@@ -5,6 +5,7 @@ import CreateDiary from '../components/CreateDiary';
 import DiaryView from '../components/Diary/DiaryView';
 import { useDiary, useGenerateDiary } from '../hooks/queries/useDiary';
 import { useRecordings } from '../hooks/queries/useRecordings';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import '../styles/page.css';
 
 /** Today as an ISO date string, in the user's own timezone. */
@@ -19,6 +20,17 @@ const Diary = () => {
   const navigate = useNavigate();
   const targetDate = date || todayIso();
   const isToday = targetDate === todayIso();
+
+  // The day, not just "Diary": with several days open the tab is the only
+  // thing telling them apart.
+  useDocumentTitle(
+    isToday
+      ? 'Diary'
+      : `Diary, ${new Date(targetDate).toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'short',
+        })}`,
+  );
 
   const { data: recordingsPage, isPending: loadingRecordings } = useRecordings({
     recordingDate: targetDate,

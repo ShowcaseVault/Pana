@@ -10,6 +10,7 @@ import {
   useDeleteRecording,
   useRecordings,
 } from "../hooks/queries/useRecordings";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import "../styles/page.css";
 
 /**
@@ -21,6 +22,8 @@ import "../styles/page.css";
  * colour in the interface; the list stays quiet beside it.
  */
 const Recordings = () => {
+  useDocumentTitle('Record');
+
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [recordingToDelete, setRecordingToDelete] = useState(null);

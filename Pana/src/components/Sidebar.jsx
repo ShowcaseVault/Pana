@@ -41,6 +41,7 @@ const Sidebar = () => {
   return (
     <aside className="rail">
       <div className="rail__mark">
+        <img className="rail__logo" src="/logo-mono.png" alt="" width="46" height="46" />
         <span className="rail__wordmark">Pana</span>
       </div>
 
@@ -62,8 +63,8 @@ const Sidebar = () => {
             }
           >
             <destination.Icon
-              size={26}
-              strokeWidth={1.6}
+              size={34}
+              strokeWidth={1.5}
               className="rail__icon"
               aria-hidden="true"
             />
@@ -74,7 +75,7 @@ const Sidebar = () => {
 
       <div className="rail__foot">
         <button type="button" className="rail__link rail__link--exit" onClick={handleSignOut}>
-          <LogOut size={26} strokeWidth={1.6} className="rail__icon" aria-hidden="true" />
+          <LogOut size={34} strokeWidth={1.5} className="rail__icon" aria-hidden="true" />
           <span className="rail__label">Logout</span>
         </button>
       </div>

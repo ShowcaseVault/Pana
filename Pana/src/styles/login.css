@@ -20,6 +20,18 @@
   margin-left: min(12vw, 140px);
 }
 
+/* The colourful mark earns its one appearance here. This is the only screen
+   with no interface around it, so the logo is not competing with anything --
+   and it is the first thing a new person sees of the product. */
+.login__logo {
+  display: block;
+  width: 72px;
+  height: 72px;
+  margin-bottom: var(--space-4);
+  border-radius: 18px;
+  object-fit: contain;
+}
+
 .login__wordmark {
   font-family: var(--font-prose);
   font-size: var(--step-4);
