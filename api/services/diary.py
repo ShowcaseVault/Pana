@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import Any
 
 from api.config.config import settings
+from api.exceptions import BadRequestError
 from api.models.recordings import Recording
 from api.repositories import (
     DiaryAIRepository,
@@ -87,6 +88,13 @@ class DiaryService:
         target = diary_date or date.today()
 
         recordings = await self.diaries.recordings_for_date(user_id, target)
+        if not recordings:
+            # A diary is written from a day's recordings. Storing an entry for
+            # a day with none creates a row that survives on its own and marks
+            # the day as written in the calendar, which is the same orphan that
+            # deleting the last recording is careful to remove.
+            raise BadRequestError("There are no recordings for this day to write from")
+
         pending = await self._queue_missing_transcriptions(recordings)
 
         summary = await self._summarize(recordings)
