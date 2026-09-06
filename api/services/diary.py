@@ -70,11 +70,10 @@ class DiaryService:
         if diary is not None:
             return DiaryResponse.model_validate(diary)
 
-        recordings = await self.diaries.recordings_for_date(user_id, target)
-        return DiaryResponse(
-            diary_date=target,
-            recording_file_paths=[r.file_path for r in recordings],
-        )
+        # The day has no entry. It still answers with its own date, so a client
+        # knows which day it asked about; what that day holds comes from
+        # listing its recordings, not from here.
+        return DiaryResponse(diary_date=target)
 
     async def generate(
         self, user_id: int, diary_date: date | None = None

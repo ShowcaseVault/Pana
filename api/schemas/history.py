@@ -4,9 +4,8 @@ from pydantic import BaseModel
 
 
 class HistoryCalendar(BaseModel):
-    year: int
-    month: int
-    days_in_month: int
+    """Which days of a month hold something."""
+
     diary_days: list[int] = []
     recording_days: list[int] = []
 

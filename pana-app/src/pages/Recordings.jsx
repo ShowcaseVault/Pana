@@ -1,11 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import AudioRecorder from "../components/AudioRecorder";
 import RecordingCard from "../components/RecordingCard";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { Toaster, toast } from "sonner";
-import { useTranscriptionSSE } from "../hooks/useTranscriptionSSE";
 import {
-  useApplyTranscriptionComplete,
   useCreateRecording,
   useDeleteRecording,
   useRecordings,
@@ -36,19 +34,10 @@ const Recordings = () => {
 
   const createRecording = useCreateRecording();
   const deleteRecording = useDeleteRecording();
-  const applyTranscriptionComplete = useApplyTranscriptionComplete();
 
   useEffect(() => {
     if (isError) toast.error("Could not load today’s recordings.");
   }, [isError]);
-
-  const handleTranscriptionComplete = useCallback(
-    (recordingId, transcriptionId) =>
-      applyTranscriptionComplete(recordingId, transcriptionId),
-    [applyTranscriptionComplete],
-  );
-
-  useTranscriptionSSE(handleTranscriptionComplete);
 
   // Location is optional context on a recording; a refusal is not an error.
   useEffect(() => {
@@ -87,11 +76,6 @@ const Recordings = () => {
     }
   };
 
-  const transcribing = recordings.filter(
-    (recording) =>
-      String(recording.transcription_status || "").toLowerCase() !==
-      "completed",
-  ).length;
   const totalSeconds = recordings.reduce(
     (sum, r) => sum + r.duration_seconds,
     0,
@@ -144,12 +128,6 @@ const Recordings = () => {
           </div>
         )}
 
-        {transcribing > 0 && (
-          <p className="studio__note" aria-live="polite">
-            {transcribing} still transcribing. Text lands on each recording as
-            it finishes.
-          </p>
-        )}
       </aside>
 
       <main className="studio__stage">

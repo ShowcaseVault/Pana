@@ -16,7 +16,7 @@ import { queryKeys } from '../../lib/queryClient.js';
  *
  * @param {number} year
  * @param {number} month 1-indexed. `Date#getMonth()` is 0-indexed; add one.
- * @returns {import('@tanstack/react-query').UseQueryResult<{diaryDays: Set<number>, recordingDays: Set<number>, daysInMonth: number}>}
+ * @returns {import('@tanstack/react-query').UseQueryResult<{diaryDays: Set<number>, recordingDays: Set<number>}>}
  */
 export function useCalendar(year, month) {
   return useQuery({
@@ -26,7 +26,6 @@ export function useCalendar(year, month) {
       return {
         diaryDays: new Set(calendar.diary_days ?? []),
         recordingDays: new Set(calendar.recording_days ?? []),
-        daysInMonth: calendar.days_in_month,
       };
     },
   });

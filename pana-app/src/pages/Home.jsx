@@ -146,8 +146,7 @@ const Home = () => {
             <div className="state">
               <p className="state__line">Nothing recorded yet today.</p>
               <p className="state__hint">
-                Speak for a minute about what is on your mind. Pana transcribes it and writes the
-                day up for you.
+                Speak for a minute about what is on your mind. Pana writes the day up for you.
               </p>
               <div className="state__action">
                 <button type="button" className="action" onClick={() => navigate('/recordings')}>

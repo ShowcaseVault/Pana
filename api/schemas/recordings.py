@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import datetime
 
 from pydantic import BaseModel
 from pydantic.config import ConfigDict
@@ -17,17 +17,16 @@ class RecordingUpdate(BaseModel):
 
 
 class RecordingResponse(BaseModel):
+    """One recording, as a client sees it."""
+
     id: int
-    user_id: int
+
+    # The path the audio is fetched by, not a filesystem location: media is
+    # served through a route that checks ownership.
     file_path: str
     duration_seconds: int
     recorded_at: datetime
-    recording_date: date
-    location_text: str | None
-    created_at: datetime
-    is_deleted: bool
     transcription_status: str | None = None
     transcription_id: int | None = None
-    transcription_confidence: float | None = None
 
     model_config = ConfigDict(from_attributes=True)

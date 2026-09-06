@@ -30,9 +30,6 @@ class HistoryService:
         end = date(target_year, target_month, days_in_month)
 
         return HistoryCalendar(
-            year=target_year,
-            month=target_month,
-            days_in_month=days_in_month,
             diary_days=await self.history.diary_days(user_id, start, end),
             recording_days=await self.history.recording_days(user_id, start, end),
         )

@@ -14,7 +14,9 @@
 
 .studio {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr);
+  /* Enough for a clip's row and the few words it shows while playing; the
+     recorder keeps the rest, which is what the screen is for. */
+  grid-template-columns: minmax(340px, 24vw) minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
 }
@@ -29,15 +31,6 @@
   padding: var(--space-7) var(--space-5);
   overflow-y: auto;
   border-right: 1px solid var(--rule);
-}
-
-.studio__note {
-  padding-top: var(--space-4);
-  margin-top: auto;
-  font-size: var(--step--1);
-  line-height: 1.6;
-  color: var(--ink-faint);
-  border-top: 1px solid var(--rule);
 }
 
 .studio__stage {

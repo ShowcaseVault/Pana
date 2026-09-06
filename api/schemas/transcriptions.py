@@ -34,16 +34,18 @@ class TranscriptionUpdate(BaseModel):
 
 
 class TranscriptionResponse(BaseModel):
+    """A transcription, as a client sees it.
+
+    `model_name`, `language` and `confidence` describe how the text was
+    produced rather than what it says, and no screen shows them; `is_deleted`
+    and the timestamps are bookkeeping. What a client needs is the words, their
+    timings, and whether the job has finished.
+    """
+
     id: int
     recording_id: int
     text: str | None
-    language: str | None
-    confidence: float | None
-    model_name: str | None
     status: TranscriptionStatus
-    created_at: datetime
-    transcribed_at: datetime | None
     words: list | None = None
-    is_deleted: bool
 
     model_config = ConfigDict(from_attributes=True)

@@ -24,17 +24,11 @@
  *
  * @typedef {Object} Recording
  * @property {number} id
- * @property {number} user_id
  * @property {string} file_path
  * @property {number} duration_seconds
  * @property {string} recorded_at              ISO-8601 datetime.
- * @property {string} recording_date           ISO-8601 date.
- * @property {string|null} location_text
- * @property {string} created_at               ISO-8601 datetime.
- * @property {boolean} is_deleted
  * @property {TranscriptionStatus|null} [transcription_status]
  * @property {number|null} [transcription_id]
- * @property {number|null} [transcription_confidence]
  */
 
 /**
@@ -61,14 +55,8 @@
  * @property {number} id
  * @property {number} recording_id
  * @property {string|null} text
- * @property {string|null} language
- * @property {number|null} confidence
- * @property {string|null} model_name
  * @property {TranscriptionStatus} status
- * @property {string} created_at
- * @property {string|null} transcribed_at
- * @property {TranscriptionWord[]|null} [words]
- * @property {boolean} is_deleted
+ * @property {TranscriptionWord[]|null} [words]  Per-word timings, when available.
  */
 
 /**
@@ -79,16 +67,12 @@
  * @property {string|null} [mood]
  * @property {string|null} [content]
  * @property {Object[]|null} [actions]
- * @property {string[]|null} [recording_file_paths]
  */
 
 /**
  * Which days of a month have content. Mirrors `HistoryCalendar`.
  *
  * @typedef {Object} HistoryCalendar
- * @property {number} year
- * @property {number} month
- * @property {number} days_in_month
  * @property {number[]} diary_days     Day-of-month numbers with a diary entry.
  * @property {number[]} recording_days Day-of-month numbers with recordings.
  */

@@ -8,6 +8,9 @@ import '../styles/clip.css';
 const RING_RADIUS = 17;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
+/** Words held on screen at once, as a rolling window over the playing audio. */
+const WINDOW_WORDS = 4;
+
 /** Clock time of a recording, e.g. "9:14 AM". */
 const formatClock = (iso) =>
   new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -34,7 +37,7 @@ const RecordingCard = ({
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentText, setCurrentText] = useState('');
+  const [spokenText, setSpokenText] = useState('');
   const [wantsTranscript, setWantsTranscript] = useState(false);
   const [menuPos, setMenuPos] = useState(null);
 
@@ -50,16 +53,11 @@ const RecordingCard = ({
 
   const isTranscribed = String(recording.transcription_status || '').toLowerCase() === 'completed';
 
-  // Whole-transcript text is the fallback when the backend returned no word
-  // timings: one segment spanning the recording still lets the row show text.
-  const words = useMemo(() => {
-    if (!transcription) return [];
-    if (transcription.words?.length) return transcription.words;
-    if (transcription.text) {
-      return [{ start: 0, end: recording.duration_seconds || 3600, text: transcription.text }];
-    }
-    return [];
-  }, [transcription, recording.duration_seconds]);
+  // Only timed words drive the rolling line. The whole-transcript fallback was
+  // dropped deliberately: a single segment spanning the recording would pin
+  // the same text on screen for its whole length, which reads as frozen rather
+  // than as following along.
+  const words = useMemo(() => transcription?.words ?? [], [transcription]);
 
   /** Create the audio element on first play; the route needs cookies. */
   const getAudio = useCallback(() => {
@@ -93,14 +91,26 @@ const RecordingCard = ({
       setProgress((time / audio.duration) * 100);
 
       if (!words.length) return;
-      const active = words.find((w) => time >= parseFloat(w.start) && time <= parseFloat(w.end));
-      setCurrentText(active ? active.text.trim() : '');
+
+      // A short rolling window rather than the whole transcript so far: one
+      // word at a time is unreadable, and everything-so-far grows without
+      // bound and needs a scrollbar. A few words move at about the pace of
+      // speech and stay on one line, so the text can be followed while the
+      // audio plays without the row changing height.
+      const lastSaid = words.findLastIndex((w) => time >= parseFloat(w.start));
+      if (lastSaid < 0) {
+        setSpokenText('');
+        return;
+      }
+
+      const recent = words.slice(Math.max(0, lastSaid - WINDOW_WORDS + 1), lastSaid + 1);
+      setSpokenText(recent.map((w) => w.text.trim()).join(' '));
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
       setProgress(0);
-      setCurrentText('');
+      setSpokenText('');
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -141,6 +151,7 @@ const RecordingCard = ({
 
   return (
     <div className={`clip${compact ? ' clip--compact' : ''}`}>
+      <div className="clip__row">
       <button type="button" className="clip__play" onClick={togglePlay} aria-label={playLabel}>
         <svg className="clip__ring" width="38" height="38" aria-hidden="true">
           <circle
@@ -174,20 +185,8 @@ const RecordingCard = ({
 
       <div className="clip__body">
         <div className="clip__time figure">{formatClock(recording.recorded_at)}</div>
-        <div className="clip__meta figure">
-          {formatDuration(recording.duration_seconds)}
-          {!isTranscribed && recording.transcription_status ? ' · transcribing' : ''}
-        </div>
+        <div className="clip__meta figure">{formatDuration(recording.duration_seconds)}</div>
       </div>
-
-      {isPlaying && !compact && (
-        <div
-          className={`clip__transcript${currentText ? '' : ' clip__transcript--waiting'}`}
-          aria-live="polite"
-        >
-          {currentText || (loadingTranscript ? 'Fetching words' : '')}
-        </div>
-      )}
 
       {onDelete && (
         <>
@@ -227,6 +226,20 @@ const RecordingCard = ({
               document.body,
             )}
         </>
+      )}
+      </div>
+
+      {/* What is being said, as it plays. Kept below the row rather than
+          beside it so the words get the full width and can wrap -- a
+          transcript squeezed into a column and clipped is not readable, which
+          is the only thing it is for. */}
+      {isPlaying && (
+        <p
+          className={`clip__transcript${spokenText ? '' : ' clip__transcript--waiting'}`}
+          aria-live="polite"
+        >
+          {spokenText || (loadingTranscript ? '' : 'The words for this one are not ready yet')}
+        </p>
       )}
     </div>
   );
