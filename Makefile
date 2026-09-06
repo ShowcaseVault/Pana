@@ -2,7 +2,8 @@ DATASTORES ?= docker compose -f docker-compose.datastores.yml
 COMPOSE    ?= docker compose
 UV         ?= uv
 NPM        ?= npm
-FE_DIR     ?= Pana
+APP_DIR    ?= pana-app
+LANDING_DIR ?= pana-landing
 
 CELERY := $(UV) run celery -A celery_service.celery_app worker --loglevel=info
 
@@ -13,13 +14,16 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-frontend up down logs backend frontend frontend-build lint-frontend lint-frontend-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
 
 install-frontend:
-	$(NPM) --prefix $(FE_DIR) install
+	$(NPM) --prefix $(APP_DIR) install
+
+install-landing:
+	$(NPM) --prefix $(LANDING_DIR) install
 
 # --- Development datastores -------------------------------------------------
 
@@ -35,10 +39,16 @@ backend:
 	$(UV) run python backend.py
 
 frontend:
-	$(NPM) --prefix $(FE_DIR) run dev
+	$(NPM) --prefix $(APP_DIR) run dev
 
 frontend-build:
-	$(NPM) --prefix $(FE_DIR) run build
+	$(NPM) --prefix $(APP_DIR) run build
+
+landing:
+	$(NPM) --prefix $(LANDING_DIR) run dev
+
+landing-build:
+	$(NPM) --prefix $(LANDING_DIR) run build
 
 celery:
 	$(CELERY) -P $(CELERY_POOL) -Q high_priority,default -n worker@%h
@@ -58,10 +68,16 @@ format:
 	$(UV) run ruff format .
 
 lint-frontend:
-	$(NPM) --prefix $(FE_DIR) run lint
+	$(NPM) --prefix $(APP_DIR) run lint
 
 lint-frontend-fix:
-	$(NPM) --prefix $(FE_DIR) run lint:fix
+	$(NPM) --prefix $(APP_DIR) run lint:fix
+
+lint-landing:
+	$(NPM) --prefix $(LANDING_DIR) run lint
+
+lint-landing-fix:
+	$(NPM) --prefix $(LANDING_DIR) run lint:fix
 
 test:
 	$(UV) run pytest
@@ -95,19 +111,23 @@ deploy-down:
 # --- Make Help -----------------------------
 help:
 	@echo "make install         sync the Python environment with uv"
-	@echo "make install-frontend  install the frontend dependencies"
+	@echo "make install-frontend  install the app dependencies"
+	@echo "make install-landing   install the landing page dependencies"
 	@echo "make up              start Postgres and Redis for development"
 	@echo "make down            stop the development datastores"
 	@echo "make logs            tail the datastore logs"
 	@echo "make backend         run the FastAPI server"
-	@echo "make frontend        run the frontend dev server"
-	@echo "make frontend-build  build the frontend for production"
+	@echo "make frontend        run the app dev server (5173)"
+	@echo "make frontend-build  build the app for production"
+	@echo "make landing         run the landing page dev server (5174)"
+	@echo "make landing-build   build the landing page for production"
 	@echo "make celery          run one worker consuming both queues"
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"
 	@echo "make lint            check code with ruff"
 	@echo "make format          format code with ruff"
-	@echo "make lint-frontend   check the frontend with eslint"
+	@echo "make lint-frontend   check the app with eslint"
+	@echo "make lint-landing    check the landing page with eslint"
 	@echo "make test            run the test suite"
 	@echo "make check           lint and format check, no writes (CI)"
 	@echo "make alembic-up      apply migrations up to head"
