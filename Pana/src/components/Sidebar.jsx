@@ -1,178 +1,84 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Mic, Book, Calendar, LogOut } from 'lucide-react';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Home, Mic, BookOpen, CalendarDays, LogOut } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
-import '../styles/themes.css';
+import '../styles/shell.css';
 
+/**
+ * Primary navigation.
+ *
+ * A narrow rail of stacked icons, each with its word beneath. The glyph is
+ * what the eye finds once the app is familiar; the word removes the guesswork
+ * the first time. Stacking them keeps the rail thin, which is the point -- the
+ * chrome should take as little width as it can so the screen belongs to the
+ * content.
+ */
 const Sidebar = () => {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { logout } = useAuth();
 
   const now = new Date();
-  const currentYearMonth = `${now.getFullYear()}/${now.getMonth() + 1}`;
+  const thisMonth = `${now.getFullYear()}/${now.getMonth() + 1}`;
 
-  const navItems = [
-    { icon: Home, label: 'Home', path: '/home' },
-    { icon: Mic, label: 'Recordings', path: '/recordings' },
-    { icon: Book, label: 'Diary', path: '/diary' },
-    { icon: Calendar, label: 'Calendar', path: `/calendar/${currentYearMonth}` },
+  const destinations = [
+    { label: 'Today', path: '/home', Icon: Home },
+    { label: 'Record', path: '/recordings', Icon: Mic },
+    { label: 'Diary', path: '/diary', Icon: BookOpen },
+    { label: 'Calendar', path: `/calendar/${thisMonth}`, Icon: CalendarDays },
   ];
 
-  const handleLogout = async () => {
+  const handleSignOut = async () => {
+    // The context clears cached data whether or not the server call succeeds,
+    // so the redirect is unconditional.
     try {
-      await axiosClient.post(API_ROUTES.AUTH.LOGOUT);
-    } catch (_e) {
-      // Even if backend logout fails, clear local state and redirect.
+      await logout();
     } finally {
-      logout();
       navigate('/login', { replace: true });
     }
   };
 
   return (
-    <aside className="sidebar-premium">
-      <div className="logo-section">
-        <h1 className="logo-text">Pana</h1>
+    <aside className="rail">
+      <div className="rail__mark">
+        <img className="rail__logo" src="/logo-mono.png" alt="" width="46" height="46" />
+        <span className="rail__wordmark">Pana</span>
       </div>
 
-      <nav className="nav-menu">
-        {navItems.map((item) => (
+      <nav className="rail__nav">
+        {destinations.map((destination) => (
           <NavLink
-            key={item.label}
-            to={item.path}
-            className={({ isActive }) => 
-              `nav-item ${(isActive || (item.label === 'Calendar' && window.location.pathname.startsWith('/calendar'))) ? 'active' : ''}`
+            key={destination.label}
+            to={destination.path}
+            // Calendar's path carries a year and month, so an exact match would
+            // never mark it active once the user moves off the current month.
+            className={({ isActive }) =>
+              `rail__link${
+                isActive ||
+                (destination.label === 'Calendar' &&
+                  pathname.startsWith('/calendar'))
+                  ? ' rail__link--active'
+                  : ''
+              }`
             }
           >
-            <div className="nav-icon-wrapper">
-              <item.icon size={22} />
-            </div>
-            <span className="nav-label">{item.label}</span>
+            <destination.Icon
+              size={34}
+              strokeWidth={1.5}
+              className="rail__icon"
+              aria-hidden="true"
+            />
+            <span className="rail__label">{destination.label}</span>
           </NavLink>
         ))}
       </nav>
 
-      <div className="bottom-section">
-        <button onClick={handleLogout} className="nav-item logout-btn">
-          <div className="nav-icon-wrapper">
-            <LogOut size={22} />
-          </div>
-          <span className="nav-label">Logout</span>
+      <div className="rail__foot">
+        <button type="button" className="rail__link rail__link--exit" onClick={handleSignOut}>
+          <LogOut size={34} strokeWidth={1.5} className="rail__icon" aria-hidden="true" />
+          <span className="rail__label">Logout</span>
         </button>
       </div>
-
-      <style>{`
-        .sidebar-premium {
-          width: 100px;
-          height: 100%;
-          background: var(--bg-secondary);
-          display: flex;
-          flex-direction: column;
-          padding: 1.25rem 0.25rem;
-          align-items: center;
-          /* justify-content: center; REMOVED to allow distribution */
-          gap: 0; /* Remove gap, use flex-grow for spacing */
-        }
-
-        .logo-section {
-          margin-bottom: 0;
-          text-align: center;
-          padding-bottom: 1rem; /* Space below logo */
-        }
-
-        .logo-text {
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin: 0;
-        }
-
-        .nav-menu {
-          display: flex;
-          flex-direction: column;
-          gap: 0.25rem;
-          width: 100%;
-          align-items: center;
-          flex: 1; /* Take up all available space */
-          justify-content: center; /* Center items within this space */
-        }
-
-        .nav-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.5rem 0.25rem;
-          border-radius: 12px;
-          color: var(--text-secondary);
-          text-decoration: none;
-          transition: all 0.2s ease;
-          width: 90%;
-          cursor: pointer;
-          background: none;
-          border: none;
-        }
-
-        .nav-icon-wrapper {
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s ease;
-          background: transparent;
-        }
-
-        .nav-item:hover .nav-icon-wrapper {
-          background: var(--bg-tertiary);
-        }
-
-        .nav-item.active .nav-icon-wrapper {
-          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-          color: white;
-          box-shadow: 0 4px 12px rgba(79, 209, 197, 0.3);
-        }
-
-        .nav-item.active {
-          color: var(--text-primary);
-        }
-
-        .nav-label {
-          font-size: 0.6rem;
-          font-weight: 500;
-          text-align: center;
-        }
-
-        .nav-item.active .nav-label {
-          color: var(--accent-secondary);
-          font-weight: 600;
-        }
-
-        .bottom-section {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding-top: 1rem;
-          border-top: 1px solid var(--bg-tertiary);
-          margin-top: 0;
-        }
-
-        .logout-btn {
-          color: #ef4444;
-        }
-
-        .logout-btn:hover .nav-icon-wrapper {
-          background: rgba(239, 68, 68, 0.1);
-        }
-
-        .logout-btn .nav-label {
-          color: #ef4444;
-        }
-      `}</style>
     </aside>
   );
 };

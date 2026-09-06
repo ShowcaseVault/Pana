@@ -1,153 +1,126 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
+import React from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import CreateDiary from '../components/CreateDiary';
 import DiaryView from '../components/Diary/DiaryView';
-import { useParams } from 'react-router-dom';
+import { useDiary, useGenerateDiary } from '../hooks/queries/useDiary';
+import { useRecordings } from '../hooks/queries/useRecordings';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import '../styles/page.css';
+
+/** Today as an ISO date string, in the user's own timezone. */
+const todayIso = () => {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offsetMs).toISOString().split('T')[0];
+};
 
 const Diary = () => {
   const { date } = useParams();
-  const [diary, setDiary] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [recordings, setRecordings] = useState([]);
-  const [loadingRecordings, setLoadingRecordings] = useState(true);
+  const navigate = useNavigate();
+  const targetDate = date || todayIso();
+  const isToday = targetDate === todayIso();
 
-  // Helper for today's date in YYYY-MM-DD
-  const getTodayDateString = () => {
-    return new Date().toISOString().split('T')[0];
-  };
+  // The day, not just "Diary": with several days open the tab is the only
+  // thing telling them apart.
+  useDocumentTitle(
+    isToday
+      ? 'Diary'
+      : `Diary, ${new Date(targetDate).toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'short',
+        })}`,
+  );
 
-  const targetDate = date || getTodayDateString();
-  const isToday = targetDate === getTodayDateString();
+  const { data: recordingsPage, isPending: loadingRecordings } = useRecordings({
+    recordingDate: targetDate,
+    pageSize: 100,
+  });
+  const recordings = recordingsPage?.recordings ?? [];
 
-  const fetchRecordings = async () => {
-    try {
-      const response = await axiosClient.get(API_ROUTES.RECORDINGS.LIST, {
-        params: { recording_date: targetDate }
-      });
-      if (response.data && response.data.code === 'SUCCESS') {
-        const records = response.data.data.data ? response.data.data.data : response.data.data;
-        setRecordings(records || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch recordings:", error);
-    } finally {
-      setLoadingRecordings(false);
-    }
-  };
-
-  const checkExistingDiary = async () => {
-    try {
-      const response = await axiosClient.get(API_ROUTES.DIARY.GET, {
-          params: { date: targetDate }
-      });
-      
-      if (response.data && response.data.code === 'SUCCESS') {
-        setDiary(response.data.data);
-      } else {
-        setDiary(null);
-      }
-    } catch (_error) {
-      // 404 is expected if diary doesn't exist
-      setDiary(null);
-    }
-  };
+  const { data: diary, isPending: loadingDiary } = useDiary(targetDate);
+  const generateDiary = useGenerateDiary();
 
   const handleCreateDiary = async () => {
-    // We now support creating/regenerating diary for any date supported by backend
-    setLoading(true);
     try {
-      // Pass the targetDate as a query parameter
-      const response = await axiosClient.post(API_ROUTES.DIARY.CREATE, null, {
-          params: { date: targetDate }
-      });
-      if (response.data && response.data.code === 'SUCCESS') {
-        setDiary(response.data.data);
-      } else {
-        console.error("Diary generation failed:", response.data.message);
-      }
+      await generateDiary.mutateAsync(targetDate);
     } catch (error) {
-      console.error("Error generating diary:", error);
-    } finally {
-      setLoading(false);
+      toast.error(error.message);
     }
   };
 
-  useEffect(() => {
-    // Load both recordings and diary status in parallel
-    const init = async () => {
-        setLoadingRecordings(true);
-        setDiary(null); // Reset on date change
-        await Promise.all([
-            fetchRecordings(),
-            checkExistingDiary()
-        ]);
-        setLoadingRecordings(false);
-    };
-    init();
-  }, [targetDate]);
-
-  if (loadingRecordings) {
+  if (loadingRecordings || loadingDiary) {
     return (
-      <div className="flex items-center justify-center h-full">
-         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <div className="page page--single">
+        <div className="skeleton" aria-label="Loading diary">
+          <div className="skeleton__bar" />
+          <div className="skeleton__bar" />
+          <div className="skeleton__bar" />
+        </div>
       </div>
     );
   }
 
-  // Check if diary has content - if content is null, treat as not created
-  const hasDiaryContent = diary && diary.content !== null;
   const hasRecordings = recordings.length > 0;
 
-  let contentToRender;
+  // A diary cannot exist without the recordings it was written from -- the
+  // backend removes it with the last one. The recordings check stays because
+  // the two queries settle independently, so a cached entry can briefly
+  // outlive its sources in this component even though the server agrees.
+  const hasEntry = Boolean(diary?.content) && hasRecordings;
 
-  if (hasDiaryContent) {
-    contentToRender = (
-      <DiaryView 
-        diary={diary} 
-        recordings={recordings} 
-        onRegenerate={handleCreateDiary} 
-        loading={loading} 
+  // Today with nothing written yet gets the invitation; a past day gets the
+  // entry it has, or an explanation of why it has none.
+  if (hasEntry) {
+    return (
+      <DiaryView
+        diary={diary}
+        recordings={recordings}
+        onRegenerate={handleCreateDiary}
+        loading={generateDiary.isPending}
       />
-    );
-  } else if (isToday) {
-    // For today, show the specific CreateDiary landing page
-    contentToRender = (
-      <CreateDiary 
-        onCreate={handleCreateDiary} 
-        loading={loading} 
-      />
-    );
-  } else if (hasRecordings) {
-    // For past dates with recordings, show DiaryView in "empty" state
-    // ensuring we pass a valid object structure so DiaryView doesn't crash
-    const placeholderDiary = diary || {
-      diary_date: targetDate,
-      mood: null,
-      content: null,
-      actions: []
-    };
-    
-    contentToRender = (
-      <DiaryView 
-        diary={placeholderDiary} 
-        recordings={recordings} 
-        onRegenerate={handleCreateDiary} 
-        loading={loading} 
-      />
-    );
-  } else {
-    // Past date, no recordings, no diary
-    contentToRender = (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-          <p>No diary entry for this date.</p>
-      </div>
     );
   }
 
+  if (hasRecordings) {
+    return (
+      <CreateDiary
+        onCreate={handleCreateDiary}
+        loading={generateDiary.isPending}
+        count={recordings.length}
+        isToday={isToday}
+      />
+    );
+  }
+
+  // No recordings means there is nothing to write from and nothing to show.
+  // The screen says so and offers the only move that leads anywhere.
   return (
-    <div className="p-6 h-full">
-      {contentToRender}
+    <div className="page page--single">
+      <h1 className="page__title">
+        {new Date(targetDate).toLocaleDateString(undefined, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        })}
+      </h1>
+      <div className="state">
+        <p className="state__line">
+          {isToday ? 'Nothing recorded yet today.' : 'Nothing was recorded this day.'}
+        </p>
+        <p className="state__hint">
+          {isToday
+            ? 'Pana writes the day up from what you record. Speak for a minute and come back.'
+            : 'A diary is written from recordings, and there are none for this date.'}
+        </p>
+        {isToday && (
+          <div className="state__action">
+            <button type="button" className="action" onClick={() => navigate('/recordings')}>
+              Start recording
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

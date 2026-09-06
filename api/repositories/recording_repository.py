@@ -99,6 +99,24 @@ class RecordingRepository:
         total = (await self.db.execute(count_stmt)).scalar_one()
         return [RecordingResponse.model_validate(row) for row in page], total
 
+    async def count_for_date(self, user_id: int, recording_date: date) -> int:
+        """How many live recordings the user has for one day.
+
+        Used to decide whether deleting a recording has emptied its day, which
+        is what makes a diary written from that day no longer answerable to
+        anything.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(Recording)
+            .where(
+                Recording.user_id == user_id,
+                Recording.deleted_at.is_(None),
+                Recording.recording_date == recording_date,
+            )
+        )
+        return (await self.db.execute(stmt)).scalar_one()
+
     async def get_by_path(self, file_path: str, user_id: int) -> Recording | None:
         """Find one of the user's live recordings by its stored path.
 

@@ -1,0 +1,80 @@
+/* ============================================================================
+   Confirmation dialog.
+
+   No warning triangle and no red panel: the words carry the weight. A dialog
+   that shouts makes every confirmation feel the same, and this one is asking
+   about a single recording.
+   ========================================================================= */
+
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  padding: var(--space-5);
+  background: rgba(22, 35, 43, 0.28);
+  animation: dialog-in var(--fast) var(--ease);
+}
+
+.dialog__panel {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-6);
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow: var(--lift-high);
+}
+
+.dialog__title {
+  font-family: var(--font-prose);
+  font-size: var(--step-2);
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.dialog__body {
+  margin-top: var(--space-3);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+.dialog__button {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--ink);
+  border-radius: var(--radius);
+  transition: background var(--fast) var(--ease);
+}
+
+.dialog__button:hover {
+  background: var(--sunken);
+}
+
+.dialog__button--destructive {
+  color: var(--paper);
+  background: var(--warn);
+}
+
+.dialog__button--destructive:hover {
+  background: #a5301f;
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

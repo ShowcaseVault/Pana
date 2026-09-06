@@ -1,9 +1,11 @@
 import { useEffect } from 'react';
-import { API_ROUTES, BASE_URL } from '../api/routes';
+import { API_ROUTES } from '../api/routes';
 
 export const useTranscriptionSSE = (onTranscriptionComplete) => {
   useEffect(() => {
-    const eventSource = new EventSource(`${BASE_URL}${API_ROUTES.TRANSCRIPTION_EVENTS}/`);
+    const eventSource = new EventSource(`${API_ROUTES.ORIGIN}${API_ROUTES.TRANSCRIPTION_EVENTS}`, {
+      withCredentials: true,
+    });
 
     eventSource.onopen = () => {
       // Connection opened

@@ -13,6 +13,7 @@ from fastapi import UploadFile
 from api.exceptions import BadRequestError, NotFoundError
 from api.models.recordings import Recording
 from api.repositories import (
+    DiaryRepository,
     RecordingFileRepository,
     RecordingRepository,
     TranscriptionRepository,
@@ -35,9 +36,11 @@ class RecordingService:
         recordings: RecordingRepository,
         transcriptions: TranscriptionRepository,
         files: RecordingFileRepository,
+        diaries: DiaryRepository,
     ) -> None:
         self.recordings = recordings
         self.transcriptions = transcriptions
+        self.diaries = diaries
         self.files = files
 
     async def create(
@@ -138,12 +141,20 @@ class RecordingService:
         return RecordingResponse.model_validate(await self.recordings.save(recording))
 
     async def delete(self, recording_id: int, user_id: int) -> None:
-        """Soft-delete a recording and its transcription.
+        """Soft-delete a recording, its transcription, and any orphaned diary.
 
         The audio file is left on disk: a soft delete is reversible, and
         removing the bytes would make that a lie.
+
+        A diary is written *from* a day's recordings, so it cannot outlive
+        them. When the last recording for a day goes, the day's diary goes with
+        it -- otherwise the entry stays readable while claiming to be written
+        from nothing, and the calendar keeps marking the day as written.
+        Deleting one recording out of several leaves the diary alone: it is now
+        slightly out of date, which regenerating fixes, but it is not orphaned.
         """
         recording = await self._owned_row(recording_id, user_id)
+        recording_date = recording.recording_date
 
         transcription = await self.transcriptions.get_by_recording(recording.id)
         if transcription is not None:
@@ -151,6 +162,15 @@ class RecordingService:
 
         recording.soft_delete()
         await self.recordings.save(recording)
+
+        remaining = await self.recordings.count_for_date(user_id, recording_date)
+        if remaining == 0 and await self.diaries.delete_for_date(user_id, recording_date):
+            logger.info(
+                "Diary for %s removed with the last recording of that day for user %s",
+                recording_date,
+                user_id,
+            )
+
         logger.info("Recording %s soft-deleted for user %s", recording_id, user_id)
 
     @staticmethod

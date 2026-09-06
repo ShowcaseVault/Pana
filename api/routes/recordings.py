@@ -10,6 +10,7 @@ from api.connections import get_async_db_session
 from api.exceptions import error_docs
 from api.models.users import User
 from api.repositories import (
+    DiaryRepository,
     RecordingFileRepository,
     RecordingRepository,
     TranscriptionRepository,
@@ -36,6 +37,7 @@ def get_recording_service(
         recordings=RecordingRepository(db),
         transcriptions=TranscriptionRepository(db),
         files=RecordingFileRepository(),
+        diaries=DiaryRepository(db),
     )
 
 

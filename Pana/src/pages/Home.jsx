@@ -1,346 +1,228 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/useAuth';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'sonner';
+import { useAuth } from '../context/useAuth';
 import RecordingCard from '../components/RecordingCard';
-import { Mic, TrendingUp, Clock } from 'lucide-react';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
-import '../styles/themes.css';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useDeleteRecording, useRecordings } from '../hooks/queries/useRecordings';
+import { useDiary } from '../hooks/queries/useDiary';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import '../styles/page.css';
 
+/** "Good morning" / "Good afternoon" / "Good evening", by local hour. */
+const greeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+const today = () =>
+  new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+/** Today as YYYY-MM-DD in local time, which is how the backend keys a day. */
+const todayIso = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')}`;
+};
+
+/** Total minutes across a day's recordings, rounded to whole minutes. */
+const totalMinutes = (recordings) =>
+  Math.round(recordings.reduce((sum, r) => sum + r.duration_seconds, 0) / 60);
+
+/**
+ * Today.
+ *
+ * The main column is what the person actually said today, in order. The aside
+ * carries the day's standing -- how much was recorded, and whether it has been
+ * written up yet -- which is the question this screen exists to answer and the
+ * one that decides what to do next.
+ */
 const Home = () => {
+  useDocumentTitle('Today');
+
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showName, setShowName] = useState(false);
+
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+
+  // No filter: the backend scopes an unfiltered list to today, which is
+  // exactly this page's subject.
+  const { data, isPending } = useRecordings({ pageSize: 50 });
+  const recordings = data?.recordings ?? [];
+
+  const iso = todayIso();
+  const { data: diary } = useDiary(iso);
+
+  const deleteRecording = useDeleteRecording();
 
   useEffect(() => {
-    fetchRecentRecordings();
+    const dismiss = () => setActiveMenuId(null);
+    document.addEventListener('click', dismiss);
+    return () => document.removeEventListener('click', dismiss);
   }, []);
 
-  const fetchRecentRecordings = async () => {
+  // Deleting the last recording of a day removes that day's diary too -- it is
+  // written from the recordings, so it cannot outlive them. Saying so here
+  // means the consequence is known before the button is pressed, not
+  // discovered afterwards.
+  const isLastRecording = recordings.length === 1;
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
     try {
-      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?limit=5`);
-      if (res.data.code === 'SUCCESS') {
-        const records = res.data.data.data ? res.data.data.data : res.data.data;
-        setRecordings(records);
-      }
-    } catch (err) {
-      console.error(err);
+      await deleteRecording.mutateAsync(pendingDelete);
+      toast.success('Recording deleted');
+    } catch (error) {
+      toast.error(error.message);
     } finally {
-      setLoading(false);
+      setPendingDelete(null);
     }
   };
 
-  const getTotalDuration = () => {
-    return recordings.reduce((sum, r) => sum + r.duration_seconds, 0);
-  };
-
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    return `${mins} min`;
-  };
+  const firstName = user?.name?.split(' ')[0];
+  const minutes = totalMinutes(recordings);
 
   return (
-    <div className="dashboard-page">
-      {/* Left Panel - Recent Activity */}
-      <div className="activity-sidebar">
-        <h2 className="sidebar-title">Recent Activity</h2>
-        <div className="activity-list">
-          {loading ? (
-            <div className="loading-state">Loading...</div>
+    <div className="page">
+      <div className="page__main">
+        <h1 className="page__title">
+          {greeting()}
+          {firstName ? `, ${firstName}` : ''}
+        </h1>
+        <p className="page__subtitle figure">{today()}</p>
+
+        <section className="page__section">
+          <div className="page__section-head">
+            <h2 className="page__section-title">Today</h2>
+            {recordings.length > 0 && (
+              <span className="page__section-note figure">
+                {recordings.length} {recordings.length === 1 ? 'recording' : 'recordings'}
+              </span>
+            )}
+          </div>
+
+          {isPending ? (
+            <div className="skeleton" aria-label="Loading today's recordings">
+              <div className="skeleton__bar" />
+              <div className="skeleton__bar" />
+              <div className="skeleton__bar" />
+            </div>
           ) : recordings.length > 0 ? (
-            recordings.map(recording => (
-              <RecordingCard 
-                key={recording.id} 
-                recording={recording}
-                compact={true}
-              />
-            ))
+            <>
+              <div>
+                {recordings.map((recording) => (
+                  <RecordingCard
+                    key={recording.id}
+                    recording={recording}
+                    compact
+                    onDelete={(id) => {
+                      setPendingDelete(id);
+                      setActiveMenuId(null);
+                    }}
+                    showMenu={activeMenuId === recording.id}
+                    onMenuToggle={() =>
+                      setActiveMenuId((current) =>
+                        current === recording.id ? null : recording.id,
+                      )
+                    }
+                  />
+                ))}
+              </div>
+              <div className="state__action">
+                <button type="button" className="action" onClick={() => navigate('/recordings')}>
+                  Record again
+                </button>
+              </div>
+            </>
           ) : (
-            <div className="empty-state">
-              <p>No recordings yet</p>
-              <span>Start your first recording</span>
+            <div className="state">
+              <p className="state__line">Nothing recorded yet today.</p>
+              <p className="state__hint">
+                Speak for a minute about what is on your mind. Pana transcribes it and writes the
+                day up for you.
+              </p>
+              <div className="state__action">
+                <button type="button" className="action" onClick={() => navigate('/recordings')}>
+                  Start recording
+                </button>
+              </div>
             </div>
           )}
-        </div>
+        </section>
       </div>
 
-      {/* Right Panel - Welcome Area */}
-      <div className="welcome-panel">
-        <div className="welcome-content">
-          <div className="greeting-section">
-            <h1 className="greeting">Hello, {user?.name?.split(' ')[0] || 'there'}!</h1>
-            <p className="welcome-text">Welcome back to your personal space.</p>
+      <aside className="page__aside">
+        <div className="page__aside-block">
+          <h2 className="page__aside-title">Captured</h2>
+          <div className="page__stat">
+            <span className="page__stat-value figure">{recordings.length}</span>
+            <span className="page__stat-label">
+              {recordings.length === 1 ? 'recording' : 'recordings'}
+            </span>
           </div>
-
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-icon">
-                <Mic size={24} />
-              </div>
-              <div className="stat-content">
-                <div className="stat-label">Total Recordings</div>
-                <div className="stat-value">{recordings.length}</div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon">
-                <Clock size={24} />
-              </div>
-              <div className="stat-content">
-                <div className="stat-label">Total Duration</div>
-                <div className="stat-value">{formatDuration(getTotalDuration())}</div>
-              </div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-icon">
-                <TrendingUp size={24} />
-              </div>
-              <div className="stat-content">
-                <div className="stat-label">This Week</div>
-                <div className="stat-value">{recordings.length}</div>
-              </div>
-            </div>
+          <div className="page__stat">
+            <span className="page__stat-value figure">{minutes}</span>
+            <span className="page__stat-label">{minutes === 1 ? 'minute' : 'minutes'}</span>
           </div>
-
-          <button className="quick-action-btn" onClick={() => navigate('/recordings')}>
-            <Mic size={20} />
-            <span>Start Recording</span>
-          </button>
         </div>
-      </div>
 
-       {/* Profile Section - Absolute Top Right */}
-       <div className="profile-section">
-        <div 
-            className="profile-icon-wrapper"
-            onClick={() => setShowName(!showName)}
-        >
-            {user?.picture ? (
-                <img src={user.picture} alt="Profile" className="profile-img" />
-            ) : (
-                <div className="profile-placeholder">
-                    {user?.name?.charAt(0) || 'U'}
-                </div>
-            )}
+        <div className="page__aside-block">
+          <h2 className="page__aside-title">Diary</h2>
+          {diary ? (
+            <>
+              <p className="page__aside-note">Today has been written up.</p>
+              <button
+                type="button"
+                className="action action--quiet"
+                onClick={() => navigate(`/diary/${iso}`)}
+              >
+                Read it
+              </button>
+            </>
+          ) : recordings.length > 0 ? (
+            <>
+              <p className="page__aside-note">
+                {recordings.length === 1 ? 'One recording is' : `${recordings.length} recordings are`}{' '}
+                waiting to be made into an entry.
+              </p>
+              <button
+                type="button"
+                className="action action--quiet"
+                onClick={() => navigate(`/diary/${iso}`)}
+              >
+                Write today
+              </button>
+            </>
+          ) : (
+            <p className="page__aside-note">
+              Record something first — the entry is written from what you say.
+            </p>
+          )}
         </div>
-        {showName && (
-            <div className="profile-popover">
-                {user?.name || 'User'}
-            </div>
-        )}
-      </div>
+      </aside>
 
-      <style>{`
-        .dashboard-page {
-          display: flex;
-          height: 100vh;
-          background: var(--bg-primary);
-          position: relative; /* Context for profile absolute position */
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+        title="Delete this recording?"
+        message={
+          isLastRecording && diary
+            ? 'This is the only recording for today, so today\u2019s diary entry will be removed with it. This cannot be undone.'
+            : 'The audio and its transcript are removed for good. This cannot be undone.'
         }
-        
-        .profile-section {
-            position: absolute;
-            top: 1.5rem;
-            right: 2rem;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
+        confirmLabel="Delete"
+      />
 
-        .profile-icon-wrapper {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            overflow: hidden;
-            border: 2px solid white;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-            background: #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .profile-icon-wrapper:hover {
-            transform: scale(1.05);
-        }
-
-        .profile-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .profile-placeholder {
-            font-weight: 600;
-            color: #6b7280;
-            text-transform: uppercase;
-        }
-
-        .profile-popover {
-            margin-top: 0.5rem;
-            background: white;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            white-space: nowrap;
-            animation: fadeIn 0.2s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .activity-sidebar {
-          width: 25%;
-          min-width: 260px;
-          max-width: 350px;
-          background: transparent;
-          padding: 2rem 1.25rem;
-          overflow-y: auto;
-        }
-
-        .sidebar-title {
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin-bottom: 1.5rem;
-        }
-
-        .activity-list {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .welcome-panel {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 3rem;
-        }
-
-        .welcome-content {
-          max-width: 800px;
-          width: 100%;
-        }
-
-        .greeting-section {
-          margin-bottom: 3rem;
-        }
-
-        .greeting {
-          font-size: 3rem;
-          font-weight: 700;
-          margin-bottom: 0.5rem;
-          background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-        }
-
-        .welcome-text {
-          color: var(--text-secondary);
-          font-size: 1.25rem;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 3rem;
-        }
-
-        .stat-card {
-          background: var(--bg-card);
-          padding: 1.5rem;
-          border-radius: var(--radius-lg);
-          box-shadow: var(--shadow-md);
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          transition: all 0.3s ease;
-        }
-
-        .stat-card:hover {
-          transform: translateY(-4px);
-          box-shadow: var(--shadow-lg);
-        }
-
-        .stat-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: var(--radius-md);
-          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-
-        .stat-content {
-          flex: 1;
-        }
-
-        .stat-label {
-          font-size: 0.875rem;
-          color: var(--text-secondary);
-          margin-bottom: 0.25rem;
-        }
-
-        .stat-value {
-          font-size: 1.75rem;
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-
-        .quick-action-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          padding: 1rem 2rem;
-          background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-          color: white;
-          border: none;
-          border-radius: var(--radius-lg);
-          font-size: 1rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          box-shadow: 0 8px 24px rgba(79, 209, 197, 0.3);
-        }
-
-        .quick-action-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 32px rgba(79, 209, 197, 0.4);
-        }
-
-        .loading-state, .empty-state {
-          text-align: center;
-          padding: 2rem;
-          color: var(--text-secondary);
-        }
-
-        .empty-state p {
-          font-size: 1rem;
-          margin-bottom: 0.5rem;
-          color: var(--text-primary);
-        }
-
-        .empty-state span {
-          font-size: 0.875rem;
-        }
-      `}</style>
+      <Toaster position="bottom-right" />
     </div>
   );
 };

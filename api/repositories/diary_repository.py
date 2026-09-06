@@ -48,6 +48,20 @@ class DiaryRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def delete_for_date(self, user_id: int, diary_date: date) -> bool:
+        """Soft-delete the user's diary for one day, if there is one.
+
+        Returns whether a diary was actually removed, so the caller can log the
+        cascade without querying again.
+        """
+        diary = await self.get_for_date(user_id, diary_date)
+        if diary is None:
+            return False
+
+        diary.soft_delete()
+        await self.db.flush()
+        return True
+
     async def upsert(
         self,
         *,
