@@ -164,14 +164,19 @@ class RecordingService:
         await self.recordings.save(recording)
 
         remaining = await self.recordings.count_for_date(user_id, recording_date)
-        if remaining == 0 and await self.diaries.delete_for_date(user_id, recording_date):
-            logger.info(
-                "Diary for %s removed with the last recording of that day for user %s",
-                recording_date,
-                user_id,
-            )
+        cascaded = remaining == 0 and await self.diaries.delete_for_date(user_id, recording_date)
 
-        logger.info("Recording %s soft-deleted for user %s", recording_id, user_id)
+        # One line for one action, even when it removed two things: two lines
+        # would read as two deletions.
+        if cascaded:
+            logger.info(
+                "Recording %s deleted for user %s, taking the %s diary with it",
+                recording_id,
+                user_id,
+                recording_date,
+            )
+        else:
+            logger.info("Recording %s deleted for user %s", recording_id, user_id)
 
     @staticmethod
     def _require_audio(file: UploadFile) -> None:

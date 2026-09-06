@@ -28,7 +28,8 @@ export function useDiary(date) {
     queryKey: queryKeys.diary.byDate(date),
     queryFn: async ({ signal }) => {
       try {
-        return await diaryService.getByDate(date, { signal });
+        const diary = await diaryService.getByDate(date, { signal });
+        return diary?.content ? diary : null;
       } catch (error) {
         if (error instanceof ApiError && error.isNotFound) return null;
         throw error;

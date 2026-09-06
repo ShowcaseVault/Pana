@@ -73,7 +73,9 @@ class CacheService:
     async def invalidate(self, key: str) -> None:
         await self.l1.delete(key)
         await self.l2.delete(key)
-        logger.info("Invalidated both layers: %s", key)
+        # Fires on every write, so it is DEBUG: a person watching the terminal
+        # wants to see the write, not the cache bookkeeping that follows it.
+        logger.debug("Invalidated both layers: %s", key)
 
     async def invalidate_prefix(self, prefix: str) -> None:
         """Drop every key starting with `prefix` from both layers.
@@ -83,7 +85,7 @@ class CacheService:
         """
         l1_count = await self.l1.delete_prefix(prefix)
         l2_count = await self.l2.delete_pattern(prefix)
-        logger.info(
+        logger.debug(
             "Invalidated prefix on both layers: %s (l1=%d, l2=%d)", prefix, l1_count, l2_count
         )
 

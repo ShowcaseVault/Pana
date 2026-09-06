@@ -63,11 +63,11 @@ const Diary = () => {
 
   const hasRecordings = recordings.length > 0;
 
-  // A diary cannot exist without the recordings it was written from -- the
-  // backend removes it with the last one. The recordings check stays because
-  // the two queries settle independently, so a cached entry can briefly
-  // outlive its sources in this component even though the server agrees.
-  const hasEntry = Boolean(diary?.content) && hasRecordings;
+  // useDiary already resolves an unwritten day to null, so this is only the
+  // recordings check: the two queries settle independently, and a cached entry
+  // can briefly outlive its sources here even though the server agrees they
+  // are gone.
+  const hasEntry = Boolean(diary) && hasRecordings;
 
   // Today with nothing written yet gets the invitation; a past day gets the
   // entry it has, or an explanation of why it has none.

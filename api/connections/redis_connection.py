@@ -41,7 +41,7 @@ async def setup_redis_client() -> aioredis.Redis:
         redis_client = _create_client()
     try:
         await redis_client.ping()
-        logger.info("Connected to cache Redis successfully")
+        logger.debug("Connected to cache Redis successfully")
     except Exception as e:
         logger.error(f"Failed to connect to cache Redis: {e}")
     return redis_client
@@ -52,7 +52,7 @@ def get_cache_redis() -> aioredis.Redis:
     global redis_client
     if redis_client is None:
         redis_client = _create_client()
-        logger.info("Cache Redis client created on first use")
+        logger.debug("Cache Redis client created on first use")
     return redis_client
 
 
@@ -62,4 +62,4 @@ async def redis_disconnect() -> None:
     if redis_client is not None:
         await redis_client.aclose()
         redis_client = None
-        logger.info("Cache Redis client closed")
+        logger.debug("Cache Redis client closed")

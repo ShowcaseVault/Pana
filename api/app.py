@@ -17,6 +17,7 @@ from api.connections import (
     setup_redis_client,
 )
 from api.exceptions import register_exception_handlers
+from api.middleware import RequestLoggingMiddleware
 from api.routes import (
     authentication,
     diary,
@@ -46,7 +47,7 @@ API_ROUTERS = (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Open every external connection on startup and close them on shutdown."""
-    logger.info("Application lifespan startup: initializing datastores")
+    logger.debug("Opening datastore connections")
     await create_database_if_not_exists()
     await setup_engine_and_session()
     await setup_redis_client()
@@ -55,13 +56,20 @@ async def lifespan(app: FastAPI):
     # no filesystem side effect.
     os.makedirs(settings.RECORDINGS_DIR, exist_ok=True)
 
-    logger.info("Application lifespan started successfully")
+    # The one startup line worth a terminal: it says the server is up and where
+    # to reach it. Everything before it is plumbing and logs at DEBUG.
+    logger.info(
+        "Pana API ready on http://%s:%s%s",
+        settings.SERVER_HOST,
+        settings.SERVER_PORT,
+        settings.API_ROOT,
+    )
 
     yield
 
-    logger.info("Application lifespan shutdown: disconnecting datastores")
+    logger.debug("Closing datastore connections")
     await _shutdown()
-    logger.info("Application shutdown cleanup complete")
+    logger.info("Pana API stopped")
 
 
 async def _shutdown() -> None:
@@ -103,7 +111,7 @@ def create_app() -> FastAPI:
         redoc_url=redoc_url,
         openapi_url=openapi_url,
     )
-    logger.info("FastAPI application instance created")
+    logger.debug("FastAPI application instance created")
 
     # CORS. Origins are listed explicitly rather than wildcarded: auth rides on
     # cookies, and a browser refuses a credentialed request against "*".
@@ -114,14 +122,18 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    logger.info("CORS middleware configured for origins: %s", settings.ALLOWED_ORIGINS)
+    logger.debug("CORS configured for origins: %s", settings.ALLOWED_ORIGINS)
+
+    # Added after CORS so CORS remains the outermost layer: a rejected preflight
+    # should not be timed and logged as though it were a real request.
+    app.add_middleware(RequestLoggingMiddleware)
 
     # Authentication sits outside the versioned root: the Google callback URL is
     # registered with Google and cannot move when the API version changes.
     app.include_router(authentication.router)
     for router in API_ROUTERS:
         app.include_router(router, prefix=settings.API_ROOT)
-    logger.info("Routers mounted under %s", settings.API_ROOT)
+    logger.debug("Routers mounted under %s", settings.API_ROOT)
 
     register_exception_handlers(app)
 

@@ -28,7 +28,7 @@ def get_http_client() -> httpx.AsyncClient:
             limits=LIMITS,
             headers={"User-Agent": settings.HTTP_USER_AGENT},
         )
-        logger.info("HTTP client created")
+        logger.debug("HTTP client created")
     return http_client
 
 
@@ -38,4 +38,4 @@ async def http_disconnect() -> None:
     if http_client is not None:
         await http_client.aclose()
         http_client = None
-        logger.info("HTTP client closed")
+        logger.debug("HTTP client closed")

@@ -56,7 +56,7 @@ async def create_database_if_not_exists() -> None:
     """
     default_conn = None
     try:
-        logger.info("Checking and creating database if not exists")
+        logger.debug("Checking and creating database if not exists")
         default_conn = await asyncpg.connect(
             user=settings.POSTGRES_USER,
             password=settings.POSTGRES_PASSWORD,
@@ -70,9 +70,9 @@ async def create_database_if_not_exists() -> None:
         )
         if not db_exists:
             await default_conn.execute(f'CREATE DATABASE "{settings.POSTGRES_DB}"')
-            logger.info("Database '%s' created", settings.POSTGRES_DB)
+            logger.debug("Database '%s' created", settings.POSTGRES_DB)
         else:
-            logger.info("Database '%s' already exists", settings.POSTGRES_DB)
+            logger.debug("Database '%s' already exists", settings.POSTGRES_DB)
     except Exception:
         logger.exception("Error creating database")
         raise
@@ -86,12 +86,12 @@ async def setup_engine_and_session() -> None:
     global engine, async_session
 
     try:
-        logger.info("Setting up async SQLAlchemy engine and session")
+        logger.debug("Setting up async SQLAlchemy engine and session")
         engine = create_async_engine(settings.ASYNC_DATABASE_URL, echo=False, **POOL_KWARGS)
         async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
 
         await check_connection()
-        logger.info(
+        logger.debug(
             "Connected to database '%s' at %s:%s",
             settings.POSTGRES_DB,
             settings.POSTGRES_HOST,
@@ -145,12 +145,12 @@ async def async_disconnect() -> bool:
     global engine, async_session
 
     try:
-        logger.info("Disconnecting from database and disposing engine")
+        logger.debug("Disconnecting from database and disposing engine")
         if engine is not None:
             await engine.dispose()
             engine = None
             async_session = None
-            logger.info("SQLAlchemy engine disposed")
+            logger.debug("SQLAlchemy engine disposed")
         return True
     except Exception:
         logger.exception("Async disconnection error")
@@ -166,7 +166,7 @@ def setup_sync_engine() -> sessionmaker[Session]:
     global sync_engine, SyncSession
 
     if SyncSession is None:
-        logger.info("Setting up sync SQLAlchemy engine and session")
+        logger.debug("Setting up sync SQLAlchemy engine and session")
         sync_engine = create_engine(settings.DATABASE_URL, echo=False, **POOL_KWARGS)
         SyncSession = sessionmaker(bind=sync_engine)
     return SyncSession
@@ -208,4 +208,4 @@ def sync_disconnect() -> None:
         sync_engine.dispose()
         sync_engine = None
         SyncSession = None
-        logger.info("Sync SQLAlchemy engine disposed")
+        logger.debug("Sync SQLAlchemy engine disposed")
