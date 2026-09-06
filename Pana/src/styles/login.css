@@ -73,7 +73,7 @@
 .login__error {
   margin-top: var(--space-5);
   font-size: var(--step--1);
-  color: #c0392f;
+  color: var(--warn);
 }
 
 /* The wait before the session is known. A single quiet line, not a spinner:

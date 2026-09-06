@@ -62,8 +62,8 @@ const Sidebar = () => {
             }
           >
             <destination.Icon
-              size={18}
-              strokeWidth={1.75}
+              size={26}
+              strokeWidth={1.6}
               className="rail__icon"
               aria-hidden="true"
             />
@@ -73,8 +73,8 @@ const Sidebar = () => {
       </nav>
 
       <div className="rail__foot">
-        <button type="button" className="rail__link" onClick={handleSignOut}>
-          <LogOut size={18} strokeWidth={1.75} className="rail__icon" aria-hidden="true" />
+        <button type="button" className="rail__link rail__link--exit" onClick={handleSignOut}>
+          <LogOut size={26} strokeWidth={1.6} className="rail__icon" aria-hidden="true" />
           <span className="rail__label">Logout</span>
         </button>
       </div>

@@ -127,6 +127,11 @@ export function useDeleteRecording() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.recordings.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.history.all });
+
+      // A diary is written from a day's recordings, and the backend removes it
+      // when the last one goes. Without this the entry stays in the cache and
+      // is shown as current while sourced from nothing.
+      queryClient.invalidateQueries({ queryKey: queryKeys.diary.all });
     },
   });
 }

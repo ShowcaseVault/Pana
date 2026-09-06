@@ -5,17 +5,17 @@
    month is the subject, and the way you move between months should read as
    turning a page rather than operating a control panel.
 
-   A day that holds something is marked by a soft teal blob washed behind the
-   date, not by a dot. The irregular edge and the varying opacity are the
-   point: the marks read as ink soaked into paper, which is what a diary is,
-   and a grid of identical dots would read as a dashboard.
+   A day that holds something is marked by a soft blob washed behind the date,
+   not by a dot. Two gradient layers with different irregular radii drift
+   slowly against each other, which is what makes the mark read as ink soaked
+   into paper rather than as a coloured circle. A grid of identical dots would
+   read as a dashboard; this is a diary.
 
-   Three states worth telling apart: a dense teal blob for a day that was
-   written up; a paler teal one for a day with recordings not yet made into an
-   entry -- work waiting, which is different from work finished; and a soft red
-   one for a day that has passed with nothing recorded at all. Days still ahead
-   carry no mark: they have not had their chance yet, and marking them would
-   flood the month with warnings about nothing.
+   Two standing marks: teal for a day written up, grey for one only recorded --
+   present, but not yet made into anything. A day with nothing carries no mark
+   at all. Red appears only in answer to a press on an empty day, and fades:
+   a month showing red on every quiet day is tiring to look at, and most days
+   in most months are quiet.
    ========================================================================= */
 
 .cal {
@@ -23,9 +23,11 @@
   flex-direction: column;
   align-items: center;
   width: 100%;
+  height: 100%;
   max-width: 1240px;
-  padding: var(--space-7) var(--space-6) var(--space-8);
+  padding: var(--space-6) var(--space-6);
   margin: 0 auto;
+  overflow: hidden;
 }
 
 /* --- Heading -------------------------------------------------------------
@@ -78,10 +80,17 @@
    A single card holding the month, with hairline cell divisions. The rules
    are what let the eye track along a week; without them the blobs float. */
 
+/* The grid takes the height that is left rather than a fixed cell size, so
+   the month fills the window and the page never scrolls -- a calendar you have
+   to scroll to see is not showing you a month. */
 .cal__grid {
   display: grid;
+  flex: 1;
   grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(0, 1fr);
+  grid-template-rows: auto;
   width: 100%;
+  min-height: 0;
   overflow: hidden;
   background: var(--paper);
   border: 1px solid var(--rule);
@@ -96,16 +105,19 @@
   border-bottom: 1px solid var(--rule);
 }
 
+/* The date sits in the middle of its cell, with the blob washed behind it.
+   Centred is what lets the mark read as surrounding the day rather than
+   sitting beside it. */
 .cal__day {
   position: relative;
-  display: block;
-  min-height: 124px;
-  padding: var(--space-4);
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: var(--space-2);
   overflow: hidden;
   font-size: var(--step-0);
   font-variant-numeric: tabular-nums;
   color: var(--ink-soft);
-  text-align: left;
   border-right: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
   transition: background var(--fast) var(--ease);
@@ -127,6 +139,8 @@
 .cal__num {
   position: relative;
   z-index: 1;
+  font-size: var(--step-1);
+  font-weight: 400;
 }
 
 /* Cells outside the month stay white. The card is one sheet of paper; greying
@@ -148,76 +162,159 @@
   background: var(--sunken);
 }
 
+/* Today is ringed rather than merely bolded: weight alone is easy to miss in a
+   grid of numbers, and the ring reads at a glance without changing the shape
+   of the digit. */
 .cal__day--today .cal__num {
   font-weight: 600;
   color: var(--ink);
 }
 
-/* An empty day answers the press with a short red pulse, then clears itself.
-   Feedback, not a scolding -- so it fades rather than persisting. */
-.cal__day--rejected {
-  background: var(--warn-tint);
-  animation: cal-reject 600ms var(--ease);
+.cal__day--today::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  content: '';
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-round);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
-@keyframes cal-reject {
-  0%,
-  70% {
-    background: var(--warn-tint);
-  }
-  100% {
-    background: transparent;
-  }
-}
+/* An empty day answers a press with a red blob that swells and fades. The
+   answer is the mark itself, so the cell keeps its own background -- a flat
+   red wash underneath would double the signal. */
 
-/* --- Blobs ---------------------------------------------------------------
-   Soft-edged, slightly irregular, and rotated off-axis so no two cells look
-   stamped from the same die. Sits behind the date, which stays legible on top
-   of it. */
+/* --- Blobs --------------------------------------------------------------
+   Two gradient layers per blob, each with its own irregular border-radius and
+   its own slow morph, running in opposite directions. One layer alone reads as
+   a blurred circle; two drifting against each other is what gives the mark the
+   uneven density of ink in paper. */
 
 .cal__blob {
   position: absolute;
-  top: 46%;
+  top: 50%;
   left: 50%;
-  width: 92px;
-  height: 74px;
-  border-radius: 62% 38% 46% 54% / 54% 48% 52% 46%;
-  transform: translate(-50%, -50%) rotate(-8deg);
-  filter: blur(5px);
+  z-index: 0;
+  width: 84%;
+  height: 84%;
+  filter: blur(8px);
+  transform: translate(-50%, -50%);
 }
 
-.cal__blob--written {
-  background: radial-gradient(
-    ellipse at 40% 40%,
-    rgba(56, 178, 172, 0.55),
-    rgba(129, 230, 217, 0.3) 65%,
-    rgba(129, 230, 217, 0) 100%
-  );
+.cal__blob::before,
+.cal__blob::after {
+  position: absolute;
+  content: '';
 }
 
-/* Recorded but unwritten reads as lighter ink -- less of it, not a different
-   colour, because it is the same thing at an earlier stage. */
-.cal__blob--recorded {
-  background: radial-gradient(
-    ellipse at 40% 40%,
-    rgba(129, 230, 217, 0.34),
-    rgba(129, 230, 217, 0.15) 65%,
-    rgba(129, 230, 217, 0) 100%
-  );
-  transform: translate(-50%, -50%) rotate(9deg);
+.cal__blob::before {
+  inset: 0;
+  border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
+  opacity: 0.35;
+  animation: blob-drift 4s var(--ease) infinite;
 }
 
-/* A day that passed with nothing said. Kept lighter than the teal marks: it is
-   information, not an alarm, and a month with a hard week in it should not
-   look like a failing report card. */
-.cal__blob--missed {
-  background: radial-gradient(
-    ellipse at 40% 40%,
-    rgba(192, 57, 47, 0.2),
-    rgba(192, 57, 47, 0.08) 65%,
-    rgba(192, 57, 47, 0) 100%
-  );
-  transform: translate(-50%, -50%) rotate(5deg);
+.cal__blob::after {
+  inset: -5%;
+  border-radius: 52% 48% 55% 45% / 45% 55% 52% 48%;
+  opacity: 0.25;
+  animation: blob-drift 5s var(--ease) infinite reverse;
+}
+
+/* Written up: the accent teal, at full strength. */
+.cal__blob--diary::before {
+  background:
+    radial-gradient(ellipse at 40% 40%, rgba(79, 209, 197, 0.5) 0%, transparent 70%),
+    radial-gradient(ellipse at 60% 60%, rgba(56, 178, 172, 0.45) 0%, transparent 65%),
+    radial-gradient(ellipse at 50% 50%, rgba(79, 209, 197, 0.4) 0%, transparent 80%);
+}
+
+.cal__blob--diary::after {
+  background:
+    radial-gradient(ellipse at 30% 70%, rgba(56, 178, 172, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 30%, rgba(79, 209, 197, 0.35) 0%, transparent 55%);
+}
+
+/* Recorded but unwritten: grey. The day was captured but nothing has been made
+   of it yet, and grey is the absence of the colour rather than a second one. */
+.cal__blob--recording::before {
+  background:
+    radial-gradient(ellipse at 40% 40%, rgba(113, 128, 150, 0.5) 0%, transparent 70%),
+    radial-gradient(ellipse at 60% 60%, rgba(113, 128, 150, 0.45) 0%, transparent 65%),
+    radial-gradient(ellipse at 50% 50%, rgba(113, 128, 150, 0.4) 0%, transparent 80%);
+}
+
+.cal__blob--recording::after {
+  background:
+    radial-gradient(ellipse at 30% 70%, rgba(113, 128, 150, 0.4) 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 30%, rgba(113, 128, 150, 0.35) 0%, transparent 55%);
+}
+
+/* The answer to pressing an empty day. It swells once and is gone -- it exists
+   for the half-second you are looking at that cell, so it does not drift like
+   the standing marks do. */
+.cal__blob--missed::before {
+  background:
+    radial-gradient(ellipse at 40% 40%, rgba(239, 68, 68, 0.5) 0%, transparent 70%),
+    radial-gradient(ellipse at 60% 60%, rgba(220, 38, 38, 0.45) 0%, transparent 65%);
+  opacity: 0.55;
+  animation: blob-pulse 600ms var(--ease);
+}
+
+.cal__blob--missed::after {
+  content: none;
+}
+
+@keyframes blob-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  45% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@keyframes blob-drift {
+  0%,
+  100% {
+    border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    border-radius: 52% 48% 45% 55% / 55% 45% 52% 48%;
+    transform: rotate(1deg) scale(1.02);
+  }
+  50% {
+    border-radius: 48% 52% 55% 45% / 45% 55% 48% 52%;
+    transform: rotate(-1deg) scale(0.99);
+  }
+  75% {
+    border-radius: 55% 45% 48% 52% / 52% 48% 55% 45%;
+    transform: rotate(0.5deg) scale(1.01);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal__blob::before,
+  .cal__blob::after {
+    animation: none;
+  }
+
+  /* The press still needs an answer, so the blob stays put and visible for as
+     long as it is mounted rather than animating in and out. */
+  .cal__blob--missed::before {
+    opacity: 0.5;
+  }
 }
 
 /* --- Key -----------------------------------------------------------------
@@ -244,16 +341,12 @@
   border-radius: 62% 38% 46% 54% / 54% 48% 52% 46%;
 }
 
-.cal__swatch--written {
+.cal__swatch--diary {
   background: rgba(56, 178, 172, 0.5);
 }
 
-.cal__swatch--recorded {
-  background: rgba(129, 230, 217, 0.3);
-}
-
-.cal__swatch--missed {
-  background: rgba(192, 57, 47, 0.18);
+.cal__swatch--recording {
+  background: rgba(113, 128, 150, 0.42);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -268,15 +361,20 @@
   }
 
   .cal__day {
-    min-height: 62px;
-    padding: var(--space-2);
+    padding: var(--space-1);
+  }
+
+  .cal__num {
     font-size: var(--step--1);
   }
 
+  .cal__day--today::after {
+    width: 30px;
+    height: 30px;
+  }
+
   .cal__blob {
-    width: 48px;
-    height: 42px;
-    filter: blur(4px);
+    filter: blur(5px);
   }
 
   .cal__arrow svg {

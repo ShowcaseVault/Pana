@@ -63,7 +63,7 @@
 
 .dialog__button--destructive {
   color: var(--paper);
-  background: #c0392f;
+  background: var(--warn);
 }
 
 .dialog__button--destructive:hover {

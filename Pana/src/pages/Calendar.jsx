@@ -1,13 +1,13 @@
-import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { useCalendar } from "../hooks/queries/useCalendar";
-import "../styles/calendar.css";
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useCalendar } from '../hooks/queries/useCalendar';
+import '../styles/calendar.css';
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** ISO date for a day in the shown month, without crossing a timezone. */
 const isoFor = (date, day) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
 /**
  * A long, thin arrow.
@@ -28,7 +28,7 @@ const LongArrow = ({ direction }) => (
     strokeLinejoin="round"
     aria-hidden="true"
     focusable="false"
-    style={direction === "left" ? { transform: "scaleX(-1)" } : undefined}
+    style={direction === 'left' ? { transform: 'scaleX(-1)' } : undefined}
   >
     <line x1="2" y1="10" x2="56" y2="10" />
     <polyline points="47,3 56,10 47,17" />
@@ -100,7 +100,7 @@ const Calendar = () => {
         </button>
 
         <h1 className="cal__month">
-          {currentDate.toLocaleString(undefined, { month: "long" })} {year}
+          {currentDate.toLocaleString(undefined, { month: 'long' })} {year}
         </h1>
 
         <button
@@ -131,33 +131,25 @@ const Calendar = () => {
           const filled = written || recorded;
           const isToday = isCurrentMonth && today.getDate() === day;
 
-          // A red blob marks a day that went unrecorded -- but only one that
-          // has already passed. Marking every future day would flood the month
-          // with a warning about days that have not had their chance yet.
-          const isPast =
-            year < today.getFullYear() ||
-            (year === today.getFullYear() &&
-              (month < today.getMonth() ||
-                (month === today.getMonth() && day < today.getDate())));
-          const missed = !filled && isPast;
-
-          const mark = written ? "written" : recorded ? "recorded" : "none";
+          // Teal for a day written up, grey for one only recorded. A day with
+          // nothing carries no standing mark -- red on every quiet day makes
+          // the month tiring to look at, so it appears only in answer to a
+          // press.
+          const mark = written ? 'diary' : 'recording';
           const isRejected = rejected === day;
           const label = written
             ? `${day}: diary written`
             : recorded
               ? `${day}: recordings, no diary yet`
-              : missed
-                ? `${day}: nothing recorded`
-                : `${day}: nothing recorded yet`;
+              : `${day}: nothing recorded`;
 
           return (
             <button
               key={day}
               type="button"
-              className={`cal__day ${filled ? "cal__day--filled" : "cal__day--bare"}${
-                isToday ? " cal__day--today" : ""
-              }${isRejected ? " cal__day--rejected" : ""}`}
+              className={`cal__day ${filled ? 'cal__day--filled' : 'cal__day--bare'}${
+                isToday ? ' cal__day--today' : ''
+              }${isRejected ? ' cal__day--rejected' : ''}`}
               aria-label={label}
               onClick={() => {
                 if (filled) {
@@ -171,12 +163,10 @@ const Calendar = () => {
                 );
               }}
             >
-              {(filled || missed) && (
-                <span
-                  className={`cal__blob cal__blob--${mark}`}
-                  aria-hidden="true"
-                />
+              {filled && (
+                <span className={`cal__blob cal__blob--${mark}`} aria-hidden="true" />
               )}
+              {isRejected && <span className="cal__blob cal__blob--missed" aria-hidden="true" />}
               <span className="cal__num">{day}</span>
             </button>
           );
@@ -185,17 +175,14 @@ const Calendar = () => {
 
       <div className="cal__key">
         <span className="cal__key-item">
-          <span className="cal__swatch cal__swatch--written" />
+          <span className="cal__swatch cal__swatch--diary" />
           Diary written
         </span>
         <span className="cal__key-item">
-          <span className="cal__swatch cal__swatch--recorded" />
+          <span className="cal__swatch cal__swatch--recording" />
           Recorded, not yet written
         </span>
-        <span className="cal__key-item">
-          <span className="cal__swatch cal__swatch--missed" />
-          Nothing recorded
-        </span>
+
       </div>
     </div>
   );

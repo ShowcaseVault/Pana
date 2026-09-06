@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Toaster, toast } from 'sonner';
 import { useAuth } from '../context/useAuth';
 import RecordingCard from '../components/RecordingCard';
-import { useRecordings } from '../hooks/queries/useRecordings';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useDeleteRecording, useRecordings } from '../hooks/queries/useRecordings';
 import { useDiary } from '../hooks/queries/useDiary';
 import '../styles/page.css';
 
@@ -45,13 +47,48 @@ const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+
   // No filter: the backend scopes an unfiltered list to today, which is
   // exactly this page's subject.
   const { data, isPending } = useRecordings({ pageSize: 50 });
   const recordings = data?.recordings ?? [];
 
   const iso = todayIso();
-  const { data: diary } = useDiary(iso);
+  const { data: diaryRow } = useDiary(iso);
+
+  // A diary is written from the day's recordings. An entry with none left is
+  // an orphan -- either a row written before deletion cascaded, or a cached
+  // one that has outlived its sources -- and reporting the day as written up
+  // when there is nothing behind it is worse than reporting nothing.
+  const diary = recordings.length > 0 ? diaryRow : null;
+
+  const deleteRecording = useDeleteRecording();
+
+  useEffect(() => {
+    const dismiss = () => setActiveMenuId(null);
+    document.addEventListener('click', dismiss);
+    return () => document.removeEventListener('click', dismiss);
+  }, []);
+
+  // Deleting the last recording of a day removes that day's diary too -- it is
+  // written from the recordings, so it cannot outlive them. Saying so here
+  // means the consequence is known before the button is pressed, not
+  // discovered afterwards.
+  const isLastRecording = recordings.length === 1;
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await deleteRecording.mutateAsync(pendingDelete);
+      toast.success('Recording deleted');
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setPendingDelete(null);
+    }
+  };
 
   const firstName = user?.name?.split(' ')[0];
   const minutes = totalMinutes(recordings);
@@ -85,7 +122,21 @@ const Home = () => {
             <>
               <div>
                 {recordings.map((recording) => (
-                  <RecordingCard key={recording.id} recording={recording} compact />
+                  <RecordingCard
+                    key={recording.id}
+                    recording={recording}
+                    compact
+                    onDelete={(id) => {
+                      setPendingDelete(id);
+                      setActiveMenuId(null);
+                    }}
+                    showMenu={activeMenuId === recording.id}
+                    onMenuToggle={() =>
+                      setActiveMenuId((current) =>
+                        current === recording.id ? null : recording.id,
+                      )
+                    }
+                  />
                 ))}
               </div>
               <div className="state__action">
@@ -160,6 +211,21 @@ const Home = () => {
           )}
         </div>
       </aside>
+
+      <ConfirmDialog
+        isOpen={pendingDelete !== null}
+        onClose={() => setPendingDelete(null)}
+        onConfirm={confirmDelete}
+        title="Delete this recording?"
+        message={
+          isLastRecording && diary
+            ? 'This is the only recording for today, so today\u2019s diary entry will be removed with it. This cannot be undone.'
+            : 'The audio and its transcript are removed for good. This cannot be undone.'
+        }
+        confirmLabel="Delete"
+      />
+
+      <Toaster position="bottom-right" />
     </div>
   );
 };

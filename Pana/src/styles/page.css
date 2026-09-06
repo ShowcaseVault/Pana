@@ -19,8 +19,14 @@
   gap: var(--space-8);
   align-items: start;
   max-width: 1060px;
+  height: 100%;
   padding: var(--space-8) var(--space-7) var(--space-8);
   margin: 0 auto;
+
+  /* Prose and lists of recordings have no upper bound, so these pages scroll
+     their own content. The shell does not scroll, so this is the only
+     scrollbar the user ever sees. */
+  overflow-y: auto;
 }
 
 /* Screens with nothing to put beside the subject keep the single measure

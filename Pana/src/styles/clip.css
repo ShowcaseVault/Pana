@@ -157,11 +157,11 @@
 }
 
 .clip__menu-item--destructive {
-  color: #c0392f;
+  color: var(--warn);
 }
 
 .clip__menu-item--destructive:hover {
-  background: rgba(192, 57, 47, 0.08);
+  background: var(--warn-tint);
 }
 
 /* --- Compact ------------------------------------------------------------

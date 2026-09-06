@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import CreateDiary from '../components/CreateDiary';
 import DiaryView from '../components/Diary/DiaryView';
@@ -16,6 +16,7 @@ const todayIso = () => {
 
 const Diary = () => {
   const { date } = useParams();
+  const navigate = useNavigate();
   const targetDate = date || todayIso();
   const isToday = targetDate === todayIso();
 
@@ -48,8 +49,13 @@ const Diary = () => {
     );
   }
 
-  const hasEntry = Boolean(diary?.content);
   const hasRecordings = recordings.length > 0;
+
+  // An entry is only real while the recordings it was written from still
+  // exist. The backend removes a diary when its last recording goes, but a
+  // cached entry can outlive that by a moment, and showing it would present
+  // writing sourced from nothing as current.
+  const hasEntry = Boolean(diary?.content) && hasRecordings;
 
   // Today with nothing written yet gets the invitation; a past day gets the
   // entry it has, or an explanation of why it has none.
@@ -75,11 +81,17 @@ const Diary = () => {
     );
   }
 
+  // No recordings means there is nothing to write from and nothing to show.
+  // The screen says so and offers the only move that leads anywhere.
   return (
     <div className="page page--single">
-      <h1 className="page__title">{new Date(targetDate).toLocaleDateString(undefined, {
-        weekday: 'long', day: 'numeric', month: 'long',
-      })}</h1>
+      <h1 className="page__title">
+        {new Date(targetDate).toLocaleDateString(undefined, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        })}
+      </h1>
       <div className="state">
         <p className="state__line">
           {isToday ? 'Nothing recorded yet today.' : 'Nothing was recorded this day.'}
@@ -89,6 +101,13 @@ const Diary = () => {
             ? 'Pana writes the day up from what you record. Speak for a minute and come back.'
             : 'A diary is written from recordings, and there are none for this date.'}
         </p>
+        {isToday && (
+          <div className="state__action">
+            <button type="button" className="action" onClick={() => navigate('/recordings')}>
+              Start recording
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

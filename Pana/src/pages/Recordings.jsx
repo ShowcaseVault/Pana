@@ -158,7 +158,11 @@ const Recordings = () => {
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={confirmDelete}
         title="Delete this recording?"
-        message="The audio and its transcript are removed for good. This cannot be undone."
+        message={
+          recordings.length === 1
+            ? 'This is the only recording for today, so today\u2019s diary entry will be removed with it. This cannot be undone.'
+            : 'The audio and its transcript are removed for good. This cannot be undone.'
+        }
         confirmLabel="Delete"
       />
 

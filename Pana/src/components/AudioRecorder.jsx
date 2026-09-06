@@ -140,12 +140,15 @@ const AudioRecorder = ({ onRecordingComplete }) => {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
+  // While recording, the wave says "Recording..." across its own middle, so
+  // the line underneath stays empty rather than repeating it. The wave's own
+  // label is aria-hidden, so the announcement is made here instead.
   const status = isProcessing
     ? 'Saving'
     : isPaused
       ? 'Paused'
       : isRecording
-        ? 'Listening'
+        ? ''
         : 'Ready when you are';
 
   return (
@@ -193,6 +196,7 @@ const AudioRecorder = ({ onRecordingComplete }) => {
 
       <p className="recorder__status" aria-live="polite">
         {status}
+        {isRecording && !isPaused && <span className="visually-hidden">Recording</span>}
       </p>
     </div>
   );

@@ -15,11 +15,16 @@
   background: var(--ground);
 }
 
+/* The shell itself does not scroll. A page that fits the window -- the
+   calendar, the recorder -- should never produce a scrollbar; pages that hold
+   an unbounded amount of text scroll their own content instead, which is why
+   this is `auto` on the page rather than here. */
 .shell__main {
   position: relative;
   flex: 1;
+  min-height: 0;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* --- Rail ---------------------------------------------------------------- */
@@ -29,7 +34,7 @@
   flex-direction: column;
   flex-shrink: 0;
   align-items: stretch;
-  width: 92px;
+  width: 112px;
   height: 100%;
   padding: var(--space-6) 0 var(--space-4);
   background: var(--paper);
@@ -49,11 +54,15 @@
   color: var(--ink);
 }
 
+/* Centred vertically: the four destinations sit as a group in the middle of
+   the rail rather than stacking from the top, which leaves the wordmark and
+   the logout anchored at the ends and the navigation balanced between them. */
 .rail__nav {
   display: flex;
   flex: 1;
   flex-direction: column;
   gap: var(--space-2);
+  justify-content: center;
 }
 
 /* Icon over word, both centred. The pair is one target, so the whole cell is
@@ -62,7 +71,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   align-items: center;
   justify-content: center;
   width: 100%;
@@ -77,10 +86,12 @@
   color: var(--ink);
 }
 
+/* The label is deliberately smaller than the glyph. The icon is what the eye
+   lands on; the word settles which one it is. */
 .rail__label {
-  font-size: 11px;
+  font-size: 10.5px;
   line-height: 1.2;
-  letter-spacing: 0.005em;
+  letter-spacing: 0.01em;
 }
 
 .rail__icon {
@@ -114,11 +125,32 @@
   height: 26px;
 }
 
-/* Logout is the same shape as a destination but sits apart, below a rule: it
-   is an action, not a place. */
+/* Logout keeps a destination's shape so the rail stays one column, but it is
+   not a destination: it ends the session. It sits below a rule, stays fainter
+   at rest than anything above it, and turns red on approach -- the one place
+   in the rail that does, so the warning means something. */
 .rail__foot {
   padding-top: var(--space-3);
   border-top: 1px solid var(--rule);
+}
+
+.rail__link--exit {
+  color: var(--ink-ghost);
+}
+
+.rail__link--exit:hover,
+.rail__link--exit:focus-visible {
+  color: var(--warn);
+}
+
+.rail__link--exit:hover .rail__icon,
+.rail__link--exit:focus-visible .rail__icon {
+  color: var(--warn);
+}
+
+/* No accent marker: this is not a place you can be. */
+.rail__link--exit::before {
+  content: none;
 }
 
 /* --- Narrow screens ------------------------------------------------------
