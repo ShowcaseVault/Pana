@@ -20,9 +20,9 @@ const Home = () => {
 
   const fetchRecentRecordings = async () => {
     try {
-      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?limit=5`);
-      if (res.data.code === 'SUCCESS') {
-        const records = res.data.data.data ? res.data.data.data : res.data.data;
+      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?page_size=5&list_all=true`);
+      if (res.data.success) {
+        const records = res.data.data;
         setRecordings(records);
       }
     } catch (err) {

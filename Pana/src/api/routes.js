@@ -15,7 +15,6 @@ export const API_ROUTES = {
   AUTH: {
     GOOGLE_LOGIN: "/auth/google",
     GOOGLE_CALLBACK: "/auth/google/callback",
-    GOOGLE_SESSION: "/auth/google/session", // GET ?code=...
     REFRESH: "/auth/refresh", // POST
     LOGOUT: "/auth/logout", // POST
   },

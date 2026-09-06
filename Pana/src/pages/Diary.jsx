@@ -25,8 +25,8 @@ const Diary = () => {
       const response = await axiosClient.get(API_ROUTES.RECORDINGS.LIST, {
         params: { recording_date: targetDate }
       });
-      if (response.data && response.data.code === 'SUCCESS') {
-        const records = response.data.data.data ? response.data.data.data : response.data.data;
+      if (response.data && response.data.success) {
+        const records = response.data.data;
         setRecordings(records || []);
       }
     } catch (error) {
@@ -42,7 +42,7 @@ const Diary = () => {
           params: { date: targetDate }
       });
       
-      if (response.data && response.data.code === 'SUCCESS') {
+      if (response.data && response.data.success) {
         setDiary(response.data.data);
       } else {
         setDiary(null);
@@ -61,7 +61,7 @@ const Diary = () => {
       const response = await axiosClient.post(API_ROUTES.DIARY.CREATE, null, {
           params: { date: targetDate }
       });
-      if (response.data && response.data.code === 'SUCCESS') {
+      if (response.data && response.data.success) {
         setDiary(response.data.data);
       } else {
         console.error("Diary generation failed:", response.data.message);

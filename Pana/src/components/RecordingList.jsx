@@ -35,10 +35,10 @@ const RecordingList = ({ refreshTrigger }) => {
     try {
       setLoading(true);
       const res = await axiosClient.get(
-        `${API_ROUTES.RECORDINGS.LIST}?limit=50`
+        `${API_ROUTES.RECORDINGS.LIST}?page_size=50&list_all=true`
       );
-      if (res.data.code === "SUCCESS") {
-        const records = res.data.data.data ? res.data.data.data : res.data.data;
+      if (res.data.success) {
+        const records = res.data.data;
         setRecordings(records);
       }
     } catch (err) {

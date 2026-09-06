@@ -42,7 +42,7 @@ const Calendar = () => {
       
       const response = await axiosClient.get(API_ROUTES.HISTORY.CALENDAR(year, month));
       
-      if (response.data.code === "SUCCESS" && response.data.data) {
+      if (response.data.success && response.data.data) {
         const { diary_days, recording_days } = response.data.data;
         setDiaryDays(new Set(diary_days || []));
         setRecordingDays(new Set(recording_days || []));

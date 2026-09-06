@@ -29,7 +29,7 @@ const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu
     try {
       setLoadingTranscription(true);
       const res = await axiosClient.get(API_ROUTES.TRANSCRIPTIONS.DETAIL(recording.transcription_id));
-      if (res.data.code === 'SUCCESS') {
+      if (res.data.success) {
         const data = res.data.data;
         if (data.words && data.words.length > 0) {
           setWords(data.words);

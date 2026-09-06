@@ -37,9 +37,9 @@ const Recordings = () => {
   const fetchRecordings = async () => {
     try {
       setLoading(true);
-      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?limit=50`); 
-      if (res.data.code === 'SUCCESS') {
-          const records = res.data.data.data ? res.data.data.data : res.data.data;
+      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?page_size=50&list_all=true`); 
+      if (res.data.success) {
+          const records = res.data.data;
           setRecordings(records); 
       }
     } catch (err) {
@@ -78,14 +78,14 @@ const Recordings = () => {
           const res = await axiosClient.post(API_ROUTES.RECORDINGS.CREATE, formData, {
               headers: { 'Content-Type': 'multipart/form-data' }
           });
-          if (res.data.code === 'SUCCESS') {
+          if (res.data.success) {
               setRefreshKey(prev => prev + 1);
           } else {
               toast.error("Failed to save recording.");
           }
       } catch (err) {
           console.error(err);
-          toast.error("Upload error. " + (err.response?.data?.detail || err.message));
+          toast.error("Upload error. " + (err.response?.data?.message || err.message));
       }
   };
 
@@ -109,7 +109,7 @@ const Recordings = () => {
     if (!recordingToDelete) return;
     try {
       const res = await axiosClient.delete(API_ROUTES.RECORDINGS.DELETE(recordingToDelete));
-      if (res.data.code === 'SUCCESS') {
+      if (res.data.success) {
         setRecordings(prev => prev.filter(rec => String(rec.id) !== String(recordingToDelete)));
         toast.success("Recording deleted");
       } else {
@@ -117,7 +117,7 @@ const Recordings = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error("Delete error: " + (err.response?.data?.detail || err.message));
+      toast.error("Delete error: " + (err.response?.data?.message || err.message));
     } finally {
       setRecordingToDelete(null);
       setIsConfirmOpen(false);
