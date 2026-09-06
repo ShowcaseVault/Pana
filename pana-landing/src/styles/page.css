@@ -1,0 +1,516 @@
+/* ============================================================================
+   The landing page.
+
+   The page is built as one continuous thread: a hairline running down the left
+   with the story hung off it as timestamped moments, the way a day's
+   recordings hang off the thread inside the app. Scrolling the page is
+   scrolling a day. That is the only structural device here -- no cards, no
+   numbered steps, no panels -- because it is the one that carries meaning
+   rather than decorating the content.
+
+   Teal keeps the job it has in the app: live voice, and nothing else. It
+   appears on the hero wave, on the single node marking the turn in the story,
+   and on the button that starts a recording. Everything else is ink on grey.
+   ========================================================================= */
+
+.page {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* --- Masthead -------------------------------------------------------------
+   Thin and unfixed. A sticky bar over a page about quiet would be the first
+   thing contradicting it. */
+
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1080px;
+  padding: var(--space-5) var(--space-6);
+  margin: 0 auto;
+}
+
+.masthead__brand {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  text-decoration: none;
+}
+
+/* The mark and the name are the only branding on the page, and this is a first
+   visit for everyone reading it -- so they are set larger than chrome usually
+   would be. The rounded-square badge is the app's own icon, at a size where
+   its shape still reads. */
+.masthead__logo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  object-fit: contain;
+}
+
+.masthead__name {
+  font-family: var(--font-prose);
+  font-size: var(--step-2);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.masthead__enter {
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  text-decoration: none;
+  transition: color var(--fast) var(--ease);
+}
+
+.masthead__enter:hover {
+  color: var(--ink);
+}
+
+/* --- Hero -----------------------------------------------------------------
+   Centred, and the only centred block on the page: it is a title card, and
+   everything after it is reading matter, which is left-aligned so each line
+   starts in the same place. */
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 940px;
+  padding: var(--space-8) var(--space-6) var(--space-9);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.hero__line {
+  font-family: var(--font-prose);
+  font-size: var(--step-5);
+  font-weight: 300;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+.hero__sub {
+  max-width: 42ch;
+  margin-top: var(--space-5);
+  font-size: var(--step-1);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* --- The hero wave --------------------------------------------------------
+   The one loud thing on the page, and the only glow anywhere in Pana. */
+
+.hero-wave {
+  width: 100%;
+  max-width: 780px;
+  margin-top: var(--space-4);
+}
+
+.hero-wave__svg {
+  display: block;
+  width: 100%;
+  height: 320px;
+  filter: drop-shadow(0 0 34px rgba(79, 209, 197, 0.22));
+}
+
+/* The words arriving. Serif, because they are a person's own speech -- the
+   same distinction the app makes between someone's words and the interface's. */
+.hero-wave__transcript {
+  /* Reserved for the longest wrap of the sentence, so the button below never
+     moves as words arrive. */
+  min-height: 4.6em;
+  max-width: 38ch;
+  margin: calc(var(--space-5) * -1) auto 0;
+  font-family: var(--font-prose);
+  font-size: var(--step-1);
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.hero-wave__caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.13em;
+  background: var(--accent);
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    opacity: 0;
+  }
+}
+
+/* --- The thread -----------------------------------------------------------
+   The hairline and the beats hung off it. The rule is drawn on the container
+   rather than per-beat so it is continuous through the gaps. */
+
+.thread {
+  position: relative;
+  max-width: 800px;
+  padding: var(--space-8) var(--space-6) var(--space-9);
+  margin: 0 auto;
+}
+
+.thread::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--space-6) + 132px);
+  width: 1px;
+  content: '';
+  background: var(--rule-strong);
+}
+
+.beat {
+  position: relative;
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: var(--space-7);
+  padding-bottom: var(--space-8);
+}
+
+.beat:last-child {
+  padding-bottom: 0;
+}
+
+/* The clock time, right-aligned against the thread so the times form their own
+   quiet column and the rule stays the page's spine.
+
+   The column is wide enough for the longest label the story uses -- "a year
+   on" -- because a wrapped timestamp stops reading as a timestamp. Anything
+   longer should be shortened rather than allowed to wrap. */
+.beat__time {
+  padding-top: 0.42em;
+  padding-right: var(--space-2);
+  font-size: var(--step--1);
+  line-height: 1.4;
+  color: var(--ink-ghost);
+  text-align: right;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+
+/* An open node on the thread for each beat: the moment exists, but nothing has
+   happened at it yet. */
+.beat__body {
+  position: relative;
+}
+
+.beat__body::before {
+  position: absolute;
+  top: 0.62em;
+  left: calc(var(--space-7) * -1 - 3.5px);
+  width: 7px;
+  height: 7px;
+  content: '';
+  background: var(--ground);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-round);
+}
+
+.beat__heading {
+  max-width: 26ch;
+  overflow-wrap: break-word;
+  font-family: var(--font-prose);
+  font-size: var(--step-3);
+  font-weight: 400;
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.beat__text {
+  max-width: 58ch;
+  margin-top: var(--space-4);
+  font-size: var(--step-0);
+  line-height: 1.68;
+  color: var(--ink-soft);
+}
+
+/* The turn of the story: the one filled node, in the accent. Everything the
+   page has said so far is the problem; this is where it changes. Marking it on
+   the thread is the whole reason the thread is there. */
+.beat--turn .beat__body::before {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 5px var(--accent-tint);
+}
+
+.beat__heading--turn {
+  max-width: 24ch;
+  font-size: var(--step-4);
+}
+
+/* --- The entry ------------------------------------------------------------
+   A generated diary entry, shown as the app renders one. Claiming Pana writes
+   well is worth less than a page of it. */
+
+.entry {
+  padding: var(--space-6);
+  margin: 0;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--lift);
+}
+
+.entry__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.entry__date {
+  font-family: var(--font-prose);
+  font-size: var(--step-1);
+  color: var(--ink);
+}
+
+.entry__mood {
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/* 62 characters and extra leading: this is the one block on the page meant to
+   be read the way a book is read, so it gets a book's measure. */
+.entry__text {
+  max-width: 62ch;
+  margin: 0;
+  font-family: var(--font-prose);
+  font-size: var(--step-1);
+  line-height: 1.72;
+  color: var(--ink);
+}
+
+.entry__actions {
+  padding-top: var(--space-5);
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+
+.entry__actions-title {
+  margin-bottom: var(--space-3);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.entry__action {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  margin-top: var(--space-2);
+  font-size: var(--step-0);
+  color: var(--ink-soft);
+}
+
+.entry__action-mark {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-round);
+  transform: translateY(-2px);
+}
+
+/* --- Terms ---------------------------------------------------------------
+   Three plain statements about handling someone's private speech, set as a
+   definition list because that is what they are. */
+
+.terms {
+  max-width: 720px;
+  padding: var(--space-8) var(--space-6);
+  margin: 0 auto;
+  border-top: 1px solid var(--rule);
+}
+
+.terms__title {
+  font-family: var(--font-prose);
+  font-size: var(--step-2);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.terms__list {
+  margin: var(--space-6) 0 0;
+}
+
+.terms__item {
+  padding-top: var(--space-5);
+  margin-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+}
+
+.terms__item:first-child {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: none;
+}
+
+.terms__term {
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.terms__def {
+  max-width: 58ch;
+  margin: var(--space-2) 0 0;
+  font-size: var(--step-0);
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+/* --- Close ---------------------------------------------------------------- */
+
+.close {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-9) var(--space-6);
+  text-align: center;
+}
+
+.close__line {
+  max-width: 20ch;
+  margin-bottom: var(--space-6);
+  font-family: var(--font-prose);
+  font-size: var(--step-4);
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+/* --- Button ---------------------------------------------------------------
+   One button, used twice. It is filled teal because it starts a recording, and
+   that is what teal means everywhere in Pana. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--step-0);
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: var(--radius-round);
+  transition: background var(--fast) var(--ease), box-shadow var(--slow) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.button--primary {
+  color: var(--paper);
+  background: var(--accent);
+  box-shadow: 0 0 0 6px var(--accent-tint);
+}
+
+.button--primary:hover {
+  background: var(--accent-deep);
+  box-shadow: 0 0 0 10px var(--accent-tint);
+}
+
+.button--primary:active {
+  transform: scale(0.98);
+}
+
+.hero .button {
+  margin-top: var(--space-6);
+}
+
+/* --- Foot ----------------------------------------------------------------- */
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 720px;
+  padding: var(--space-5) var(--space-6) var(--space-7);
+  margin: 0 auto;
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  border-top: 1px solid var(--rule);
+}
+
+.foot a {
+  text-decoration: none;
+  transition: color var(--fast) var(--ease);
+}
+
+.foot a:hover {
+  color: var(--ink);
+}
+
+/* --- Narrow screens -------------------------------------------------------
+   The times move above their beats and the thread moves to the far left: at
+   this width a 88px gutter costs more than the alignment is worth. */
+
+@media (max-width: 680px) {
+  .thread::before {
+    left: var(--space-5);
+  }
+
+  .beat {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+    padding-left: var(--space-6);
+    margin-left: var(--space-5);
+  }
+
+  .beat__time {
+    text-align: left;
+  }
+
+  .beat__body::before {
+    top: -1.55em;
+    left: calc(var(--space-6) * -1 - 4px);
+  }
+
+  .hero-wave__svg {
+    height: 210px;
+  }
+
+  .hero-wave__transcript {
+    min-height: 5.4em;
+    margin-top: calc(var(--space-3) * -1);
+    font-size: var(--step-0);
+  }
+
+  .entry {
+    padding: var(--space-5);
+  }
+
+  /* Still the largest thing in the masthead, but a 48px badge crowds a phone
+     next to the link beside it. */
+  .masthead__logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+  }
+
+  .masthead__name {
+    font-size: var(--step-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-wave__caret {
+    animation: none;
+  }
+
+  .button {
+    transition: none;
+  }
+}
