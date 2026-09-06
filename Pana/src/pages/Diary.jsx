@@ -5,6 +5,7 @@ import CreateDiary from '../components/CreateDiary';
 import DiaryView from '../components/Diary/DiaryView';
 import { useDiary, useGenerateDiary } from '../hooks/queries/useDiary';
 import { useRecordings } from '../hooks/queries/useRecordings';
+import '../styles/page.css';
 
 /** Today as an ISO date string, in the user's own timezone. */
 const todayIso = () => {
@@ -37,65 +38,58 @@ const Diary = () => {
 
   if (loadingRecordings || loadingDiary) {
     return (
-      <div className="flex items-center justify-center h-full">
-         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+      <div className="page page--single">
+        <div className="skeleton" aria-label="Loading diary">
+          <div className="skeleton__bar" />
+          <div className="skeleton__bar" />
+          <div className="skeleton__bar" />
+        </div>
       </div>
     );
   }
 
-  // Check if diary has content - if content is null, treat as not created
-  const hasDiaryContent = diary && diary.content !== null;
+  const hasEntry = Boolean(diary?.content);
   const hasRecordings = recordings.length > 0;
 
-  let contentToRender;
+  // Today with nothing written yet gets the invitation; a past day gets the
+  // entry it has, or an explanation of why it has none.
+  if (hasEntry) {
+    return (
+      <DiaryView
+        diary={diary}
+        recordings={recordings}
+        onRegenerate={handleCreateDiary}
+        loading={generateDiary.isPending}
+      />
+    );
+  }
 
-  if (hasDiaryContent) {
-    contentToRender = (
-      <DiaryView 
-        diary={diary} 
-        recordings={recordings} 
-        onRegenerate={handleCreateDiary} 
-        loading={generateDiary.isPending} 
+  if (hasRecordings) {
+    return (
+      <CreateDiary
+        onCreate={handleCreateDiary}
+        loading={generateDiary.isPending}
+        count={recordings.length}
+        isToday={isToday}
       />
-    );
-  } else if (isToday) {
-    // For today, show the specific CreateDiary landing page
-    contentToRender = (
-      <CreateDiary 
-        onCreate={handleCreateDiary} 
-        loading={generateDiary.isPending} 
-      />
-    );
-  } else if (hasRecordings) {
-    // For past dates with recordings, show DiaryView in "empty" state
-    // ensuring we pass a valid object structure so DiaryView doesn't crash
-    const placeholderDiary = diary || {
-      diary_date: targetDate,
-      mood: null,
-      content: null,
-      actions: []
-    };
-    
-    contentToRender = (
-      <DiaryView 
-        diary={placeholderDiary} 
-        recordings={recordings} 
-        onRegenerate={handleCreateDiary} 
-        loading={generateDiary.isPending} 
-      />
-    );
-  } else {
-    // Past date, no recordings, no diary
-    contentToRender = (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500">
-          <p>No diary entry for this date.</p>
-      </div>
     );
   }
 
   return (
-    <div className="p-6 h-full">
-      {contentToRender}
+    <div className="page page--single">
+      <h1 className="page__title">{new Date(targetDate).toLocaleDateString(undefined, {
+        weekday: 'long', day: 'numeric', month: 'long',
+      })}</h1>
+      <div className="state">
+        <p className="state__line">
+          {isToday ? 'Nothing recorded yet today.' : 'Nothing was recorded this day.'}
+        </p>
+        <p className="state__hint">
+          {isToday
+            ? 'Pana writes the day up from what you record. Speak for a minute and come back.'
+            : 'A diary is written from recordings, and there are none for this date.'}
+        </p>
+      </div>
     </div>
   );
 };

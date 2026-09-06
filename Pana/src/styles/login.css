@@ -1,0 +1,94 @@
+/* ============================================================================
+   Sign in.
+
+   One column, left-aligned, most of the screen empty. The page has one job and
+   states it in a sentence; a marketing panel of features would be arguing a
+   case to someone who has already decided.
+   ========================================================================= */
+
+.login {
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+  padding: var(--space-7);
+  background: var(--ground);
+}
+
+.login__inner {
+  width: 100%;
+  max-width: 420px;
+  margin-left: min(12vw, 140px);
+}
+
+.login__wordmark {
+  font-family: var(--font-prose);
+  font-size: var(--step-4);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+/* The one sentence that says what Pana is, set in the prose face because it is
+   a statement rather than interface text. */
+.login__line {
+  max-width: 26ch;
+  margin-top: var(--space-4);
+  font-family: var(--font-prose);
+  font-size: var(--step-2);
+  font-weight: 400;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  letter-spacing: -0.01em;
+}
+
+.login__action {
+  margin-top: var(--space-7);
+}
+
+.login__google {
+  display: inline-flex;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+
+.login__google:hover {
+  border-color: var(--ink-faint);
+  box-shadow: var(--lift);
+}
+
+.login__note {
+  margin-top: var(--space-5);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.login__error {
+  margin-top: var(--space-5);
+  font-size: var(--step--1);
+  color: #c0392f;
+}
+
+/* The wait before the session is known. A single quiet line, not a spinner:
+   this resolves in a moment and a spinner would flash. */
+.login__waiting {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+  background: var(--ground);
+}
+
+@media (max-width: 720px) {
+  .login__inner {
+    margin-left: 0;
+  }
+}

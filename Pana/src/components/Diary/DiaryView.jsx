@@ -1,287 +1,117 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Play, CheckCircle, Circle, MapPin, Clock, RotateCw, Pause } from 'lucide-react';
-import './Diary.css';
-import recordingsService from '../../services/recordings.service';
+import React from "react";
+import { Circle, CheckCircle2, RotateCw } from "lucide-react";
+import RecordingCard from "../RecordingCard";
+import "./Diary.css";
 
-const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) => {
-  const [activeId, setActiveId] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  // crossOrigin is set at creation because the audio route is authenticated
-  // and served from a different origin than the dev server.
-  const audioRef = useRef(Object.assign(new Audio(), { crossOrigin: 'use-credentials' }));
+/** "Tuesday, 4 March 2025" in the reader's locale. */
+const formatDate = (value) =>
+  new Date(value).toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
-  const { diary_date, mood, content, actions } = diary;
+/**
+ * A day's diary entry.
+ *
+ * The entry is the subject: it holds the main column at a reading measure.
+ * The recordings it was written from sit in the aside, where they are within
+ * reach for checking a passage against what was actually said without
+ * interrupting the reading.
+ */
+const DiaryView = ({
+  diary,
+  recordings = [],
+  onRegenerate,
+  loading = false,
+}) => {
+  const { diary_date: diaryDate, mood, content, actions } = diary;
 
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  const handlePlay = (recording) => {
-    // If interacting with the currently active recording
-    if (activeId === recording.id) {
-      if (isPlaying) {
-        audioRef.current.pause();
-        setIsPlaying(false);
-      } else {
-        audioRef.current.play().catch(e => console.error("Resume failed:", e));
-        setIsPlaying(true);
-      }
-      return;
-    } 
-
-    // Switching to a new recording
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-    
-    // Create new audio instance if needed (though ref persists)
-    if (!audioRef.current) audioRef.current = new Audio();
-    // The audio route is authenticated and cross-origin, so the element has to
-    // be told to send cookies.
-    audioRef.current.crossOrigin = 'use-credentials';
-      
-    // Clean path logic
-    let filePath = recording.file_path;
-    if (filePath) {
-      filePath = filePath.replace(/\\/g, '/');
-    } else {
-      console.error("No file path for recording", recording);
-      return;
-    }
-    
-    const audioUrl = recordingsService.audioUrl(filePath.replace(/^\//, ''));
-
-    audioRef.current.src = audioUrl;
-    audioRef.current.play().catch(e => console.error("Playback failed:", e));
-    
-    setActiveId(recording.id);
-    setIsPlaying(true);
-    setProgress(0);
-      
-    // Update progress
-    audioRef.current.ontimeupdate = () => {
-      if (audioRef.current.duration) {
-        const prog = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-        setProgress(prog);
-      }
-    };
-
-    audioRef.current.onended = () => {
-      setIsPlaying(false);
-      setProgress(0);
-      setActiveId(null); // Optional: reset active state on finish
-    };
-  };
-
-  // Helper to format date
-  const formatDate = (dateString) => {
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
-  };
-
-  const getMoodClass = (mood) => {
-    switch(mood) {
-      case 'Positive': return 'mood-positive';
-      case 'Neutral': return 'mood-neutral';
-      case 'Negative': return 'mood-negative';
-      case 'Energetic': return 'mood-energetic';
-      case 'Calm': return 'mood-calm';
-      default: return 'mood-neutral';
-    }
-  };
+  const todos = actions?.filter((a) => a.type === "todo") ?? [];
+  const done = actions?.filter((a) => a.type !== "todo") ?? [];
 
   return (
-    <div className="diary-container">
-      {/* Main Content Area */}
-      <div className={`diary-main ${loading ? 'is-loading' : ''}`}>
-        {loading && (
-          <div className="loading-overlay">
-            <div className="spinner"></div>
-            <p>Regenerating Diary...</p>
-          </div>
-        )}
-        <header className="diary-header">
-          <h1 className="diary-title">Today's Diary</h1>
-          <div className="diary-meta">
-            <p className="diary-date">{formatDate(diary_date)}</p>
-            {mood && (
-              <span className={`diary-mood-badge ${getMoodClass(mood)}`}>
-                {mood}
-              </span>
-            )}
+    <div className="page">
+      <article className="page__main diary">
+        <header>
+          <h1 className="diary__date">{formatDate(diaryDate)}</h1>
+          <div className="diary__meta">
+            <span className="figure">
+              {recordings.length}{" "}
+              {recordings.length === 1 ? "recording" : "recordings"}
+            </span>
+            {mood && <span className="diary__mood">{mood.toLowerCase()}</span>}
           </div>
         </header>
 
-        <div className="diary-card">
-          {content ? (
-            <div className="diary-text">
-              {content}
-            </div>
-          ) : (
-            <div className="empty-diary-state">
-              <div className="empty-icon">
-                <Play size={48} strokeWidth={1} />
-              </div>
-              <h2>Ready to Write?</h2>
-              <p>You have recordings for this day. Generate your diary to summarize them.</p>
-              <button onClick={onRegenerate} className="generate-btn-large">
-                <RotateCw size={20} />
-                Generate Diary
-              </button>
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div className="diary__writing">
+            <p className="diary__writing-line">
+              Reading back through the day
+              <span className="diary__writing-dots" />
+            </p>
+          </div>
+        ) : (
+          <div className="diary__entry">{content}</div>
+        )}
 
-        {actions && actions.length > 0 && (
-          <div className="actions-section">
-            <h2 className="section-title">Action Items</h2>
-            <div className="actions-grid">
-              
-              {/* Todos */}
-              <div className="action-column">
-                <h3>Todos</h3>
-                {actions.filter(a => a.type === 'todo').map((action, idx) => (
-                   <div key={idx} className="action-item">
-                     <div className="action-icon" style={{color: '#9ca3af'}}>
-                        <Circle size={18} />
-                     </div>
-                     <span className="action-text">{action.description}</span>
-                   </div>
-                ))}
-                {actions.filter(a => a.type === 'todo').length === 0 && <p style={{color: 'var(--text-tertiary)'}}>No todos.</p>}
-              </div>
-
-              {/* Reminders */}
-              <div className="action-column">
-                <h3>Reminders</h3>
-                {actions.filter(a => a.type === 'reminder').map((action, idx) => (
-                  <div key={idx} className="action-item">
-                    <div className="action-icon" style={{color: 'var(--accent-primary)'}}>
-                       <Clock size={18} />
-                    </div>
-                    <div>
-                      <span className="action-text">{action.description}</span>
-                      <div className="action-meta">
-                         {action.time && <span>{new Date(action.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>}
-                         {action.location && <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><MapPin size={10} /> {action.location}</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                 {actions.filter(a => a.type === 'reminder').length === 0 && <p style={{color: 'var(--text-tertiary)'}}>No reminders.</p>}
-              </div>
+        {todos.length > 0 && (
+          <section className="diary__section">
+            <h2 className="diary__section-title">What the day asked for</h2>
+            <div className="diary__actions">
+              {todos.map((action, i) => (
+                <div key={i} className="diary__action">
+                  <Circle className="diary__action-mark" size={15} />
+                  <span>{action.description}</span>
+                </div>
+              ))}
             </div>
+          </section>
+        )}
+
+        {done.length > 0 && (
+          <section className="diary__section">
+            <h2 className="diary__section-title">What happened</h2>
+            <div className="diary__actions">
+              {done.map((action, i) => (
+                <div key={i} className="diary__action">
+                  <CheckCircle2 className="diary__action-mark" size={15} />
+                  <span>{action.description}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <button
+          type="button"
+          className="diary__refresh"
+          onClick={onRegenerate}
+          disabled={loading}
+        >
+          <RotateCw size={13} />
+          {loading ? "Writing" : "Write this day again"}
+        </button>
+      </article>
+
+      <aside className="page__aside">
+        {recordings.length > 0 && (
+          <div className="page__aside-block">
+            <h2 className="page__aside-title">Written from</h2>
+            {recordings.map((recording) => (
+              <RecordingCard key={recording.id} recording={recording} compact />
+            ))}
           </div>
         )}
-      </div>
 
-      {/* Right Sidebar - Source Recordings */}
-      <div className="diary-sidebar">
-        <div className="sidebar-section">
-          <h3 className="sidebar-title">Source Recordings</h3>
-          
-          <div className="recording-list">
-            {(() => {
-              // Logic to resolve recordings from paths or fallback
-              let displayList = [];
-              if (diary.recording_file_paths && Array.isArray(diary.recording_file_paths) && diary.recording_file_paths.length > 0) {
-                 displayList = diary.recording_file_paths.map(path => {
-                    // Try to find in full list (normalize slashes for comparison)
-                    const found = Array.isArray(recordings) ? recordings.find(r => r.file_path.replace(/\\/g, '/') === path.replace(/\\/g, '/')) : null;
-                    if (found) return found;
-                    
-                    // Fallback: Construct partial object from path
-                    // format: .../YYYY-MM-DD/HH-MM-SS.ext
-                    const parts = path.split('/');
-                    const filename = parts[parts.length - 1] || path;
-                    const datePart = parts[parts.length - 2]; 
-                    
-                    // Try to parse time from filename HH-MM-SS
-                    let createdAt = new Date();
-                    try {
-                        const [h, m, s] = filename.split('.')[0].split('-');
-                        if (datePart) createdAt = new Date(datePart);
-                        if (h && m && s) createdAt.setHours(h, m, s);
-                    } catch {
-                        // Filename is not the expected date format; fall back
-                        // to the default createdAt.
-                    }
-
-                    return {
-                        id: path, // Use path as ID for playback key
-                        file_path: path,
-                        name: "My Rant ",
-                        created_at: createdAt.toISOString(),
-                        duration: null // Unknown
-                    };
-                 });
-              } else {
-                 // If no paths in diary (legacy), fallback to passed recordings if array, else empty
-                 displayList = Array.isArray(recordings) ? recordings : [];
-              }
-
-              if (displayList.length === 0) {
-                 return <div style={{fontStyle: 'italic', color: 'var(--text-tertiary)', fontSize: '0.9rem'}}>No recordings for today.</div>;
-              }
-
-              return displayList.map((rec) => (
-              <div 
-                key={rec.id} 
-                className={`recording-card ${activeId === rec.id ? 'is-playing' : ''}`} 
-                onClick={() => handlePlay(rec)}
-              >
-               {activeId === rec.id && (
-                  <div className="progress-overlay" style={{width: `${progress}%`}} />
-               )}
-                <div className="card-icon">
-                  {activeId === rec.id && isPlaying ? (
-                    <Pause size={20} fill="currentColor" />
-                  ) : (
-                    <Play size={20} fill="currentColor" />
-                  )}
-                </div>
-
-                <div className="card-info">
-                   <div className="info-row main">
-                      <span>{rec.name || "Recording"}</span>
-                   </div>
-                   <div className="info-row sub">
-                      {Number.isFinite(rec.duration) && (
-                        <>
-                          <span className="duration-badge">
-                            <Clock size={12} /> 
-                            {Math.floor(rec.duration / 60)}:{(rec.duration % 60).toString().padStart(2, '0')}
-                          </span>
-                          <span>•</span>
-                        </>
-                      )}
-                      <span>
-                        {new Date(rec.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </span>
-                   </div>
-                </div>
-              </div>
-            ));
-            })()}
+        {mood && (
+          <div className="page__aside-block">
+            <h2 className="page__aside-title">Mood</h2>
+            <p className="page__aside-note">{mood.toLowerCase()}</p>
           </div>
-
-          <button 
-            onClick={onRegenerate}
-            className="regenerate-btn"
-          >
-             <RotateCw size={16} />
-             Regenerate Diary
-          </button>
-        </div>
-      </div>
+        )}
+      </aside>
     </div>
   );
 };

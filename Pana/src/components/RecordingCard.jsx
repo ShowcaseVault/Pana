@@ -1,29 +1,57 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
+import { Play, Pause, MoreHorizontal } from 'lucide-react';
 import recordingsService from '../services/recordings.service';
 import { useTranscription } from '../hooks/queries/useRecordings';
+import '../styles/clip.css';
 
-const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
+const RING_RADIUS = 17;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+/** Clock time of a recording, e.g. "9:14 AM". */
+const formatClock = (iso) =>
+  new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+/** Duration as m:ss. */
+const formatDuration = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+};
+
+/**
+ * One recording, as a row in the day's thread.
+ *
+ * Playback is owned here rather than lifted: each row plays its own audio, and
+ * the transcript is fetched only once someone presses play.
+ */
+const RecordingCard = ({
+  recording,
+  onDelete,
+  compact = false,
+  showMenu = false,
+  onMenuToggle,
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [currentText, setCurrentText] = useState("");
-  // Transcript is fetched only once playback starts, so a list of cards does
-  // not pull every transcript on mount.
+  const [currentText, setCurrentText] = useState('');
   const [wantsTranscript, setWantsTranscript] = useState(false);
+  const [menuPos, setMenuPos] = useState(null);
+
   const audioRef = useRef(null);
   const menuBtnRef = useRef(null);
-  const [menuPos, setMenuPos] = useState(null);
 
   // isFetching, not isPending: a disabled query reports pending forever, which
   // would leave the loading indicator up for a card that has no transcript.
-  const { data: transcription, isFetching: loadingTranscription } = useTranscription(
+  const { data: transcription, isFetching: loadingTranscript } = useTranscription(
     recording.transcription_id,
     { enabled: wantsTranscript },
   );
 
+  const isTranscribed = String(recording.transcription_status || '').toLowerCase() === 'completed';
+
   // Whole-transcript text is the fallback when the backend returned no word
-  // timings: one segment spanning the recording still lets the card show text.
+  // timings: one segment spanning the recording still lets the row show text.
   const words = useMemo(() => {
     if (!transcription) return [];
     if (transcription.words?.length) return transcription.words;
@@ -33,89 +61,71 @@ const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu
     return [];
   }, [transcription, recording.duration_seconds]);
 
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
+  /** Create the audio element on first play; the route needs cookies. */
+  const getAudio = useCallback(() => {
+    if (!audioRef.current) {
+      const audio = new Audio();
+      audio.crossOrigin = 'use-credentials';
+      audio.src = recordingsService.audioUrl(recording.file_path);
+      audioRef.current = audio;
+    }
+    return audioRef.current;
+  }, [recording.file_path]);
 
+  useEffect(
+    () => () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+    },
+    [],
+  );
+
+  // Listeners are attached when playback starts rather than on mount: the
+  // element does not exist until then, so an effect that reads audioRef on
+  // mount binds to nothing and the progress ring never moves.
   useEffect(() => {
-    if (!audioRef.current) return;
-    
     const audio = audioRef.current;
-    const handleTimeUpdate = () => {
-      if (audio.duration) {
-        const time = audio.currentTime;
-        setProgress((time / audio.duration) * 100);
-        
-        if (words.length > 0) {
-          const active = words.find(s => {
-            const start = parseFloat(s.start);
-            const end = parseFloat(s.end);
-            return time >= start && time <= end;
-          });
+    if (!audio || !isPlaying) return undefined;
 
-          if (active) {
-            const cleanText = active.text.trim();
-            if (cleanText !== currentText) {
-              setCurrentText(cleanText);
-            }
-          } else if (currentText) {
-            setCurrentText("");
-          }
-        }
-      }
+    const handleTimeUpdate = () => {
+      if (!audio.duration) return;
+      const time = audio.currentTime;
+      setProgress((time / audio.duration) * 100);
+
+      if (!words.length) return;
+      const active = words.find((w) => time >= parseFloat(w.start) && time <= parseFloat(w.end));
+      setCurrentText(active ? active.text.trim() : '');
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
       setProgress(0);
-      setCurrentText("");
+      setCurrentText('');
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
-
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
-  }, [words, currentText]);
+  }, [isPlaying, words]);
 
-  const togglePlay = (e) => {
-    e.stopPropagation();
+  const togglePlay = (event) => {
+    event.stopPropagation();
+
     if (isPlaying) {
-      audioRef.current.pause();
+      audioRef.current?.pause();
       setIsPlaying(false);
-    } else {
-      if (!audioRef.current) {
-        const url = recordingsService.audioUrl(recording.file_path);
-        audioRef.current = new Audio();
-        // The audio route is authenticated, and the API is a different origin
-        // from the dev server, so the element must be told to send cookies.
-        audioRef.current.crossOrigin = 'use-credentials';
-        audioRef.current.src = url;
-      }
-      if (String(recording.transcription_status || '').toLowerCase() === 'completed') {
-        setWantsTranscript(true);
-      }
-      audioRef.current.play().catch(err => console.error("Playback failed", err));
-      setIsPlaying(true);
+      return;
     }
-  };
 
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const audio = getAudio();
+    if (isTranscribed) setWantsTranscript(true);
+    audio.play().then(
+      () => setIsPlaying(true),
+      (error) => console.error('Playback failed', error),
+    );
   };
 
   useEffect(() => {
@@ -127,372 +137,97 @@ const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu
     }
   }, [showMenu]);
 
-  if (compact) {
-    return (
-      <div className="recording-card-compact">
-        <div className="compact-icon"><Volume2 size={16} /></div>
-        <div className="compact-info">
-          <div className="compact-title">{recording.name || 'Untitled'}</div>
-          <div className="compact-meta">
-            {formatTime(recording.recorded_at)} · {formatDuration(recording.duration_seconds)}
-          </div>
-        </div>
-        <style>{`
-          .recording-card-compact {
-            display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem;
-            background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm);
-            cursor: pointer; transition: all 0.2s ease; margin-bottom: 0.5rem;
-          }
-          .recording-card-compact:hover { box-shadow: var(--shadow-md); transform: translateX(4px); }
-          .compact-icon {
-            width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
-            justify-content: center; color: #6b7280; background: linear-gradient(135deg, #e5e7eb, #d1d5db);
-          }
-          .compact-info { flex: 1; }
-          .compact-title { font-size: 0.875rem; font-weight: 500; color: var(--text-primary); margin-bottom: 0.125rem; }
-          .compact-meta { font-size: 0.75rem; color: var(--text-secondary); }
-        `}</style>
-      </div>
-    );
-  }
-  
-  const radius = 16;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
-  const isTranscriptionCompleted = String(recording.transcription_status || '').toLowerCase() === 'completed';
-  const confidence = typeof recording?.transcription_confidence === 'number' ? recording.transcription_confidence : null;
-  const confidenceColor = confidence == null
-    ? null
-    : confidence < 0.48
-      ? 'var(--accent-primary)'
-      : confidence < 0.8
-        ? 'var(--text-primary)'
-        : 'rgb(10,100,200)';
-  const effectiveColor = isTranscriptionCompleted
-    ? (confidenceColor || 'var(--text-primary)')
-    : 'var(--accent-primary)';
-
-  const toggleMenu = (e) => {
-    e.stopPropagation();
-    if (onMenuToggle) onMenuToggle();
-  };
-
-  const handleDelete = (e) => {
-    e.stopPropagation();
-    if (onDelete) onDelete(recording.id);
-  };
-
+  const playLabel = `${isPlaying ? 'Pause' : 'Play'} recording from ${formatClock(recording.recorded_at)}`;
 
   return (
-    <div className="recording-card-wrapper">
-      <div className={`recording-card ${showMenu ? 'menu-open' : ''}`}>
-        <div className={`play-button-wrapper`} onClick={togglePlay}>
-          <svg className="progress-ring" width="36" height="36">
-             <circle
-               className="progress-ring__circle-bg"
-               stroke={confidenceColor ? 'rgba(0,0,0,0.06)' : '#f3f4f6'}
-               strokeWidth="3.5"
-               fill="transparent"
-               r={radius}
-               cx="18"
-               cy="18"
-             />
-             <circle
-               className="progress-ring__circle"
-               stroke={effectiveColor || '#4b5563'}
-               strokeWidth="3.5"
-               strokeLinecap="round"
-               fill="transparent"
-               r={radius}
-               cx="18"
-               cy="18"
-               style={{
-                   strokeDasharray: `${circumference} ${circumference}`,
-                   strokeDashoffset: strokeDashoffset,
-                   transform: 'rotate(-90deg)',
-                   transformOrigin: '50% 50%',
-                   transition: 'stroke-dashoffset 0.1s linear'
-               }}
-             />
-          </svg>
-          <div className={`play-icon-center`} style={{ color: effectiveColor || '#374151' }}>
-              {isPlaying ? (
-                  <Pause size={13} fill="currentColor" stroke="currentColor" />
-              ) : (
-                  <Play size={13} fill="currentColor" stroke="currentColor" />
-              )}
-          </div>
-        </div>
-        
-        <div className="card-content">
-          <div className="card-title-row">
-            <span className="card-title">{recording.name || 'In My Head'}</span>
-            <Volume2 size={14} className="speaker-icon" />
-          </div>
-          <div className="card-meta">
-            {formatTime(recording.recorded_at)} - {formatDuration(recording.duration_seconds)}
-          </div>
-        </div>
-
-        {/* Live Transcription Section */}
-        {isPlaying && (
-          <div className="live-text-container">
-            {loadingTranscription ? (
-              <div className="live-text-loading">•••</div>
-            ) : currentText ? (
-              <div key={currentText} className="live-text-fade">
-                {currentText}
-              </div>
-            ) : words.length > 0 ? (
-               <div className="live-text-waiting">Listening...</div>
-            ) : null}
-          </div>
-        )}
-        
-        <div className="menu-container">
-          <button ref={menuBtnRef} className={`menu-button ${showMenu ? 'active' : ''}`} onClick={toggleMenu}>
-            <MoreHorizontal size={18} />
-          </button>
-          
-          {showMenu && menuPos && createPortal(
-            (
-              <div
-                className="dropdown-menu"
-                onClick={(e) => e.stopPropagation()}
-                style={{ position: 'fixed', top: `${menuPos.top}px`, right: `${menuPos.right}px`, zIndex: 20000 }}
-              >
-                <button className="dropdown-item delete" onClick={handleDelete}>
-                  Delete
-                </button>
-              </div>
-            ),
-            document.body
+    <div className={`clip${compact ? ' clip--compact' : ''}`}>
+      <button type="button" className="clip__play" onClick={togglePlay} aria-label={playLabel}>
+        <svg className="clip__ring" width="38" height="38" aria-hidden="true">
+          <circle
+            className="clip__ring-track"
+            cx="19"
+            cy="19"
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth="1.5"
+          />
+          <circle
+            className="clip__ring-value"
+            cx="19"
+            cy="19"
+            r={RING_RADIUS}
+            fill="none"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeDasharray={RING_CIRCUMFERENCE}
+            strokeDashoffset={RING_CIRCUMFERENCE - (progress / 100) * RING_CIRCUMFERENCE}
+          />
+        </svg>
+        <span className="clip__glyph">
+          {isPlaying ? (
+            <Pause size={12} fill="currentColor" stroke="currentColor" />
+          ) : (
+            <Play size={12} fill="currentColor" stroke="currentColor" />
           )}
+        </span>
+      </button>
+
+      <div className="clip__body">
+        <div className="clip__time figure">{formatClock(recording.recorded_at)}</div>
+        <div className="clip__meta figure">
+          {formatDuration(recording.duration_seconds)}
+          {!isTranscribed && recording.transcription_status ? ' · transcribing' : ''}
         </div>
       </div>
 
-      <style>{`
-        .recording-card-wrapper {
-          margin-bottom: 0.75rem;
-          width: 100%;
-          position: relative;
-        }
+      {isPlaying && !compact && (
+        <div
+          className={`clip__transcript${currentText ? '' : ' clip__transcript--waiting'}`}
+          aria-live="polite"
+        >
+          {currentText || (loadingTranscript ? 'Fetching words' : '')}
+        </div>
+      )}
 
-        .recording-card {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          padding: 0.875rem 1rem;
-          background: var(--bg-card);
-          border-radius: 4px;
-          box-shadow: var(--shadow-sm);
-          transition: all 0.2s ease;
-          cursor: pointer;
-          position: relative;
-          overflow: visible;
-          min-height: 72px;
-          z-index: 1;
-        }
+      {onDelete && (
+        <>
+          <button
+            ref={menuBtnRef}
+            type="button"
+            className={`clip__menu-trigger${showMenu ? ' clip__menu-trigger--open' : ''}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onMenuToggle?.();
+            }}
+            aria-label="Recording options"
+            aria-expanded={showMenu}
+          >
+            <MoreHorizontal size={16} />
+          </button>
 
-        .recording-card.menu-open {
-          z-index: 10000;
-        }
-        
-        .recording-card:hover {
-          box-shadow: var(--shadow-md);
-          transform: translateY(-1px);
-          z-index: 2;
-        }
-
-        .recording-card:hover.menu-open {
-          z-index: 10000;
-        }
-        
-        .play-button-wrapper {
-            position: relative;
-            width: 36px;
-            height: 36px;
-            cursor: pointer;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .play-icon-center {
-            position: absolute;
-            color: #374151;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-        }
-
-        .play-icon-center.is-accent {
-            color: var(--accent-primary);
-        }
-        
-        .card-content {
-          flex: 0 1 auto;
-          min-width: 0;
-          max-width: 180px;
-          transition: all 0.3s ease;
-        }
-        
-        .card-title-row {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 0.125rem;
-        }
-        
-        .card-title {
-          font-size: 0.875rem;
-          font-weight: 500;
-          color: var(--text-primary);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        
-        .speaker-icon {
-          color: var(--text-tertiary);
-          flex-shrink: 0;
-        }
-        
-        .card-meta {
-          font-size: 0.75rem;
-          color: var(--text-secondary);
-        }
-
-        /* Live Text Styles on the Right - Shifted Leftward */
-        .live-text-container {
-          flex: 1;
-          padding-left: 0.75rem;
-          border-left: 1px solid #f3f4f6;
-          margin-left: 0.5rem;
-          display: flex;
-          align-items: center;
-          height: 32px;
-          min-width: 0;
-        }
-
-        .live-text-fade {
-          font-size: 0.875rem;
-          line-height: 1.4;
-          color: var(--accent-primary);
-          font-weight: 500;
-          font-style: italic;
-          opacity: 1;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          animation: textFadeIn 0.4s ease-out;
-        }
-
-        @keyframes textFadeIn {
-          from { opacity: 0; transform: translateX(5px); }
-          to { opacity: 0.9; transform: translateX(0); }
-        }
-
-        .live-text-loading {
-          color: var(--accent-primary);
-          opacity: 0.5;
-          font-size: 0.75rem;
-          letter-spacing: 1px;
-        }
-
-        .live-text-waiting {
-          color: var(--text-tertiary);
-          font-size: 0.75rem;
-          font-style: italic;
-          animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-          0% { opacity: 0.4; }
-          50% { opacity: 0.8; }
-          100% { opacity: 0.4; }
-        }
-        
-        .menu-container {
-          position: relative;
-          margin-left: auto;
-          z-index: 11000;
-        }
-
-        .menu-button {
-          width: 28px;
-          height: 28px;
-          border-radius: 50%;
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          flex-shrink: 0;
-        }
-        
-        .menu-button:hover, .menu-button.active {
-          background: var(--bg-tertiary);
-          color: var(--text-primary);
-        }
-
-        .dropdown-menu {
-          position: absolute;
-          top: calc(100% + 4px);
-          right: 0;
-          background: var(--bg-card);
-          border-radius: 6px;
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-          border: 1px solid #f3f4f6;
-          padding: 4px;
-          z-index: 11000;
-          min-width: 120px;
-          animation: fadeIn 0.15s ease-out;
-        }
-
-        /* Elevate the whole wrapper above siblings when the menu is open */
-        .recording-card-wrapper:has(.recording-card.menu-open) {
-          z-index: 12000;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .dropdown-item {
-          width: 100%;
-          padding: 8px 12px;
-          border: none;
-          background: transparent;
-          border-radius: 4px;
-          font-size: 0.8125rem;
-          text-align: left;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .dropdown-item:hover {
-          background: var(--bg-tertiary);
-        }
-
-        .dropdown-item.delete {
-          color: #ef4444;
-          font-weight: 500;
-        }
-
-        .dropdown-item.delete:hover {
-          background: #fef2f2;
-        }
-      `}</style>
+          {showMenu &&
+            menuPos &&
+            createPortal(
+              <div
+                className="clip__menu"
+                style={{ position: 'fixed', top: menuPos.top, right: menuPos.right, zIndex: 200 }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="clip__menu-item clip__menu-item--destructive"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDelete(recording.id);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>,
+              document.body,
+            )}
+        </>
+      )}
     </div>
   );
 };

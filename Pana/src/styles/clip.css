@@ -1,0 +1,188 @@
+/* ============================================================================
+   A recording, as a row.
+
+   Recordings were cards: each in a white box with a shadow, so a day's worth
+   read as a grid of objects rather than a sequence of moments. As rows sharing
+   one hairline they read as what they are -- a thread through the day, in
+   order.
+
+   Teal appears here and almost nowhere else in the interface: on the play
+   control and on the progress arc, which is the only place sound is happening.
+   ========================================================================= */
+
+.clip {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--rule);
+  transition: background var(--fast) var(--ease);
+}
+
+.clip:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.clip:last-child {
+  border-bottom: none;
+}
+
+/* --- Play control --------------------------------------------------------
+   The progress ring is the affordance and the state in one object: the arc is
+   how much has played. */
+
+.clip__play {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  color: var(--accent-deep);
+  border-radius: var(--radius-round);
+  transition: background var(--fast) var(--ease);
+}
+
+.clip__play:hover {
+  background: rgba(56, 178, 172, 0.1);
+}
+
+.clip__ring {
+  position: absolute;
+  inset: 0;
+  transform: rotate(-90deg);
+}
+
+.clip__ring-track {
+  stroke: var(--rule);
+}
+
+.clip__ring-value {
+  stroke: var(--accent-bright);
+  transition: stroke-dashoffset 100ms linear;
+}
+
+.clip__glyph {
+  display: grid;
+  place-items: center;
+}
+
+/* --- Body ---------------------------------------------------------------- */
+
+.clip__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.clip__time {
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.clip__meta {
+  margin-top: 1px;
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+/* Transcript text during playback. Set in the prose serif -- it is the user's
+   own words, so it belongs to the diary's voice, not the interface's. */
+.clip__transcript {
+  flex: 1.4;
+  min-width: 0;
+  padding-left: var(--space-4);
+  overflow: hidden;
+  font-family: var(--font-prose);
+  font-size: var(--step-0);
+  color: var(--ink-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-left: 1px solid var(--rule);
+}
+
+.clip__transcript--waiting {
+  color: var(--ink-ghost);
+}
+
+/* --- Menu ---------------------------------------------------------------- */
+
+.clip__menu-trigger {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: var(--ink-ghost);
+  border-radius: var(--radius);
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+/* The menu is revealed by intent -- hovering the row or focusing the button --
+   rather than sitting on every row at all times. It stays visible while open
+   and is always reachable by keyboard. */
+.clip:hover .clip__menu-trigger,
+.clip__menu-trigger:focus-visible,
+.clip__menu-trigger--open {
+  opacity: 1;
+}
+
+.clip__menu-trigger:hover {
+  color: var(--ink);
+}
+
+.clip__menu {
+  min-width: 132px;
+  padding: var(--space-1);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--lift);
+}
+
+.clip__menu-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--step--1);
+  color: var(--ink);
+  text-align: left;
+  border-radius: 3px;
+  transition: background var(--fast) var(--ease);
+}
+
+.clip__menu-item:hover {
+  background: var(--sunken);
+}
+
+.clip__menu-item--destructive {
+  color: #c0392f;
+}
+
+.clip__menu-item--destructive:hover {
+  background: rgba(192, 57, 47, 0.08);
+}
+
+/* --- Compact ------------------------------------------------------------
+   Used where recordings are secondary to something else on the page. */
+
+.clip--compact {
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
+}
+
+.clip--compact .clip__time {
+  font-size: var(--step--1);
+  font-weight: 400;
+}
+
+@media (max-width: 720px) {
+  .clip__transcript {
+    display: none;
+  }
+
+  .clip__menu-trigger {
+    opacity: 1;
+  }
+}

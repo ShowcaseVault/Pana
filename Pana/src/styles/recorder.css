@@ -1,0 +1,237 @@
+/* ============================================================================
+   The recorder.
+
+   This is the one screen where Pana is loud. Everything else in the interface
+   is ink on grey; here the teal is doing its actual job -- showing that the
+   microphone is open and hearing you. The waveform is the page's subject, so
+   it gets the space, and the timer and controls stay quiet around it.
+   ========================================================================= */
+
+/* --- Studio --------------------------------------------------------------
+   The list of the day's recordings runs down the left; the recorder occupies
+   the rest of the window and is centred in it. The recorder is the reason the
+   screen exists, so it gets the middle. */
+
+.studio {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  height: 100%;
+}
+
+.studio__list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--space-7) var(--space-5);
+  overflow-y: auto;
+  border-right: 1px solid var(--rule);
+}
+
+.studio__note {
+  padding-top: var(--space-4);
+  margin-top: auto;
+  font-size: var(--step--1);
+  line-height: 1.6;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--rule);
+}
+
+.studio__stage {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--space-7);
+}
+
+.recorder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  width: 100%;
+  max-width: 620px;
+  text-align: center;
+}
+
+/* --- Timer ---------------------------------------------------------------
+   Large, tabular, and light: a running clock that does not jitter as digits
+   change width. It reads as a measurement, not as a headline. */
+
+.recorder__timer {
+  font-family: var(--font-ui);
+  font-size: clamp(3.5rem, 7vw, 5.5rem);
+  font-weight: 200;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--ink-ghost);
+  transition: color var(--slow) var(--ease);
+}
+
+.recorder__timer--live {
+  color: var(--ink);
+}
+
+/* --- Waveform ------------------------------------------------------------
+   A filled curve mirrored about the centre line, gradient-tinted so the body
+   of the wave is denser than its edges. At rest it breathes in grey; live it
+   is the brightest thing in the interface, which is the point -- this is the
+   one moment Pana is actually doing something. */
+
+.recorder__wave {
+  --wave-core: var(--ink-ghost);
+  --wave-edge: rgba(22, 35, 43, 0.05);
+
+  width: 100%;
+  height: 210px;
+  filter: none;
+  transition: filter var(--slow) var(--ease), opacity var(--slow) var(--ease);
+}
+
+/* The glow is the whole character of this screen: live, the wave is lit from
+   inside rather than merely coloured. It is the only place in Pana anything
+   glows, which is what makes it read as the app listening. */
+.recorder__wave--live {
+  filter: drop-shadow(0 0 22px rgba(79, 209, 197, 0.45))
+    drop-shadow(0 0 60px rgba(79, 209, 197, 0.22));
+}
+
+.recorder__wave-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.recorder__wave-body {
+  transition: opacity var(--slow) var(--ease);
+}
+
+.recorder__wave-edge {
+  stroke: var(--wave-core);
+  stroke-width: 0.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.recorder__wave--live {
+  --wave-core: var(--accent-bright);
+  --wave-edge: rgba(79, 209, 197, 0.25);
+}
+
+.recorder__wave--paused {
+  --wave-core: var(--accent-wash);
+  --wave-edge: rgba(129, 230, 217, 0.14);
+
+  opacity: 0.6;
+}
+
+/* --- Controls ------------------------------------------------------------
+   The record button is the only round thing in Pana and the only filled teal
+   surface. That is what makes it findable without a label. */
+
+.recorder__controls {
+  display: flex;
+  gap: var(--space-5);
+  align-items: center;
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
+.recorder__record {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  color: var(--paper);
+  background: var(--accent);
+  border-radius: var(--radius-round);
+  box-shadow: 0 0 0 8px rgba(56, 178, 172, 0.12), 0 0 28px rgba(56, 178, 172, 0.35);
+  transition: background var(--fast) var(--ease), transform var(--fast) var(--ease),
+    box-shadow var(--slow) var(--ease);
+}
+
+.recorder__record:hover {
+  box-shadow: 0 0 0 12px rgba(56, 178, 172, 0.14), 0 0 34px rgba(56, 178, 172, 0.45);
+}
+
+.recorder__record:hover {
+  background: var(--accent-deep);
+}
+
+.recorder__record:active {
+  transform: scale(0.96);
+}
+
+.recorder__button {
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-round);
+  transition: background var(--fast) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.recorder__button:hover:not(:disabled) {
+  background: var(--sunken);
+}
+
+.recorder__button:disabled {
+  color: var(--ink-ghost);
+  cursor: default;
+}
+
+/* Stop is the accent, not red: it completes the recording rather than
+   destroying it. Red here would read as "discard". */
+.recorder__button--stop {
+  color: var(--paper);
+  background: var(--accent);
+  border-color: transparent;
+  box-shadow: 0 0 0 8px rgba(56, 178, 172, 0.12);
+}
+
+.recorder__button--stop:hover:not(:disabled) {
+  background: var(--accent-deep);
+}
+
+/* --- Status --------------------------------------------------------------
+   One line saying what the recorder is doing, in its own voice. */
+
+.recorder__status {
+  font-size: var(--step-0);
+  color: var(--ink-soft);
+}
+
+@media (max-width: 1000px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  /* On a narrow screen the recorder comes first: it is why you opened the
+     page, and scrolling past a list to reach it is backwards. */
+  .studio__stage {
+    order: -1;
+    min-height: 0;
+    padding: var(--space-6) var(--space-5);
+  }
+
+  .studio__list {
+    height: auto;
+    border-top: 1px solid var(--rule);
+    border-right: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .recorder__wave {
+    height: 150px;
+  }
+
+  .recorder__record {
+    width: 72px;
+    height: 72px;
+  }
+}

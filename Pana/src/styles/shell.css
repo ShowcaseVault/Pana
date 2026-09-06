@@ -1,0 +1,177 @@
+/* ============================================================================
+   The application shell: sidebar and the frame around routed pages.
+
+   The navigation is a narrow rail of stacked icons, each with its word beneath
+   -- thin enough that the screen belongs to the content rather than the
+   chrome. The active item is marked by an accent rule in the border and a
+   tinted glyph, not by a filled pill.
+   ========================================================================= */
+
+.shell {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ground);
+}
+
+.shell__main {
+  position: relative;
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* --- Rail ---------------------------------------------------------------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  align-items: stretch;
+  width: 92px;
+  height: 100%;
+  padding: var(--space-6) 0 var(--space-4);
+  background: var(--paper);
+  border-right: 1px solid var(--rule);
+}
+
+.rail__mark {
+  margin-bottom: var(--space-7);
+  text-align: center;
+}
+
+.rail__wordmark {
+  font-family: var(--font-prose);
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.rail__nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Icon over word, both centred. The pair is one target, so the whole cell is
+   the hit area rather than just the glyph. */
+.rail__link {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-3) var(--space-1);
+  color: var(--ink-faint);
+  text-align: center;
+  text-decoration: none;
+  transition: color var(--fast) var(--ease);
+}
+
+.rail__link:hover {
+  color: var(--ink);
+}
+
+.rail__label {
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+}
+
+.rail__icon {
+  flex-shrink: 0;
+  color: currentcolor;
+  transition: color var(--fast) var(--ease);
+}
+
+/* The marker sits in the border, so a label never shifts when it activates. */
+.rail__link::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 2px;
+  height: 0;
+  content: '';
+  background: var(--accent);
+  transform: translateY(-50%);
+  transition: height var(--slow) var(--ease);
+}
+
+.rail__link--active {
+  color: var(--ink);
+}
+
+.rail__link--active .rail__icon {
+  color: var(--accent);
+}
+
+.rail__link--active::before {
+  height: 26px;
+}
+
+/* Logout is the same shape as a destination but sits apart, below a rule: it
+   is an action, not a place. */
+.rail__foot {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--rule);
+}
+
+/* --- Narrow screens ------------------------------------------------------
+   The rail becomes a bottom bar. Reading a diary on a phone is a real case;
+   a fixed column on a 375px screen is not. */
+
+@media (max-width: 720px) {
+  .shell {
+    flex-direction: column-reverse;
+  }
+
+  .rail {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    padding: 0;
+    border-top: 1px solid var(--rule);
+    border-right: none;
+  }
+
+  .rail__mark {
+    display: none;
+  }
+
+  .rail__nav {
+    flex-direction: row;
+    gap: 0;
+    justify-content: space-around;
+    width: 100%;
+  }
+
+  .rail__foot {
+    padding-top: 0;
+    border-top: none;
+    border-left: 1px solid var(--rule);
+  }
+
+  .rail__link {
+    padding: var(--space-3) var(--space-3) var(--space-4);
+  }
+
+  .rail__link::before {
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    transform: translateX(-50%);
+    transition: width var(--slow) var(--ease);
+  }
+
+  .rail__link--active::before {
+    width: 22px;
+    height: 2px;
+  }
+}

@@ -1,113 +1,280 @@
-/* Light Theme - Premium Design */
+/* ============================================================================
+   Pana — design tokens
+
+   Pana is a private voice diary. One person, their own unedited thoughts. The
+   design follows from that: quiet by default, warm where there is writing, and
+   alive only where there is sound.
+
+   The teal family is Pana's identity and is unchanged. What changed is its job.
+   Teal used to tint every icon and empty state, which made it mean nothing.
+   Here it signifies one thing -- live voice -- and appears on the record
+   control, the waveform, and playback progress. Nowhere else. A screen with
+   nothing playing is close to monochrome, so the moment sound is involved the
+   eye goes straight to it.
+   ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter+Tight:wght@400;500;600&display=swap');
+
 :root {
-  /* Background Colors */
-  --bg-primary: #e8ecf1;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #d1d5db;
-  --bg-card: #ffffff;
-  
-  /* Text Colors */
-  --text-primary: #1a202c;
-  --text-secondary: #718096;
-  --text-tertiary: #a0aec0;
-  
-  /* Accent Colors - Teal/Cyan Gradient */
-  --accent-primary: #4fd1c5;
-  --accent-secondary: #38b2ac;
-  --accent-tertiary: #81e6d9;
-  
-  /* Wave Gradient Colors */
-  --wave-color-1: #4fd1c5;
-  --wave-color-2: #38b2ac;
-  --wave-color-3: #81e6d9;
-  
-  /* Shadows */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.16);
-  
-  /* Neumorphic Shadows */
-  --neu-shadow-light: -8px -8px 16px rgba(255, 255, 255, 0.8);
-  --neu-shadow-dark: 8px 8px 16px rgba(0, 0, 0, 0.1);
-  
-  /* Border Radius */
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  
-  /* Spacing */
-  --spacing-xs: 0.5rem;
-  --spacing-sm: 1rem;
-  --spacing-md: 1.5rem;
-  --spacing-lg: 2rem;
-  --spacing-xl: 3rem;
+  /* --- Ink ---------------------------------------------------------------
+     Near-black carrying a teal undertone, so text and accent belong to one
+     family rather than reading as grey plus an unrelated colour. */
+  --ink: #16232b;
+  --ink-soft: #55666f;
+  --ink-faint: #8b9aa2;
+  --ink-ghost: #b8c3c9;
+
+  /* --- Surfaces ----------------------------------------------------------
+     A cool grey ground with white lifted on top of it. Pana's existing
+     blue-grey, cooled slightly so the teal sits in it without clashing. */
+  --ground: #eef1f4;
+  --paper: #ffffff;
+  --sunken: #e4e9ed;
+
+  /* --- Voice -------------------------------------------------------------
+     The identity teals, with their roles assigned by contrast rather than by
+     brightness. #4fd1c5 is too light to carry text at any size, so the darker
+     #38b2ac leads and the bright one is kept for motion. */
+  --accent: #38b2ac;
+  --accent-deep: #2c8f8a;
+  --accent-bright: #4fd1c5;
+  --accent-wash: #81e6d9;
+
+  /* A wash of the accent, for a surface that should read as marked rather than
+     coloured -- a written day in the calendar, a hovered live row. */
+  --accent-tint: rgba(56, 178, 172, 0.12);
+
+  /* The one non-teal signal colour. Used for destructive actions and for the
+     calendar's "nothing here" pulse; never for decoration. */
+  --warn: #c0392f;
+  --warn-tint: rgba(192, 57, 47, 0.1);
+
+  /* --- Line --------------------------------------------------------------
+     One hairline weight for the whole interface. Structure comes from space
+     and alignment; a rule appears only where it separates two things that
+     would otherwise be confused. */
+  --rule: rgba(22, 35, 43, 0.09);
+  --rule-strong: rgba(22, 35, 43, 0.16);
+
+  /* --- Type --------------------------------------------------------------
+     Two families, clearly distinct in role. Fraunces is a serif with an
+     optical-size axis: diary prose reads as something written. Inter Tight
+     runs the interface and stays out of the way. */
+  --font-prose: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Type scale, after Bringhurst: a 1.25 fourth, rounded to whole pixels. */
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.5rem;
+  --step-3: 2rem;
+  --step-4: 2.75rem;
+
+  /* --- Space -------------------------------------------------------------
+     A 4px base. Named by size rather than by use, so a value is not tied to
+     the first place it was needed. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  /* --- Radius ------------------------------------------------------------
+     Two values, assigned by hierarchy: small for controls the hand touches,
+     round for the record button alone. A single radius on everything is what
+     makes an interface read as a kit of parts. */
+  --radius: 6px;
+  --radius-round: 999px;
+
+  /* --- Depth -------------------------------------------------------------
+     Surfaces are flat. The one shadow is reserved for things that genuinely
+     float above the page -- a menu, a dialog -- so elevation stays meaningful.
+     Neumorphic double-shadows were removed: they date the interface and work
+     against the quiet the diary needs. */
+  --lift: 0 6px 24px -8px rgba(22, 35, 43, 0.18);
+  --lift-high: 0 24px 60px -16px rgba(22, 35, 43, 0.28);
+
+  /* --- Motion ------------------------------------------------------------
+     Motion answers an action -- opening, confirming, playing. Nothing animates
+     merely on arrival. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 140ms;
+  --slow: 320ms;
+
+  /* Legacy aliases. The older components still reference these names; they
+     resolve to the new tokens so nothing renders unstyled mid-refactor. */
+  --bg-primary: var(--ground);
+  --bg-secondary: var(--paper);
+  --bg-tertiary: var(--sunken);
+  --bg-card: var(--paper);
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-soft);
+  --text-tertiary: var(--ink-faint);
+  --accent-primary: var(--accent);
+  --accent-secondary: var(--accent-deep);
+  --accent-tertiary: var(--accent-wash);
+  --wave-color-1: var(--accent-bright);
+  --wave-color-2: var(--accent);
+  --wave-color-3: var(--accent-wash);
+  --radius-sm: var(--radius);
+  --radius-md: var(--radius);
+  --radius-lg: 14px;
+  --radius-xl: var(--radius);
+  --shadow-sm: none;
+  --shadow-md: var(--lift);
+  --shadow-lg: var(--lift);
+  --shadow-xl: var(--lift-high);
+  --spacing-xs: var(--space-2);
+  --spacing-sm: var(--space-4);
+  --spacing-md: var(--space-5);
+  --spacing-lg: var(--space-6);
+  --spacing-xl: var(--space-7);
 }
 
-/* Dark Theme (Optional - for future toggle) */
-[data-theme="dark"] {
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #2d2d2d;
-  --bg-card: #1a1a1a;
-  
-  --text-primary: #ffffff;
-  --text-secondary: #a0aec0;
-  --text-tertiary: #718096;
-  
-  --accent-primary: #8b5cf6;
-  --accent-secondary: #c4b5fd;
-  --accent-tertiary: #7c3aed;
-  
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
-}
+/* ---------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------ */
 
-/* Global Styles */
-* {
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-ui);
+  font-size: var(--step-0);
+  line-height: 1.55;
+  color: var(--ink);
+  background-color: var(--ground);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Smooth Transitions */
-.smooth-transition {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
 }
 
-/* Neumorphic Card */
-.neu-card {
-  background: var(--bg-card);
-  box-shadow: var(--neu-shadow-light), var(--neu-shadow-dark);
-  border-radius: var(--radius-lg);
-  transition: all 0.3s ease;
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
 }
 
-.neu-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 
-    -12px -12px 24px rgba(255, 255, 255, 0.9),
-    12px 12px 24px rgba(0, 0, 0, 0.15);
+a {
+  color: inherit;
 }
 
-/* Glass Effect */
-.glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+/* Keyboard focus stays visible everywhere; the ring is the accent, which is
+   the one place teal appears outside of voice -- focus is the interface
+   speaking back. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--accent-wash);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars — present but recessive.
+   ------------------------------------------------------------------------ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-ghost);
+  border: 3px solid var(--ground);
+  border-radius: var(--radius-round);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+}
+
+/* ---------------------------------------------------------------------------
+   Shared primitives
+   ------------------------------------------------------------------------ */
+
+/* A date or duration set in tabular figures, so columns of times line up and
+   a running clock does not jitter as digits change width. */
+.figure {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.prose {
+  font-family: var(--font-prose);
+  font-optical-sizing: auto;
+}
+
+/* The primary action. One filled control per screen at most. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--step-0);
+  font-weight: 500;
+  color: var(--paper);
+  background: var(--ink);
+  border-radius: var(--radius);
+  transition: background var(--fast) var(--ease);
+}
+
+.action:hover {
+  background: #0d181e;
+}
+
+.action:disabled {
+  cursor: default;
+  background: var(--ink-faint);
+}
+
+.action--quiet {
+  color: var(--ink);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+}
+
+.action--quiet:hover {
+  background: var(--paper);
+}
+
+/* ---------------------------------------------------------------------------
+   Accessibility
+   ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

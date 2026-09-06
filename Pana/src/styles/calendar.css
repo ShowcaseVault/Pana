@@ -1,0 +1,291 @@
+/* ============================================================================
+   The calendar.
+
+   A month centred in the window, with the two arrows flanking its name -- the
+   month is the subject, and the way you move between months should read as
+   turning a page rather than operating a control panel.
+
+   A day that holds something is marked by a soft teal blob washed behind the
+   date, not by a dot. The irregular edge and the varying opacity are the
+   point: the marks read as ink soaked into paper, which is what a diary is,
+   and a grid of identical dots would read as a dashboard.
+
+   Three states worth telling apart: a dense teal blob for a day that was
+   written up; a paler teal one for a day with recordings not yet made into an
+   entry -- work waiting, which is different from work finished; and a soft red
+   one for a day that has passed with nothing recorded at all. Days still ahead
+   carry no mark: they have not had their chance yet, and marking them would
+   flood the month with warnings about nothing.
+   ========================================================================= */
+
+.cal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1240px;
+  padding: var(--space-7) var(--space-6) var(--space-8);
+  margin: 0 auto;
+}
+
+/* --- Heading -------------------------------------------------------------
+   Arrow, month, arrow -- the month centred between them. */
+
+.cal__head {
+  display: flex;
+  gap: var(--space-6);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: var(--space-6);
+}
+
+.cal__month {
+  flex: 1;
+  font-family: var(--font-prose);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-align: center;
+}
+
+.cal__arrow {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  padding: var(--space-2) var(--space-1);
+  color: var(--ink-ghost);
+  transition: color var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+
+.cal__arrow:hover {
+  color: var(--ink-soft);
+}
+
+/* The arrow travels a little in the direction it points, which is the whole
+   feedback it needs -- a background pill would make it a control, and this is
+   meant to read as turning a page. */
+.cal__arrow:first-child:hover {
+  transform: translateX(-3px);
+}
+
+.cal__arrow:last-child:hover {
+  transform: translateX(3px);
+}
+
+/* --- Grid ----------------------------------------------------------------
+   A single card holding the month, with hairline cell divisions. The rules
+   are what let the eye track along a week; without them the blobs float. */
+
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 100%;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+}
+
+.cal__weekday {
+  padding: var(--space-4) 0;
+  font-size: var(--step--1);
+  color: var(--ink-soft);
+  text-align: center;
+  border-bottom: 1px solid var(--rule);
+}
+
+.cal__day {
+  position: relative;
+  display: block;
+  min-height: 124px;
+  padding: var(--space-4);
+  overflow: hidden;
+  font-size: var(--step-0);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  text-align: left;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  transition: background var(--fast) var(--ease);
+}
+
+/* The seventh cell in each row carries no right rule, so the card's own border
+   is the outer edge rather than doubling with it. The weekday headings occupy
+   the first row, which is why the count starts at 7n rather than 7n+7. */
+.cal__day:nth-child(7n) {
+  border-right: none;
+}
+
+/* The grid always ends on a complete week, so the last seven cells are the
+   bottom row and shed their rule. */
+.cal__day:nth-last-child(-n + 7) {
+  border-bottom: none;
+}
+
+.cal__num {
+  position: relative;
+  z-index: 1;
+}
+
+/* Cells outside the month stay white. The card is one sheet of paper; greying
+   its corners breaks it into pieces and draws the eye to the emptiest part of
+   the page. */
+.cal__day--empty {
+  background: var(--paper);
+}
+
+.cal__day--bare {
+  color: var(--ink-faint);
+}
+
+.cal__day--filled {
+  color: var(--ink);
+}
+
+.cal__day--filled:hover {
+  background: var(--sunken);
+}
+
+.cal__day--today .cal__num {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* An empty day answers the press with a short red pulse, then clears itself.
+   Feedback, not a scolding -- so it fades rather than persisting. */
+.cal__day--rejected {
+  background: var(--warn-tint);
+  animation: cal-reject 600ms var(--ease);
+}
+
+@keyframes cal-reject {
+  0%,
+  70% {
+    background: var(--warn-tint);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* --- Blobs ---------------------------------------------------------------
+   Soft-edged, slightly irregular, and rotated off-axis so no two cells look
+   stamped from the same die. Sits behind the date, which stays legible on top
+   of it. */
+
+.cal__blob {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 92px;
+  height: 74px;
+  border-radius: 62% 38% 46% 54% / 54% 48% 52% 46%;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  filter: blur(5px);
+}
+
+.cal__blob--written {
+  background: radial-gradient(
+    ellipse at 40% 40%,
+    rgba(56, 178, 172, 0.55),
+    rgba(129, 230, 217, 0.3) 65%,
+    rgba(129, 230, 217, 0) 100%
+  );
+}
+
+/* Recorded but unwritten reads as lighter ink -- less of it, not a different
+   colour, because it is the same thing at an earlier stage. */
+.cal__blob--recorded {
+  background: radial-gradient(
+    ellipse at 40% 40%,
+    rgba(129, 230, 217, 0.34),
+    rgba(129, 230, 217, 0.15) 65%,
+    rgba(129, 230, 217, 0) 100%
+  );
+  transform: translate(-50%, -50%) rotate(9deg);
+}
+
+/* A day that passed with nothing said. Kept lighter than the teal marks: it is
+   information, not an alarm, and a month with a hard week in it should not
+   look like a failing report card. */
+.cal__blob--missed {
+  background: radial-gradient(
+    ellipse at 40% 40%,
+    rgba(192, 57, 47, 0.2),
+    rgba(192, 57, 47, 0.08) 65%,
+    rgba(192, 57, 47, 0) 100%
+  );
+  transform: translate(-50%, -50%) rotate(5deg);
+}
+
+/* --- Key -----------------------------------------------------------------
+   Two lines explaining the two washes. Without it they are decoration. */
+
+.cal__key {
+  display: flex;
+  gap: var(--space-6);
+  justify-content: center;
+  margin-top: var(--space-6);
+  font-size: var(--step--1);
+  color: var(--ink-faint);
+}
+
+.cal__key-item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.cal__swatch {
+  width: 18px;
+  height: 14px;
+  border-radius: 62% 38% 46% 54% / 54% 48% 52% 46%;
+}
+
+.cal__swatch--written {
+  background: rgba(56, 178, 172, 0.5);
+}
+
+.cal__swatch--recorded {
+  background: rgba(129, 230, 217, 0.3);
+}
+
+.cal__swatch--missed {
+  background: rgba(192, 57, 47, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal__day--rejected {
+    animation: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .cal {
+    padding: var(--space-6) var(--space-4) var(--space-7);
+  }
+
+  .cal__day {
+    min-height: 62px;
+    padding: var(--space-2);
+    font-size: var(--step--1);
+  }
+
+  .cal__blob {
+    width: 48px;
+    height: 42px;
+    filter: blur(4px);
+  }
+
+  .cal__arrow svg {
+    width: 34px;
+  }
+
+  .cal__key {
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: center;
+  }
+}

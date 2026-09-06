@@ -1,451 +1,202 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useCalendar } from '../hooks/queries/useCalendar';
-import '../styles/themes.css';
+import React, { useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useCalendar } from "../hooks/queries/useCalendar";
+import "../styles/calendar.css";
 
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** ISO date for a day in the shown month, without crossing a timezone. */
+const isoFor = (date, day) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+/**
+ * A long, thin arrow.
+ *
+ * Lucide's chevrons are short and blunt at this size. The reference draws a
+ * drawn line with a small head -- the gesture of turning a page rather than a
+ * button glyph -- which is a shaft long enough to read as a stroke.
+ */
+const LongArrow = ({ direction }) => (
+  <svg
+    width="60"
+    height="20"
+    viewBox="0 0 60 20"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+    focusable="false"
+    style={direction === "left" ? { transform: "scaleX(-1)" } : undefined}
+  >
+    <line x1="2" y1="10" x2="56" y2="10" />
+    <polyline points="47,3 56,10 47,17" />
+  </svg>
+);
+
+/**
+ * A month, marked by what each day holds.
+ *
+ * The URL is the single source of truth for which month is shown. Mirroring it
+ * into state means two things to keep in sync, and the effect that did so was
+ * one comparison away from an update loop.
+ */
 const Calendar = () => {
   const { year: urlYear, month: urlMonth } = useParams();
   const navigate = useNavigate();
 
-  // The URL is the single source of truth for which month is shown. Mirroring
-  // it into state means two things to keep in sync, and the effect that did so
-  // was one comparison away from an update loop.
+  // A day with nothing in it answers a press instead of ignoring it: it
+  // flashes red for a moment. Silence would leave you unsure the click landed.
+  const [rejected, setRejected] = useState(null);
+
   const currentDate =
     urlYear && urlMonth
       ? new Date(parseInt(urlYear, 10), parseInt(urlMonth, 10) - 1, 1)
       : new Date();
 
-  const { data } = useCalendar(currentDate.getFullYear(), currentDate.getMonth() + 1);
+  const { data } = useCalendar(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+  );
   const diaryDays = data?.diaryDays ?? new Set();
   const recordingDays = data?.recordingDays ?? new Set();
 
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-
-    return { daysInMonth, startingDayOfWeek };
-  };
-
-  const getBlobType = (day) => {
-    // Return 'diary' if day has diary entry, 'recording' if only recordings, null otherwise
-    if (diaryDays.has(day)) {
-      return 'diary';
-    } else if (recordingDays.has(day)) {
-      return 'recording';
-    }
-    return null;
-  };
-
-  const goToPreviousMonth = () => {
-    const prevDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    navigate(`/calendar/${prevDate.getFullYear()}/${prevDate.getMonth() + 1}`);
-  };
-
-  const goToNextMonth = () => {
-    const nextDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-    navigate(`/calendar/${nextDate.getFullYear()}/${nextDate.getMonth() + 1}`);
-  };
-
-  const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentDate);
-  const monthName = currentDate.toLocaleString('default', { month: 'long' });
   const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = new Date(year, month, 1).getDay();
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const calendarDays = [];
+  const today = new Date();
+  const isCurrentMonth =
+    today.getFullYear() === year && today.getMonth() === month;
 
-  // Add empty cells for days before the first day of the month
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    calendarDays.push(null);
-  }
-
-  // Add all days of the month
-  for (let day = 1; day <= daysInMonth; day++) {
-    calendarDays.push(day);
-  }
-
-  // Fill remaining cells to make exactly 35 cells (5 rows × 7 columns)
-  while (calendarDays.length < 35) {
-    calendarDays.push(null);
-  }
-
-  const [errorBlob, setErrorBlob] = useState(null); // { day, timestamp } to trigger red blob
-
-  const handleDateClick = (day) => {
-    if (!day) return;
-    
-    // Check if we have data for this day
-    const hasDiary = diaryDays.has(day);
-    const hasRecording = recordingDays.has(day);
-    
-    // If there is history (diary or recordings), navigate to Diary page
-    if (hasDiary || hasRecording) {
-      const month = (currentDate.getMonth() + 1).toString().padStart(2, '0');
-      const dayStr = day.toString().padStart(2, '0');
-      const dateStr = `${currentDate.getFullYear()}-${month}-${dayStr}`;
-      navigate(`/diary/${dateStr}`);
-    } else {
-      // Show reddish blob for empty date
-      setErrorBlob({ day, timestamp: Date.now() });
-      
-      // Clear after animation
-      setTimeout(() => {
-        setErrorBlob(null);
-      }, 1000);
-    }
+  const step = (delta) => {
+    const target = new Date(year, month + delta, 1);
+    navigate(`/calendar/${target.getFullYear()}/${target.getMonth() + 1}`);
   };
+
+  // Leading blanks before the first, and trailing blanks after the last, so
+  // the grid always ends on a complete week. A ragged final row leaves the
+  // card's bottom edge broken.
+  const leading = Array.from({ length: startWeekday }, () => null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const trailing = Array.from(
+    { length: (7 - ((startWeekday + daysInMonth) % 7)) % 7 },
+    () => null,
+  );
+  const cells = [...leading, ...days, ...trailing];
 
   return (
-    <div className="calendar-container">
-      <div className="calendar-header">
-        <button onClick={goToPreviousMonth} className="nav-button">
-          <svg width="80" height="28" viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <line x1="70" y1="14" x2="18" y2="14" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M 10 14 L 18 9 L 18 14 L 18 19 Z" fill="var(--text-secondary)" />
-          </svg>
+    <div className="cal">
+      <header className="cal__head">
+        <button
+          type="button"
+          className="cal__arrow"
+          onClick={() => step(-1)}
+          aria-label="Previous month"
+        >
+          <LongArrow direction="left" />
         </button>
-        <h1 className="month-year">{monthName} {year}</h1>
-        <button onClick={goToNextMonth} className="nav-button">
-          <svg width="80" height="28" viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <line x1="10" y1="14" x2="62" y2="14" stroke="var(--text-secondary)" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M 70 14 L 62 9 L 62 14 L 62 19 Z" fill="var(--text-secondary)" />
-          </svg>
+
+        <h1 className="cal__month">
+          {currentDate.toLocaleString(undefined, { month: "long" })} {year}
+        </h1>
+
+        <button
+          type="button"
+          className="cal__arrow"
+          onClick={() => step(1)}
+          aria-label="Next month"
+        >
+          <LongArrow direction="right" />
         </button>
-      </div>
+      </header>
 
-      <div className="calendar-grid">
-        <div className="weekday-header">
-          {weekDays.map(day => (
-            <div key={day} className="weekday-label">{day}</div>
-          ))}
-        </div>
+      <div className="cal__grid">
+        {WEEKDAYS.map((day) => (
+          <div key={day} className="cal__weekday">
+            {day}
+          </div>
+        ))}
 
-        <div className="days-grid">
-          {calendarDays.map((day, index) => {
-            const blobType = day ? getBlobType(day) : null;
-            const isError = errorBlob && errorBlob.day === day;
-            
-            // Check if this day is today
-            const today = new Date();
-            const isToday = day && 
-              currentDate.getFullYear() === today.getFullYear() &&
-              currentDate.getMonth() === today.getMonth() &&
-              day === today.getDate();
-
+        {cells.map((day, i) => {
+          if (day === null)
             return (
-              <div 
-                key={index} 
-                className={`day-cell ${isToday ? 'today' : ''}`}
-                onClick={() => day && handleDateClick(day)}
-              >
-                {day && (
-                  <>
-                    <span className="day-number">{day}</span>
-                    {blobType && (
-                      <div className={`recording-blob ${blobType === 'diary' ? 'blob-diary' : 'blob-recording'}`} />
-                    )}
-                    {isError && (
-                         <div className="recording-blob blob-error" />
-                    )}
-                  </>
-                )}
-              </div>
+              <div key={`pad-${i}`} className="cal__day cal__day--empty" />
             );
-          })}
-        </div>
+
+          const written = diaryDays.has(day);
+          const recorded = recordingDays.has(day);
+          const filled = written || recorded;
+          const isToday = isCurrentMonth && today.getDate() === day;
+
+          // A red blob marks a day that went unrecorded -- but only one that
+          // has already passed. Marking every future day would flood the month
+          // with a warning about days that have not had their chance yet.
+          const isPast =
+            year < today.getFullYear() ||
+            (year === today.getFullYear() &&
+              (month < today.getMonth() ||
+                (month === today.getMonth() && day < today.getDate())));
+          const missed = !filled && isPast;
+
+          const mark = written ? "written" : recorded ? "recorded" : "none";
+          const isRejected = rejected === day;
+          const label = written
+            ? `${day}: diary written`
+            : recorded
+              ? `${day}: recordings, no diary yet`
+              : missed
+                ? `${day}: nothing recorded`
+                : `${day}: nothing recorded yet`;
+
+          return (
+            <button
+              key={day}
+              type="button"
+              className={`cal__day ${filled ? "cal__day--filled" : "cal__day--bare"}${
+                isToday ? " cal__day--today" : ""
+              }${isRejected ? " cal__day--rejected" : ""}`}
+              aria-label={label}
+              onClick={() => {
+                if (filled) {
+                  navigate(`/diary/${isoFor(currentDate, day)}`);
+                  return;
+                }
+                setRejected(day);
+                window.setTimeout(
+                  () => setRejected((d) => (d === day ? null : d)),
+                  600,
+                );
+              }}
+            >
+              {(filled || missed) && (
+                <span
+                  className={`cal__blob cal__blob--${mark}`}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="cal__num">{day}</span>
+            </button>
+          );
+        })}
       </div>
 
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
-
-        .calendar-container {
-          width: 100%;
-          height: calc(100vh - 10px);
-          padding: 1.5rem 2.5rem 1rem 2.5rem;
-          background: var(--bg-primary);
-          display: flex;
-          flex-direction: column;
-          box-sizing: border-box;
-        }
-
-        .calendar-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          margin-bottom: 1.5rem;
-          flex-shrink: 0;
-          position: relative;
-        }
-
-        .nav-button {
-          background: transparent;
-          border: none;
-          color: var(--text-secondary);
-          cursor: pointer;
-          padding: 0.5rem;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.3s ease;
-        }
-
-        .nav-button:hover {
-          opacity: 0.7;
-          transform: scale(1.05);
-        }
-
-        .month-year {
-          font-size: 2.25rem;
-          font-weight: 700;
-          color: var(--text-primary);
-          margin: 0;
-          flex: 1;
-          text-align: center;
-          font-family: 'Playfair Display', serif;
-          letter-spacing: 0.02em;
-        }
-
-        .calendar-grid {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-          background: var(--bg-card);
-          border-radius: 16px;
-          box-shadow: var(--shadow-md);
-          overflow: hidden;
-          border: 2px solid var(--bg-tertiary);
-          padding: 8px;
-        }
-
-        .weekday-header {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          background: var(--bg-card);
-          border-bottom: 2px solid var(--bg-tertiary);
-        }
-
-        .weekday-label {
-          text-align: center;
-          font-size: 0.85rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          padding: 1rem 0;
-        }
-
-        .days-grid {
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          grid-template-rows: repeat(5, 1fr);
-          flex: 1;
-          min-height: 0;
-        }
-
-        .day-cell {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--bg-card);
-          border-right: 1px solid var(--bg-tertiary);
-          border-bottom: 1px solid var(--bg-tertiary);
-          transition: all 0.2s ease;
-        }
-
-        .day-cell:nth-child(7n) {
-          border-right: none;
-        }
-
-        .day-cell:nth-child(n+29) {
-          border-bottom: none;
-        }
-
-        .day-cell:hover {
-          background: rgba(79, 209, 197, 0.05);
-          cursor: pointer;
-        }
-
-        .day-cell.today::before {
-          content: '';
-          position: absolute;
-          width: 40px;
-          height: 40px;
-          border: 2px solid #000000;
-          border-radius: 50%;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          pointer-events: none;
-        }
-
-        .day-number {
-          font-size: 1.1rem;
-          font-weight: 500;
-          color: var(--text-primary);
-          z-index: 1;
-        }
-
-.recording-blob {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 85%;
-  height: 85%;
-  z-index: 0;
-  filter: blur(8px);
-}
-
-/* Diary blob - vibrant accent colors */
-.recording-blob.blob-diary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(ellipse at 40% 40%, rgba(79, 209, 197, 0.5) 0%, transparent 70%),
-              radial-gradient(ellipse at 60% 60%, rgba(56, 178, 172, 0.45) 0%, transparent 65%),
-              radial-gradient(ellipse at 50% 50%, rgba(79, 209, 197, 0.4) 0%, transparent 80%);
-  border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
-  opacity: 0.35;
-  animation: watercolorFlow 4s ease-in-out infinite;
-}
-
-.recording-blob.blob-diary::after {
-  content: '';
-  position: absolute;
-  top: -5%;
-  left: -5%;
-  right: -5%;
-  bottom: -5%;
-  background: radial-gradient(ellipse at 30% 70%, rgba(56, 178, 172, 0.4) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 30%, rgba(79, 209, 197, 0.35) 0%, transparent 55%);
-  border-radius: 52% 48% 55% 45% / 45% 55% 52% 48%;
-  opacity: 0.25;
-  animation: watercolorFlow 5s ease-in-out infinite reverse;
-}
-
-/* Recording-only blob - muted gray colors */
-.recording-blob.blob-recording::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(ellipse at 40% 40%, rgba(113, 128, 150, 0.5) 0%, transparent 70%),
-              radial-gradient(ellipse at 60% 60%, rgba(113, 128, 150, 0.45) 0%, transparent 65%),
-              radial-gradient(ellipse at 50% 50%, rgba(113, 128, 150, 0.4) 0%, transparent 80%);
-  border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
-  opacity: 0.35;
-  animation: watercolorFlow 4s ease-in-out infinite;
-}
-
-.recording-blob.blob-recording::after {
-  content: '';
-  position: absolute;
-  top: -5%;
-  left: -5%;
-  right: -5%;
-  bottom: -5%;
-  background: radial-gradient(ellipse at 30% 70%, rgba(113, 128, 150, 0.4) 0%, transparent 60%),
-              radial-gradient(ellipse at 70% 30%, rgba(113, 128, 150, 0.35) 0%, transparent 55%);
-  border-radius: 52% 48% 55% 45% / 45% 55% 52% 48%;
-  opacity: 0.25;
-  animation: watercolorFlow 5s ease-in-out infinite reverse;
-}
-
-/* Error blob - Reddish */
-.recording-blob.blob-error::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(ellipse at 40% 40%, rgba(239, 68, 68, 0.5) 0%, transparent 70%),
-              radial-gradient(ellipse at 60% 60%, rgba(220, 38, 38, 0.45) 0%, transparent 65%);
-  border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
-  opacity: 0.6;
-  animation: errorPulse 0.5s ease-in-out;
-}
-
-@keyframes errorPulse {
-    0% { transform: scale(0.8); opacity: 0; }
-    50% { transform: scale(1.1); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 0.6; }
-}
-
-@keyframes watercolorFlow {
-  0%, 100% {
-    border-radius: 45% 55% 52% 48% / 48% 52% 48% 52%;
-    transform: rotate(0deg) scale(1);
-    opacity: 0.3;
-  }
-  25% {
-    border-radius: 52% 48% 45% 55% / 55% 45% 52% 48%;
-    transform: rotate(1deg) scale(1.02);
-    opacity: 0.35;
-  }
-  50% {
-    border-radius: 48% 52% 55% 45% / 45% 55% 48% 52%;
-    transform: rotate(-1deg) scale(0.98);
-    opacity: 0.32;
-  }
-  75% {
-    border-radius: 55% 45% 48% 52% / 52% 48% 55% 45%;
-    transform: rotate(0.5deg) scale(1.01);
-    opacity: 0.37;
-  }
-}
-        @media (max-width: 1024px) {
-          .calendar-container {
-            padding: 1.5rem;
-          }
-
-          .month-year {
-            font-size: 1.25rem;
-            min-width: 180px;
-          }
-
-          .day-number {
-            font-size: 0.8rem;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .calendar-container {
-            padding: 1rem;
-          }
-
-          .month-year {
-            font-size: 1.1rem;
-            min-width: 150px;
-          }
-
-          .day-number {
-            font-size: 0.75rem;
-          }
-
-          .weekday-label {
-            font-size: 0.65rem;
-          }
-
-          .calendar-grid {
-            gap: 0.5rem;
-          }
-
-          .days-grid {
-            gap: 0.35rem;
-          }
-        }
-      `}</style>
+      <div className="cal__key">
+        <span className="cal__key-item">
+          <span className="cal__swatch cal__swatch--written" />
+          Diary written
+        </span>
+        <span className="cal__key-item">
+          <span className="cal__swatch cal__swatch--recorded" />
+          Recorded, not yet written
+        </span>
+        <span className="cal__key-item">
+          <span className="cal__swatch cal__swatch--missed" />
+          Nothing recorded
+        </span>
+      </div>
     </div>
   );
 };
