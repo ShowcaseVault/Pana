@@ -51,10 +51,10 @@ const Diary = () => {
 
   const hasRecordings = recordings.length > 0;
 
-  // An entry is only real while the recordings it was written from still
-  // exist. The backend removes a diary when its last recording goes, but a
-  // cached entry can outlive that by a moment, and showing it would present
-  // writing sourced from nothing as current.
+  // A diary cannot exist without the recordings it was written from -- the
+  // backend removes it with the last one. The recordings check stays because
+  // the two queries settle independently, so a cached entry can briefly
+  // outlive its sources in this component even though the server agrees.
   const hasEntry = Boolean(diary?.content) && hasRecordings;
 
   // Today with nothing written yet gets the invitation; a past day gets the

@@ -56,13 +56,7 @@ const Home = () => {
   const recordings = data?.recordings ?? [];
 
   const iso = todayIso();
-  const { data: diaryRow } = useDiary(iso);
-
-  // A diary is written from the day's recordings. An entry with none left is
-  // an orphan -- either a row written before deletion cascaded, or a cached
-  // one that has outlived its sources -- and reporting the day as written up
-  // when there is nothing behind it is worse than reporting nothing.
-  const diary = recordings.length > 0 ? diaryRow : null;
+  const { data: diary } = useDiary(iso);
 
   const deleteRecording = useDeleteRecording();
 
