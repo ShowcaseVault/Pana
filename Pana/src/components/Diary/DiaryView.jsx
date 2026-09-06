@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, CheckCircle, Circle, MapPin, Clock, RotateCw, Pause } from 'lucide-react';
 import './Diary.css';
-import { BASE_URL, API_ROUTES } from '../../api/routes';
+import recordingsService from '../../services/recordings.service';
 
 const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) => {
   const [activeId, setActiveId] = useState(null);
@@ -57,10 +57,8 @@ const DiaryView = ({ diary, recordings = [], onRegenerate, loading = false }) =>
       return;
     }
     
-    const audioBase = API_ROUTES.AUDIO_BASE.replace(/\/$/, '');
-    const relativePath = filePath.replace(/^\//, '');
-    const audioUrl = `${BASE_URL}${audioBase}/${relativePath}`;
-    
+    const audioUrl = recordingsService.audioUrl(filePath.replace(/^\//, ''));
+
     audioRef.current.src = audioUrl;
     audioRef.current.play().catch(e => console.error("Playback failed:", e));
     

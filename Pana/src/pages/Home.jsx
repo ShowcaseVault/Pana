@@ -1,36 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 import RecordingCard from '../components/RecordingCard';
 import { Mic, TrendingUp, Clock } from 'lucide-react';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
+import { useRecordings } from '../hooks/queries/useRecordings';
 import '../styles/themes.css';
 
 const Home = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showName, setShowName] = useState(false);
 
-  useEffect(() => {
-    fetchRecentRecordings();
-  }, []);
-
-  const fetchRecentRecordings = async () => {
-    try {
-      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?page_size=5&list_all=true`);
-      if (res.data.success) {
-        const records = res.data.data;
-        setRecordings(records);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, isPending: loading } = useRecordings({ pageSize: 5, listAll: true });
+  const recordings = data?.recordings ?? [];
+  // Total across the whole history, not just the five shown here.
+  const totalRecordings = data?.pagination?.total ?? recordings.length;
 
   const getTotalDuration = () => {
     return recordings.reduce((sum, r) => sum + r.duration_seconds, 0);
@@ -81,7 +65,7 @@ const Home = () => {
               </div>
               <div className="stat-content">
                 <div className="stat-label">Total Recordings</div>
-                <div className="stat-value">{recordings.length}</div>
+                <div className="stat-value">{totalRecordings}</div>
               </div>
             </div>
 

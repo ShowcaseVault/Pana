@@ -1,18 +1,37 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Play, Pause, MoreHorizontal, Volume2 } from 'lucide-react';
-import { API_ROUTES, BASE_URL } from '../api/routes';
-import axiosClient from '../api/axiosClient';
+import recordingsService from '../services/recordings.service';
+import { useTranscription } from '../hooks/queries/useRecordings';
 
 const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu = false, onMenuToggle }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [words, setWords] = useState([]);
   const [currentText, setCurrentText] = useState("");
-  const [loadingTranscription, setLoadingTranscription] = useState(false);
+  // Transcript is fetched only once playback starts, so a list of cards does
+  // not pull every transcript on mount.
+  const [wantsTranscript, setWantsTranscript] = useState(false);
   const audioRef = useRef(null);
   const menuBtnRef = useRef(null);
   const [menuPos, setMenuPos] = useState(null);
+
+  // isFetching, not isPending: a disabled query reports pending forever, which
+  // would leave the loading indicator up for a card that has no transcript.
+  const { data: transcription, isFetching: loadingTranscription } = useTranscription(
+    recording.transcription_id,
+    { enabled: wantsTranscript },
+  );
+
+  // Whole-transcript text is the fallback when the backend returned no word
+  // timings: one segment spanning the recording still lets the card show text.
+  const words = useMemo(() => {
+    if (!transcription) return [];
+    if (transcription.words?.length) return transcription.words;
+    if (transcription.text) {
+      return [{ start: 0, end: recording.duration_seconds || 3600, text: transcription.text }];
+    }
+    return [];
+  }, [transcription, recording.duration_seconds]);
 
   useEffect(() => {
     return () => {
@@ -22,27 +41,6 @@ const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu
       }
     };
   }, []);
-
-  const fetchTranscription = async () => {
-    if (words.length > 0 || !recording.transcription_id) return;
-    
-    try {
-      setLoadingTranscription(true);
-      const res = await axiosClient.get(API_ROUTES.TRANSCRIPTIONS.DETAIL(recording.transcription_id));
-      if (res.data.success) {
-        const data = res.data.data;
-        if (data.words && data.words.length > 0) {
-          setWords(data.words);
-        } else if (data.text) {
-          setWords([{ start: 0, end: recording.duration_seconds || 3600, text: data.text }]);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch transcription", err);
-    } finally {
-      setLoadingTranscription(false);
-    }
-  };
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -94,7 +92,7 @@ const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu
       setIsPlaying(false);
     } else {
       if (!audioRef.current) {
-        const url = `${BASE_URL}${API_ROUTES.AUDIO_BASE}/${recording.file_path}`;
+        const url = recordingsService.audioUrl(recording.file_path);
         audioRef.current = new Audio();
         // The audio route is authenticated, and the API is a different origin
         // from the dev server, so the element must be told to send cookies.
@@ -102,7 +100,7 @@ const RecordingCard = ({ recording, _onPlay, onDelete, compact = false, showMenu
         audioRef.current.src = url;
       }
       if (String(recording.transcription_status || '').toLowerCase() === 'completed') {
-        fetchTranscription();
+        setWantsTranscript(true);
       }
       audioRef.current.play().catch(err => console.error("Playback failed", err));
       setIsPlaying(true);

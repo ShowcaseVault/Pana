@@ -1,56 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
+import { useCalendar } from '../hooks/queries/useCalendar';
 import '../styles/themes.css';
 
 const Calendar = () => {
   const { year: urlYear, month: urlMonth } = useParams();
   const navigate = useNavigate();
-  
-  // Initialize date from URL or current date
-  const [currentDate, setCurrentDate] = useState(() => {
-    if (urlYear && urlMonth) {
-      return new Date(parseInt(urlYear), parseInt(urlMonth) - 1, 1);
-    }
-    return new Date();
-  });
 
-  const [diaryDays, setDiaryDays] = useState(new Set());
-  const [recordingDays, setRecordingDays] = useState(new Set());
+  // The URL is the single source of truth for which month is shown. Mirroring
+  // it into state means two things to keep in sync, and the effect that did so
+  // was one comparison away from an update loop.
+  const currentDate =
+    urlYear && urlMonth
+      ? new Date(parseInt(urlYear, 10), parseInt(urlMonth, 10) - 1, 1)
+      : new Date();
 
-  // Update currentDate when URL params change
-  useEffect(() => {
-    if (urlYear && urlMonth) {
-      const year = parseInt(urlYear);
-      const month = parseInt(urlMonth) - 1;
-      // Only update if it's actually different from current state to avoid loops
-      if (currentDate.getFullYear() !== year || currentDate.getMonth() !== month) {
-        setCurrentDate(new Date(year, month, 1));
-      }
-    }
-  }, [urlYear, urlMonth]);
-
-  useEffect(() => {
-    fetchCalendarData();
-  }, [currentDate]);
-
-  const fetchCalendarData = async () => {
-    try {
-      const year = currentDate.getFullYear();
-      const month = currentDate.getMonth() + 1; // API expects 1-indexed month
-      
-      const response = await axiosClient.get(API_ROUTES.HISTORY.CALENDAR(year, month));
-      
-      if (response.data.success && response.data.data) {
-        const { diary_days, recording_days } = response.data.data;
-        setDiaryDays(new Set(diary_days || []));
-        setRecordingDays(new Set(recording_days || []));
-      }
-    } catch (error) {
-      console.error('Failed to fetch calendar data:', error);
-    }
-  };
+  const { data } = useCalendar(currentDate.getFullYear(), currentDate.getMonth() + 1);
+  const diaryDays = data?.diaryDays ?? new Set();
+  const recordingDays = data?.recordingDays ?? new Set();
 
   const getDaysInMonth = (date) => {
     const year = date.getFullYear();

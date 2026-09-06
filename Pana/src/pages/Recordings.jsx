@@ -3,52 +3,41 @@ import AudioRecorder from '../components/AudioRecorder';
 import RecordingCard from '../components/RecordingCard';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Toaster, toast } from 'sonner';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
 import '../styles/themes.css';
 
 import { useTranscriptionSSE } from '../hooks/useTranscriptionSSE';
+import {
+  useApplyTranscriptionComplete,
+  useCreateRecording,
+  useDeleteRecording,
+  useRecordings,
+} from '../hooks/queries/useRecordings';
 
 const Recordings = () => {
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [recordingToDelete, setRecordingToDelete] = useState(null);
 
-  // Define handler for SSE events (memoized so SSE connection isn't recreated on re-renders)
-  const handleTranscriptionComplete = useCallback((recordingId, transcriptionId) => {
-    setRecordings(prev => prev.map(rec => {
-      if (String(rec.id) === String(recordingId)) {
-        return { ...rec, transcription_status: 'completed', transcription_id: transcriptionId };
-      }
-      return rec;
-    }));
-  }, []);
+  // The backend already scopes an unfiltered list to today, so this page asks
+  // for exactly what it shows rather than fetching everything and filtering.
+  const { data, isPending: loading, isError } = useRecordings({ pageSize: 50 });
+  const recordings = data?.recordings ?? [];
 
-  // Activate the listener
-  useTranscriptionSSE(handleTranscriptionComplete);
+  const createRecording = useCreateRecording();
+  const deleteRecording = useDeleteRecording();
+  const applyTranscriptionComplete = useApplyTranscriptionComplete();
 
   useEffect(() => {
-    fetchRecordings();
-  }, [refreshKey]);
+    if (isError) toast.error('Failed to load recordings');
+  }, [isError]);
 
-  const fetchRecordings = async () => {
-    try {
-      setLoading(true);
-      const res = await axiosClient.get(`${API_ROUTES.RECORDINGS.LIST}?page_size=50&list_all=true`); 
-      if (res.data.success) {
-          const records = res.data.data;
-          setRecordings(records); 
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load recordings");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Memoised so the SSE connection is not torn down and rebuilt each render.
+  const handleTranscriptionComplete = useCallback(
+    (recordingId, transcriptionId) => applyTranscriptionComplete(recordingId, transcriptionId),
+    [applyTranscriptionComplete],
+  );
+
+  useTranscriptionSSE(handleTranscriptionComplete);
 
   const [locationText, setLocationText] = useState("");
 
@@ -68,25 +57,16 @@ const Recordings = () => {
   };
 
   const handleUpload = async (file, duration) => {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('duration_seconds', duration);
-      formData.append('recorded_at', new Date().toISOString());
-      if (locationText) formData.append('location_text', locationText);
-      
-      try {
-          const res = await axiosClient.post(API_ROUTES.RECORDINGS.CREATE, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-          });
-          if (res.data.success) {
-              setRefreshKey(prev => prev + 1);
-          } else {
-              toast.error("Failed to save recording.");
-          }
-      } catch (err) {
-          console.error(err);
-          toast.error("Upload error. " + (err.response?.data?.message || err.message));
-      }
+    try {
+      await createRecording.mutateAsync({
+        file,
+        durationSeconds: duration,
+        locationText: locationText || undefined,
+      });
+      toast.success('Recording saved');
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
@@ -108,28 +88,14 @@ const Recordings = () => {
   const confirmDelete = async () => {
     if (!recordingToDelete) return;
     try {
-      const res = await axiosClient.delete(API_ROUTES.RECORDINGS.DELETE(recordingToDelete));
-      if (res.data.success) {
-        setRecordings(prev => prev.filter(rec => String(rec.id) !== String(recordingToDelete)));
-        toast.success("Recording deleted");
-      } else {
-        toast.error("Failed to delete recording");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Delete error: " + (err.response?.data?.message || err.message));
+      await deleteRecording.mutateAsync(recordingToDelete);
+      toast.success('Recording deleted');
+    } catch (error) {
+      toast.error(error.message);
     } finally {
       setRecordingToDelete(null);
       setIsConfirmOpen(false);
     }
-  };
-
-  const getTodayRecordings = () => {
-    const today = new Date().toDateString();
-    return recordings.filter(r => {
-      const recordingDate = new Date(r.recorded_at).toDateString();
-      return recordingDate === today;
-    });
   };
 
   return (
@@ -140,8 +106,8 @@ const Recordings = () => {
         <div className="recordings-list">
           {loading ? (
             <div className="loading-state">Loading...</div>
-          ) : getTodayRecordings().length > 0 ? (
-            getTodayRecordings().map(recording => (
+          ) : recordings.length > 0 ? (
+            recordings.map(recording => (
               <RecordingCard 
                 key={recording.id} 
                 recording={recording}

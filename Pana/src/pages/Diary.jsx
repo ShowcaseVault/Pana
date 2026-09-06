@@ -1,93 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
+import React from 'react';
+import { useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import CreateDiary from '../components/CreateDiary';
 import DiaryView from '../components/Diary/DiaryView';
-import { useParams } from 'react-router-dom';
+import { useDiary, useGenerateDiary } from '../hooks/queries/useDiary';
+import { useRecordings } from '../hooks/queries/useRecordings';
+
+/** Today as an ISO date string, in the user's own timezone. */
+const todayIso = () => {
+  const now = new Date();
+  const offsetMs = now.getTimezoneOffset() * 60_000;
+  return new Date(now.getTime() - offsetMs).toISOString().split('T')[0];
+};
 
 const Diary = () => {
   const { date } = useParams();
-  const [diary, setDiary] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [recordings, setRecordings] = useState([]);
-  const [loadingRecordings, setLoadingRecordings] = useState(true);
+  const targetDate = date || todayIso();
+  const isToday = targetDate === todayIso();
 
-  // Helper for today's date in YYYY-MM-DD
-  const getTodayDateString = () => {
-    return new Date().toISOString().split('T')[0];
-  };
+  const { data: recordingsPage, isPending: loadingRecordings } = useRecordings({
+    recordingDate: targetDate,
+    pageSize: 100,
+  });
+  const recordings = recordingsPage?.recordings ?? [];
 
-  const targetDate = date || getTodayDateString();
-  const isToday = targetDate === getTodayDateString();
-
-  const fetchRecordings = async () => {
-    try {
-      const response = await axiosClient.get(API_ROUTES.RECORDINGS.LIST, {
-        params: { recording_date: targetDate }
-      });
-      if (response.data && response.data.success) {
-        const records = response.data.data;
-        setRecordings(records || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch recordings:", error);
-    } finally {
-      setLoadingRecordings(false);
-    }
-  };
-
-  const checkExistingDiary = async () => {
-    try {
-      const response = await axiosClient.get(API_ROUTES.DIARY.GET, {
-          params: { date: targetDate }
-      });
-      
-      if (response.data && response.data.success) {
-        setDiary(response.data.data);
-      } else {
-        setDiary(null);
-      }
-    } catch (_error) {
-      // 404 is expected if diary doesn't exist
-      setDiary(null);
-    }
-  };
+  const { data: diary, isPending: loadingDiary } = useDiary(targetDate);
+  const generateDiary = useGenerateDiary();
 
   const handleCreateDiary = async () => {
-    // We now support creating/regenerating diary for any date supported by backend
-    setLoading(true);
     try {
-      // Pass the targetDate as a query parameter
-      const response = await axiosClient.post(API_ROUTES.DIARY.CREATE, null, {
-          params: { date: targetDate }
-      });
-      if (response.data && response.data.success) {
-        setDiary(response.data.data);
-      } else {
-        console.error("Diary generation failed:", response.data.message);
-      }
+      await generateDiary.mutateAsync(targetDate);
     } catch (error) {
-      console.error("Error generating diary:", error);
-    } finally {
-      setLoading(false);
+      toast.error(error.message);
     }
   };
 
-  useEffect(() => {
-    // Load both recordings and diary status in parallel
-    const init = async () => {
-        setLoadingRecordings(true);
-        setDiary(null); // Reset on date change
-        await Promise.all([
-            fetchRecordings(),
-            checkExistingDiary()
-        ]);
-        setLoadingRecordings(false);
-    };
-    init();
-  }, [targetDate]);
-
-  if (loadingRecordings) {
+  if (loadingRecordings || loadingDiary) {
     return (
       <div className="flex items-center justify-center h-full">
          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
@@ -107,7 +55,7 @@ const Diary = () => {
         diary={diary} 
         recordings={recordings} 
         onRegenerate={handleCreateDiary} 
-        loading={loading} 
+        loading={generateDiary.isPending} 
       />
     );
   } else if (isToday) {
@@ -115,7 +63,7 @@ const Diary = () => {
     contentToRender = (
       <CreateDiary 
         onCreate={handleCreateDiary} 
-        loading={loading} 
+        loading={generateDiary.isPending} 
       />
     );
   } else if (hasRecordings) {
@@ -133,7 +81,7 @@ const Diary = () => {
         diary={placeholderDiary} 
         recordings={recordings} 
         onRegenerate={handleCreateDiary} 
-        loading={loading} 
+        loading={generateDiary.isPending} 
       />
     );
   } else {

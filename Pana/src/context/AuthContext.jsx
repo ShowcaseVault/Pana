@@ -1,38 +1,49 @@
-import { useState, useEffect } from 'react';
-import { getUser } from '../api/auth';
-import AuthContext from './authContext';
+/**
+ * Session state for the component tree.
+ *
+ * The session is fetched through TanStack Query like any other resource; this
+ * provider exists to expose it as context and to react to a session that
+ * expires mid-use, which no single component owns.
+ *
+ * @module context/AuthContext
+ */
+
+import { useCallback, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import AuthContext from './authContext.js';
+import { useCurrentUser, useLogout } from '../hooks/queries/useAuth.js';
+import { onSessionExpired } from '../lib/apiClient.js';
+import { queryKeys } from '../lib/queryClient.js';
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: user, isPending } = useCurrentUser();
+  const logoutMutation = useLogout();
 
-  const checkUser = async () => {
-    try {
-      const response = await getUser();
-      setUser(response.data.data);
-    } catch (_error) {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    checkUser();
-  }, []);
-
-  const login = (data) => {
-    setUser(data);
-  };
-
-  const logout = () => {
-    setUser(null);
-    // Optional: trigger backend logout if available
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
-      {!loading && children}
-    </AuthContext.Provider>
+  // A request may find the session gone at any moment -- a refresh token that
+  // expired or was revoked elsewhere. The client reports it here so the tree
+  // re-renders as signed out, instead of each component discovering its own 401.
+  useEffect(
+    () =>
+      onSessionExpired(() => {
+        queryClient.setQueryData(queryKeys.auth.currentUser, null);
+      }),
+    [queryClient],
   );
+
+  const logout = useCallback(() => logoutMutation.mutateAsync(), [logoutMutation]);
+
+  const value = useMemo(
+    () => ({
+      user: user ?? null,
+      isAuthenticated: Boolean(user),
+      loading: isPending,
+      logout,
+    }),
+    [user, isPending, logout],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
+export default AuthProvider;

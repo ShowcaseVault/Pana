@@ -1,61 +1,34 @@
-import React, { useCallback, useEffect, useState } from "react";
-import axiosClient from "../api/axiosClient";
-import { API_ROUTES } from "../api/routes";
+import React, { useEffect } from "react";
 import { useTranscriptionSSE } from "../hooks/useTranscriptionSSE";
+import {
+  useApplyTranscriptionComplete,
+  useDeleteRecording,
+  useRecordings,
+} from "../hooks/queries/useRecordings";
 import { Play, Calendar, Clock, MapPin, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-const RecordingList = ({ refreshTrigger }) => {
-  const [recordings, setRecordings] = useState([]);
-  const [loading, setLoading] = useState(true);
+const RecordingList = () => {
+  // The cache is shared with every other view, so an upload or delete elsewhere
+  // shows up here without a refresh prop being threaded down.
+  const { data, isPending: loading, isError } = useRecordings({ pageSize: 50, listAll: true });
+  const recordings = data?.recordings ?? [];
+
+  const deleteRecording = useDeleteRecording();
+  const applyTranscriptionComplete = useApplyTranscriptionComplete();
+
   useEffect(() => {
-    fetchRecordings();
-  }, [refreshTrigger]);
+    if (isError) toast.error("Failed to load recordings");
+  }, [isError]);
 
-  // Subscribe through the shared hook rather than opening a second
-  // EventSource: the URL and reconnect behaviour then live in one place.
-  const handleTranscriptionComplete = useCallback((recordingId, _transcriptionId) => {
-    setRecordings((prev) =>
-      prev.map((rec) =>
-        String(rec.id) === String(recordingId)
-          ? { ...rec, transcription_status: "completed" }
-          : rec
-      )
-    );
-    toast.success("Transcription completed!");
-    // Re-fetch so confidence and the other derived fields arrive too.
-    setTimeout(() => {
-      fetchRecordings();
-    }, 250);
-  }, []);
-
-  useTranscriptionSSE(handleTranscriptionComplete);
-
-  const fetchRecordings = async () => {
-    try {
-      setLoading(true);
-      const res = await axiosClient.get(
-        `${API_ROUTES.RECORDINGS.LIST}?page_size=50&list_all=true`
-      );
-      if (res.data.success) {
-        const records = res.data.data;
-        setRecordings(records);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load recordings");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useTranscriptionSSE(applyTranscriptionComplete);
 
   const handleDelete = async (id) => {
     try {
-      await axiosClient.delete(API_ROUTES.RECORDINGS.DELETE(id));
+      await deleteRecording.mutateAsync(id);
       toast.success("Recording deleted");
-      fetchRecordings();
-    } catch (_e) {
-      toast.error("Delete failed");
+    } catch (error) {
+      toast.error(error.message);
     }
   };
 

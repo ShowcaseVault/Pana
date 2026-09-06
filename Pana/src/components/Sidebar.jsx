@@ -1,8 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Home, Mic, Book, Calendar, LogOut } from 'lucide-react';
-import axiosClient from '../api/axiosClient';
-import { API_ROUTES } from '../api/routes';
 import { useAuth } from '../context/useAuth';
 import '../styles/themes.css';
 
@@ -21,12 +19,11 @@ const Sidebar = () => {
   ];
 
   const handleLogout = async () => {
+    // The context clears cached data whether or not the server call succeeds,
+    // so the redirect is unconditional.
     try {
-      await axiosClient.post(API_ROUTES.AUTH.LOGOUT);
-    } catch (_e) {
-      // Even if backend logout fails, clear local state and redirect.
+      await logout();
     } finally {
-      logout();
       navigate('/login', { replace: true });
     }
   };
