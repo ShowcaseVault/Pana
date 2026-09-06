@@ -78,6 +78,36 @@ still uncommitted, or worse, one that a later rollback erases. So the service
 never calls `apply_async` itself; it reports what needs queueing and lets the
 route, which owns the transaction boundary, decide when it is safe.
 
+## One line per request
+
+`RequestLoggingMiddleware` (`api/middleware/request_logging.py`) prints one
+line per request:
+
+```
+POST /api/v1/recordings 201 1.24s
+```
+
+The level follows the outcome, so a terminal is readable without being read
+closely: 5xx logs at ERROR, a success slower than one second at WARNING, an
+ordinary success at INFO. **A 4xx logs at DEBUG**, because the exception
+handlers already log it *with the reason* -- printing both would report every
+failure twice, once explained and once not.
+
+Traffic that carries no information is skipped entirely: static media, the
+docs, health checks, and the SSE stream. A line for a connection a client holds
+open for minutes says nothing about work being done.
+
+The middleware is added inside CORS, so CORS stays outermost and a rejected
+preflight is not timed and logged as a real request. Uvicorn's own access log
+is disabled -- it would duplicate this in a format that cannot skip the event
+stream or flag a slow request.
+
+Console and file formats differ on purpose. The file carries the date and the
+logger name, since a line read weeks later has no surrounding context; the
+console drops both, because the reader knows the date and the width is better
+spent on the message. Request lines also land in `access.log`; see
+`CATEGORY_LOGGERS` in `api/utils/logging_config.py`.
+
 ## Soft delete
 
 `deleted_at IS NULL` means live. Deleting sets the timestamp; the row and,
