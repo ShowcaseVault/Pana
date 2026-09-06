@@ -33,7 +33,7 @@ def get_redis_client() -> redis.Redis:
     if publisher_client is None:
         publisher_client = redis.Redis.from_url(settings.REDIS_PUBSUB_URL)
         publisher_client.ping()
-        logger.info("Connected to pub/sub Redis successfully")
+        logger.debug("Connected to pub/sub Redis successfully")
     return publisher_client
 
 
@@ -52,4 +52,4 @@ def pubsub_disconnect() -> None:
     if publisher_client is not None:
         publisher_client.close()
         publisher_client = None
-        logger.info("Pub/sub publisher client closed")
+        logger.debug("Pub/sub publisher client closed")

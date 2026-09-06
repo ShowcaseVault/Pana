@@ -28,7 +28,7 @@ def get_groq_client() -> AsyncGroq:
         if not settings.GROQ_API_KEY:
             raise RuntimeError("GROQ_API_KEY is not set")
         groq_client = AsyncGroq(api_key=settings.GROQ_API_KEY)
-        logger.info("Groq client created")
+        logger.debug("Groq client created")
     return groq_client
 
 
@@ -38,4 +38,4 @@ async def llm_disconnect() -> None:
     if groq_client is not None:
         await groq_client.close()
         groq_client = None
-        logger.info("Groq client closed")
+        logger.debug("Groq client closed")

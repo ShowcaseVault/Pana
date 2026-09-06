@@ -19,6 +19,7 @@ from api.config.config import settings
 CATEGORY_LOGGERS: dict[str, str] = {
     "database": "database.log",
     "api.errors": "errors.log",
+    "api.request": "access.log",
     "celery_service": "celery.log",
 }
 
@@ -56,16 +57,28 @@ def setup_logging(level: int | str | None = None) -> None:
         resolved = logging.getLevelNamesMapping().get(resolved.upper(), logging.INFO)
 
     log_dir = _log_dir()
+
+    # The file keeps the full record: a line read weeks later has no
+    # surrounding context, so it carries the date and the logger name.
     formatter = logging.Formatter(
         fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # The console is read live, so it drops what the reader already knows. The
+    # date is today and the logger name is usually guessable from the message;
+    # spending half the terminal width on both leaves no room for the part that
+    # matters.
+    console_formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)-7s %(message)s",
+        datefmt="%H:%M:%S",
     )
 
     root = logging.getLogger()
     root.setLevel(resolved)
 
     console = logging.StreamHandler()
-    console.setFormatter(formatter)
+    console.setFormatter(console_formatter)
     root.addHandler(console)
     root.addHandler(_rotating_handler(os.path.join(log_dir, "app.log"), formatter))
 
@@ -82,5 +95,14 @@ def setup_logging(level: int | str | None = None) -> None:
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("multipart").setLevel(logging.WARNING)
+    logging.getLogger("watchfiles").setLevel(logging.WARNING)
+
+    # Uvicorn's own access log would duplicate RequestLoggingMiddleware, in a
+    # format that cannot skip the event stream or flag a slow request. The
+    # middleware is the one that knows what is worth printing, so this is the
+    # line that goes.
+    logging.getLogger("uvicorn.access").disabled = True
 
     _configured = True

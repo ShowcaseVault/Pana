@@ -15,6 +15,10 @@ def main() -> None:
         host=str(settings.SERVER_HOST),
         port=int(settings.SERVER_PORT),
         reload=settings.SERVER_RELOAD,
+        # RequestLoggingMiddleware logs requests, and it knows which ones are
+        # worth a line. Leaving uvicorn's access log on would print each
+        # request twice, including the ones deliberately kept quiet.
+        access_log=False,
     )
 
 
