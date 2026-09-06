@@ -1,0 +1,13 @@
+# Never let credentials into a build context: anything here can end up in an
+# image layer and in a registry.
+secrets/
+.env
+**/.env
+.git/
+.venv/
+__pycache__/
+**/__pycache__/
+logs/
+recordings/
+pana-app/node_modules/
+pana-landing/node_modules/

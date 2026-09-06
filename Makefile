@@ -1,4 +1,5 @@
 DATASTORES ?= docker compose -f docker-compose.datastores.yml
+ASTERISK   ?= docker compose -f docker-compose.asterisk.yml
 COMPOSE    ?= docker compose
 UV         ?= uv
 NPM        ?= npm
@@ -14,7 +15,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -58,6 +59,60 @@ celery-high:
 
 celery-default:
 	$(CELERY) -P $(CELERY_POOL) -Q default -n default_worker@%h
+
+# --- Telephony (Asterisk SIP trunk) -----------------------------------------
+# Credentials live in secrets/sip_trunk.env, which is git-ignored and mounted
+# into the container read-only. See docs/telephony.md.
+
+asterisk-secret:
+	@if [ -f secrets/sip_trunk.env ]; then \
+		echo "secrets/sip_trunk.env already exists, leaving it alone"; \
+	else \
+		cp secrets/sip_trunk.env.example secrets/sip_trunk.env; \
+		chmod 600 secrets/sip_trunk.env; \
+		echo "created secrets/sip_trunk.env (mode 600) -- fill in the carrier values"; \
+	fi
+
+asterisk-build:
+	$(ASTERISK) build
+
+asterisk-up:
+	@test -f secrets/sip_trunk.env || { echo "secrets/sip_trunk.env is missing; run: make asterisk-secret"; exit 1; }
+	$(ASTERISK) up -d
+
+asterisk-down:
+	$(ASTERISK) down
+
+asterisk-logs:
+	$(ASTERISK) logs -f
+
+asterisk-cli:
+	docker exec -it asterisk-pana asterisk -rvvv
+
+asterisk-check:
+	./asterisk/bin/smoke-test.sh
+
+# Place a test call out through the carrier: make asterisk-call NUMBER=...
+asterisk-call:
+ifndef NUMBER
+	$(error NUMBER is required, e.g. make asterisk-call NUMBER=9779812345678)
+endif
+	./asterisk/bin/test-call.sh $(NUMBER)
+
+# Snapshot: registration, live calls, limits, recent inbound history.
+asterisk-status:
+	./asterisk/bin/status.sh
+
+# Is the call reaching this host at all? Watches packets, SIP and dialplan
+# together, so an inbound failure is attributed to the right layer.
+asterisk-diagnose:
+	./asterisk/bin/diagnose-inbound.sh
+
+# Watch inbound calls arrive. Ring your DID while this runs.
+asterisk-watch:
+	docker exec asterisk-pana asterisk -rx 'pjsip set logger on'
+	@echo "Tracing. Ring your DID now. Ctrl-C to stop."
+	@docker logs -f --since 1s asterisk-pana 2>&1 | grep -viE "declined to load|Unable to load config file" || true
 
 # --- Code quality -----------------------------------------------------------
 
@@ -132,6 +187,17 @@ help:
 	@echo "make check           lint and format check, no writes (CI)"
 	@echo "make alembic-up      apply migrations up to head"
 	@echo "make alembic-create MSG=\"...\"  create an empty revision"
+	@echo "make asterisk-secret create secrets/sip_trunk.env from the example"
+	@echo "make asterisk-build  build the Asterisk image"
+	@echo "make asterisk-up     start the SIP trunk"
+	@echo "make asterisk-down   stop the SIP trunk"
+	@echo "make asterisk-logs   tail the Asterisk logs"
+	@echo "make asterisk-cli    open the Asterisk CLI"
+	@echo "make asterisk-check  verify the trunk registered with the carrier"
+	@echo "make asterisk-call NUMBER=...  place a test call out through the carrier"
+	@echo "make asterisk-watch  trace inbound calls as they arrive"
+	@echo "make asterisk-status snapshot: registration, live calls, call history"
+	@echo "make asterisk-diagnose  is the inbound call reaching this host at all?"
 	@echo "make deploy-build    build the deployment images"
 	@echo "make deploy-up       start the full deployment stack"
 	@echo "make deploy-down     stop the full deployment stack"

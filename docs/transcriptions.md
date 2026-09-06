@@ -18,6 +18,13 @@ client always has something to poll or display. The worker moves it to
 `processing`, then to `completed` with text, language, confidence, and word
 timings -- or to `failed`.
 
+The stored row keeps all of that; the response returns a narrower slice. A
+client gets the id, the recording id, the text, the word timings, and the
+status. `language`, `confidence` and `model_name` describe how the text was
+produced rather than what it says, and no screen shows them -- confidence is
+read on the server, by [the diary](diary.md#generating), which is the only
+thing that acts on it.
+
 ## The worker
 
 `TranscriptionJob.run()` **never raises.** A failure is a state the row records

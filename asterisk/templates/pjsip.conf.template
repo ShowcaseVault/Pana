@@ -1,0 +1,86 @@
+; Rendered at container start by asterisk/bin/entrypoint.sh from
+; secrets/sip_trunk.env. Do not edit the rendered copy: it is overwritten on
+; every start, and it is the only file in the container that holds the trunk
+; password.
+
+[transport-carrier]
+type = transport
+protocol = ${SIP_TRANSPORT}
+; Bind on all interfaces inside the container network namespace. The container
+; publishes this port only to the host address chosen in docker-compose, so
+; "all interfaces" here is not the same as "reachable from the internet".
+bind = 0.0.0.0:5060
+${NAT_TRANSPORT_LINES}
+
+; --- Outbound registration to the carrier ---------------------------------
+
+[carrier-reg]
+type = registration
+transport = transport-carrier
+outbound_auth = carrier-auth
+server_uri = sip:${SIP_DOMAIN}
+client_uri = sip:${SIP_USERNAME}@${SIP_DOMAIN}
+contact_user = ${SIP_USERNAME}
+retry_interval = 60
+forbidden_retry_interval = 600
+; Short expiry so the NAT mapping is refreshed by the re-REGISTER itself.
+; Behind carrier-grade NAT the translation is dropped after a few minutes of
+; silence, and once it is gone the carrier's INVITE has nowhere to go -- the
+; registration still looks healthy from our side while inbound calls fail.
+; A softphone survives this by talking constantly; we have to do the same.
+expiration = ${SIP_REGISTRATION_EXPIRY}
+line = yes
+endpoint = carrier
+${REG_PROXY_LINE}
+
+[carrier-auth]
+type = auth
+auth_type = userpass
+username = ${SIP_AUTH_NAME}
+password = ${SIP_PASSWORD}
+
+; --- The carrier endpoint --------------------------------------------------
+
+[carrier]
+type = endpoint
+transport = transport-carrier
+context = from-carrier
+disallow = all
+; ulaw first: universally supported, and the realtime speech services we will
+; feed take 8 kHz PCM anyway, so opus would only add a transcode.
+allow = ulaw,alaw
+outbound_auth = carrier-auth
+aors = carrier
+from_user = ${SIP_USERNAME}
+from_domain = ${SIP_DOMAIN}
+; Trust nothing about the far end's idea of our address.
+rtp_symmetric = yes
+force_rport = yes
+rewrite_contact = yes
+direct_media = no
+; Cap concurrent calls on the trunk. This is the single most effective limit
+; on the cost of a credential leak or a runaway dialplan loop: even with valid
+; credentials, an attacker cannot place more than this many calls at once.
+device_state_busy_at = ${SIP_MAX_CHANNELS}
+
+[carrier]
+type = aor
+contact = sip:${SIP_OUTBOUND_PROXY}
+; Qualify is off: this carrier answers OPTIONS with 403, so probing only marks
+; the contact unreachable and produces a steady stream of failures in the log.
+; The registration already tells us whether the trunk is up.
+qualify_frequency = 0
+
+; --- Identify inbound traffic as the carrier -------------------------------
+; Without this, calls from the carrier match no endpoint and arrive as
+; anonymous. Since no endpoint accepts anonymous traffic, they would be
+; rejected -- so this section is what makes inbound calls work at all, and
+; equally what keeps everyone else's traffic out.
+
+[carrier]
+type = identify
+endpoint = carrier
+; One comma-separated match, not several `match` lines: pjsip rejects the
+; whole identify object if the option is repeated, which leaves the endpoint
+; Invalid and silently drops every inbound call.
+match = ${IDENTIFY_MATCH}
