@@ -12,7 +12,7 @@ services:
     networks:
       - pana-network
 
-  # CELERY BROKER REDIS SERVICE
+  # CELERY BROKER AND REDIS SERVICE
   redis-pana:
     image: redis:7-alpine
     container_name: redis-pana

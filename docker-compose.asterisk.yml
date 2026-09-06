@@ -1,0 +1,46 @@
+# Asterisk, the SIP trunk to the carrier. Separate from the datastores file so
+# that `make up` (development) does not start a PBX, and so that the telephony
+# stack can be brought up and down on its own.
+#
+# SECURITY: the SIP port is published to 127.0.0.1 by default. A SIP port open
+# to the internet is scanned continuously by toll-fraud bots. Open it wider
+# only once the carrier's signalling addresses are known, and then only to
+# those addresses -- see docs/telephony.md.
+services:
+  asterisk-pana:
+    build:
+      context: ./asterisk
+    image: pana-asterisk
+    container_name: asterisk-pana
+    restart: unless-stopped
+    # Asterisk needs to see the real source address of carrier traffic and to
+    # use a wide RTP port range; host networking avoids both a NAT hop and a
+    # hundred published-port entries. The trade-off is that http.conf's
+    # 127.0.0.1 binding is now the host's loopback, which is what we want for
+    # ARI, but it also means SIP_BIND_ADDRESS must be set carefully.
+    network_mode: host
+    volumes:
+      # The credentials. Read-only, and never copied into the image.
+      - ./secrets/sip_trunk.env:/run/secrets/sip_trunk.env:ro
+      # Persists the generated ARI password across restarts.
+      - asterisk_pana_lib:/var/lib/asterisk
+      - asterisk_pana_spool:/var/spool/asterisk
+    environment:
+      # Concurrent call ceiling on the trunk. The cost cap if credentials leak.
+      SIP_MAX_CHANNELS: "${SIP_MAX_CHANNELS:-2}"
+      # Per-call ceiling in seconds: carrier minutes on one side, a held
+      # channel and media session on ours.
+      SIP_MAX_CALL_SECONDS: "${SIP_MAX_CALL_SECONDS:-180}"
+    healthcheck:
+      # Reports healthy only when the trunk is actually registered, so a
+      # credential or network problem surfaces as an unhealthy container
+      # rather than as silence.
+      test: ["CMD-SHELL", "asterisk -rx 'pjsip show registrations' | grep -q Registered"]
+      interval: 60s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  asterisk_pana_lib:
+  asterisk_pana_spool:

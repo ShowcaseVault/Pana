@@ -15,5 +15,6 @@ follows; the rest are one page per thing the app does for a user.
 | [transcriptions.md](transcriptions.md) | Job lifecycle, the Celery worker and its failure policy, confidence scoring, the SSE stream |
 | [diary.md](diary.md) | Daily entry generation, transcript gap-filling and filtering, location resolution, why a day with no recordings is refused, the two empty-day fallbacks |
 | [home-and-history.md](home-and-history.md) | Profile endpoint and the calendar month view |
+| [telephony.md](telephony.md) | The SIP trunk to the carrier: where the credentials live and why, firewall requirements, blast-radius limits, registration troubleshooting |
 
 Conventions, layout, and commands live in [../CLAUDE.md](../CLAUDE.md).
