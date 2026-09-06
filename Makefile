@@ -15,7 +15,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -98,6 +98,15 @@ ifndef NUMBER
 	$(error NUMBER is required, e.g. make asterisk-call NUMBER=9779812345678)
 endif
 	./asterisk/bin/test-call.sh $(NUMBER)
+
+# Snapshot: registration, live calls, limits, recent inbound history.
+asterisk-status:
+	./asterisk/bin/status.sh
+
+# Is the call reaching this host at all? Watches packets, SIP and dialplan
+# together, so an inbound failure is attributed to the right layer.
+asterisk-diagnose:
+	./asterisk/bin/diagnose-inbound.sh
 
 # Watch inbound calls arrive. Ring your DID while this runs.
 asterisk-watch:
@@ -187,6 +196,8 @@ help:
 	@echo "make asterisk-check  verify the trunk registered with the carrier"
 	@echo "make asterisk-call NUMBER=...  place a test call out through the carrier"
 	@echo "make asterisk-watch  trace inbound calls as they arrive"
+	@echo "make asterisk-status snapshot: registration, live calls, call history"
+	@echo "make asterisk-diagnose  is the inbound call reaching this host at all?"
 	@echo "make deploy-build    build the deployment images"
 	@echo "make deploy-up       start the full deployment stack"
 	@echo "make deploy-down     stop the full deployment stack"

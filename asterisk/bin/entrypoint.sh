@@ -60,6 +60,14 @@ SIP_MAX_CHANNELS="${SIP_MAX_CHANNELS:-2}"
 # on our side. A call that hits the limit is hung up, so pick a value above
 # any legitimate conversation length.
 SIP_MAX_CALL_SECONDS="${SIP_MAX_CALL_SECONDS:-180}"
+
+# NAT keepalive. Behind carrier-grade NAT the IPv4 translation is torn down
+# after a short idle period and no port forward can be configured, so holding
+# the mapping open is the only way inbound calls can arrive at all. 30s is
+# below the timeout most CGNAT deployments use; the registration expiry is
+# kept short for the same reason.
+SIP_KEEPALIVE_INTERVAL="${SIP_KEEPALIVE_INTERVAL:-30}"
+SIP_REGISTRATION_EXPIRY="${SIP_REGISTRATION_EXPIRY:-120}"
 case "$SIP_MAX_CALL_SECONDS" in
     ''|*[!0-9]*)
         echo "entrypoint: SIP_MAX_CALL_SECONDS must be a whole number of seconds" >&2
@@ -128,7 +136,7 @@ if [ -n "${SIP_IDENTIFY_EXTRA:-}" ]; then
 fi
 
 export SIP_USERNAME SIP_PASSWORD SIP_AUTH_NAME SIP_DOMAIN SIP_OUTBOUND_PROXY \
-       SIP_TRANSPORT SIP_MAX_CHANNELS NAT_TRANSPORT_LINES REG_PROXY_LINE \
+       SIP_TRANSPORT SIP_MAX_CHANNELS SIP_KEEPALIVE_INTERVAL SIP_REGISTRATION_EXPIRY NAT_TRANSPORT_LINES REG_PROXY_LINE \
        IDENTIFY_MATCH
 
 # Create the file empty and locked down *before* any secret goes into it, so
@@ -149,6 +157,12 @@ type = global
 ; Do not advertise the version string: it tells a scanner exactly which CVEs
 ; are worth trying against this host.
 user_agent = Pana
+; Send a blank packet on every transport at this interval so a NAT translation
+; stays alive between re-registrations. This is a global option, not a
+; transport one. Behind carrier-grade NAT it is what keeps inbound calls
+; arriving at all: once the mapping expires the carrier's INVITE has nowhere
+; to go, while our registration still looks perfectly healthy.
+keep_alive_interval = KEEPALIVE_PLACEHOLDER
 ; Anonymous inbound calls are refused by construction rather than by a
 ; setting: the only `identify` section matches the carrier, so traffic from
 ; anywhere else matches no endpoint and is rejected. Adding an endpoint named
@@ -168,6 +182,8 @@ umask 022
 printf '%s\n' "[globals]" > /etc/asterisk/extensions_globals.conf
 printf '%s\n' "$DIALPLAN_GLOBALS" >> /etc/asterisk/extensions_globals.conf
 chown asterisk:asterisk /etc/asterisk/extensions_globals.conf
+
+sed -i "s/KEEPALIVE_PLACEHOLDER/${SIP_KEEPALIVE_INTERVAL}/" "$RENDERED"
 
 # ARI credentials for the media service. Generated on first start and kept in
 # a volume, so the operator never has to invent or store one, and it never

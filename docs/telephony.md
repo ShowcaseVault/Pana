@@ -105,6 +105,44 @@ with no port forwarding at all. If it does not, forward UDP 5060 and the RTP
 range to this host -- and read the firewall section below first, because a
 forwarded 5060 is reachable by anyone, not only the carrier.
 
+### Is the call even reaching us?
+
+This is the question worth answering first, because it splits the problem in
+two and the two halves have nothing in common.
+
+```
+make asterisk-diagnose
+```
+
+Run it, ring the DID, and it watches three layers at once:
+
+- **packets** -- did an INVITE arrive on UDP 5060 at all
+- **SIP** -- what Asterisk made of it, and what it replied
+- **dialplan** -- did the call reach `from-carrier` and get accepted
+
+**No INVITE arrived.** The call never reached this host, so no Asterisk setting
+is the cause. The likely reasons, in order: the carrier is not routing the DID
+to this trunk; the router is not forwarding UDP 5060 and the carrier is not
+reusing the registration pinhole; a host firewall is dropping it; or the ISP
+uses CGNAT, where inbound forwarding is impossible and the registration path is
+the only one available.
+
+**An INVITE arrived but the call failed.** Now it is ours, and the SIP trace
+shows the response code we sent back. `404` from us means the dialplan found no
+matching extension -- usually the carrier delivers the DID in a different form
+than `CARRIER_DID`, which the `Rejecting call to ...` log line will show.
+
+For a snapshot with no call involved:
+
+```
+make asterisk-status
+```
+
+Registration state, live channels, the limits in force, and how many inbound
+calls have arrived and been rejected since start. `arrived: 0` after ringing
+the DID means the call is not reaching the dialplan, which points back to
+`make asterisk-diagnose`.
+
 ### Reading a failure
 
 | What you see | Means |
