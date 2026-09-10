@@ -21,9 +21,16 @@ services:
     volumes:
       # The credentials. Read-only, and never copied into the image.
       - ./secrets/sip_trunk.env:/run/secrets/sip_trunk.env:ro
-      # Persists the generated ARI password across restarts.
+      # Generated speech. The voice service writes a turn's reply here and
+      # Asterisk plays it back by path. A host directory, not a volume: the
+      # writer runs on the host. Kept outside /var/lib/asterisk so it does not
+      # collide with the state volume mounted there.
+      - ./var/voice:/var/spool/pana-tts
+      # Asterisk's own state (astdb and friends), persisted across restarts.
       - asterisk_pana_lib:/var/lib/asterisk
       - asterisk_pana_spool:/var/spool/asterisk
+    env_file:
+      - .env
     environment:
       # Concurrent call ceiling on the trunk. The cost cap if credentials leak.
       SIP_MAX_CHANNELS: "${SIP_MAX_CHANNELS:-2}"

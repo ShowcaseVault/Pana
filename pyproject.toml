@@ -13,6 +13,16 @@ dependencies = [
     "langchain-openai==0.3.9",
     # Transcription
     "groq",
+    # Telephony: ARI REST + websocket to Asterisk
+    "aiohttp",
+    # Offline speech for the voice service: Vosk recognises, Piper synthesises.
+    # Both run locally with no API key, which is what makes a test call work
+    # before a provider is chosen. Swap them out, not the pipeline seams.
+    "vosk",
+    "piper-tts",
+    # audioop left the stdlib in 3.13; the backport carries the same API, so
+    # the ulaw and resampling code in voice_service/audio.py is unchanged.
+    "audioop-lts; python_version >= '3.13'",
     # Server-side
     "fastapi",
     "uvicorn",

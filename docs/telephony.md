@@ -288,19 +288,83 @@ they need config files we do not ship and are not used here.
 `pjsip set logger on` prints full SIP messages including the `Authorization`
 header. Do not paste that output into a ticket or a chat without removing it.
 
-## Next: the AI conversation
+## The AI conversation
 
-The dialplan currently answers an inbound call and plays a prompt. The
-conversation layer replaces that `Playback` with `Stasis(pana-voice)`, and adds
-a service that:
+`from-carrier` hands an answered call to `Stasis(pana-voice)`, the app served
+by `voice_service/`. That call blocks for the length of the conversation, and
+the service hangs up when it is finished.
 
-1. connects to ARI over `127.0.0.1:8088` and subscribes to `pana-voice`
-2. on `StasisStart`, answers and creates an `externalMedia` channel, which
-   forks the call audio to it as RTP
-3. bridges the two, and relays the audio to a realtime speech-to-speech model
-   in both directions
+`Stasis` returning is therefore not by itself a failure, which is why the
+fallback is gated on `STASISSTATUS` rather than on reaching the next line:
 
-`externalMedia` is what makes barge-in possible: audio flows continuously
-rather than in record-then-respond turns, so the caller can interrupt. The
-codec choice in `pjsip.conf` (`ulaw` first) already matches what those APIs
-expect, so no transcode is needed.
+- `SUCCESS` -- the app ran and the call is over. Nothing more to play; the
+  dialplan jumps straight to `Hangup`. Without this test the caller would hear
+  the fallback prompt tacked onto the end of every successful conversation.
+- anything else -- the app was never there (no service running, or an app name
+  that does not match `ARI_APP_NAME`). The caller is on an answered, billable
+  line hearing silence, so the fallback prompt plays and the call ends.
+
+    voice_service/
+      app.py           Stasis event loop and the per-call turn loop
+      ari.py           ARI client -- events websocket plus the REST calls used
+      pipeline.py      stt / llm / tts, the three seams
+      local_speech.py  Vosk and Piper, the offline models behind stt and tts
+      audio.py         u-law and resampling between trunk and models
+
+Run it with `make voice`, alongside `make asterisk-up`. Both read
+`ARI_PASSWORD` from `.env`: Asterisk renders it into `ari.conf` at start, the
+voice service authenticates with it. Neither invents a default, so a missing
+value fails at start on both sides rather than half-working. Generate one with:
+
+    openssl rand -hex 32
+
+### Turn taking, and what replaces it
+
+Today a turn is record-then-respond: `record` on the channel with
+`maxSilenceSeconds` ending the turn, then download the recording, run it
+through the pipeline, and play the reply. This needs nothing beyond ARI itself,
+which is why it is the first version.
+
+The end state is an `externalMedia` channel bridged to the caller, forking call
+audio as RTP. That is what makes barge-in possible: audio flows continuously
+rather than in turns, so the caller can interrupt. The codec choice in
+`pjsip.conf` (`ulaw` first) already matches what the realtime speech APIs
+expect, so no transcode is needed. The `stt`/`llm`/`tts` signatures do not
+change when that swap happens.
+
+### Speech, and what is still a stub
+
+Recognition and synthesis are real and run locally: **Vosk** transcribes,
+**Piper** synthesises. Neither needs an API key or the network, which is what
+lets a call work end to end before a provider is chosen. `make voice-models`
+fetches both once into `models/` (git-ignored, ~130 MB).
+
+`llm` is the remaining stub. It echoes the caller back, so a test call proves
+recognition audibly -- say something and hear it repeated -- without deciding
+which provider answers.
+
+Two things to know about the models on phone audio:
+
+- The small Vosk model is built for 16 kHz and *rejects* 8 kHz rather than
+  resampling, so `audio.py` upsamples the trunk's audio to match. It is
+  noticeably worse than a hosted model on 8 kHz speech; proper nouns suffer
+  ("Pana" comes back as "partner").
+- Piper's medium voices synthesise at 22.05 kHz, so its output is downsampled
+  to 8 kHz u-law before playback.
+
+Both are fast enough on CPU that a GPU is not worth wiring up: Piper runs at
+roughly 0.07× real time and Vosk at 0.34×. Vosk is Kaldi, not ONNX, so it has
+no CUDA build on PyPI at all -- GPU only becomes interesting when a real model
+(Whisper, say) replaces it.
+
+### Playing generated audio
+
+Asterisk plays from a file by path, never from bytes. A turn's reply is written
+to `var/voice/` on the host, which is bind-mounted to `/var/spool/pana-tts` in
+the container, and played as `sound:/var/spool/pana-tts/<name>` -- a `sound:`
+URI takes the path without its extension. The file is `.ulaw`: headerless, read
+by extension, already at the trunk's rate, so playback does not transcode. Each
+file is deleted once played.
+
+That directory is deliberately outside `/var/lib/asterisk`, which has a named
+volume mounted over it.

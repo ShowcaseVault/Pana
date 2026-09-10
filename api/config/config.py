@@ -37,20 +37,46 @@ class Settings(BaseSettings):
     # Recordings: on-disk directory for uploaded audio, served at /recordings.
     RECORDINGS_DIR: str = "recordings"
 
-    # Transcriptions
-    AUDIO_TRANSCRIBE_PROMPT: str = AUDIO_TRANSCRIBE_PROMPT
+    # Speech-to-text. Provider names the service; the models are its own.
+    TRANSCRIPTION_PROVIDER: str = "groq"
     TRANSCRIPTION_MODEL: str = "whisper-large-v3"
     TRANSCRIPTION_MODEL_TURBO: str = "whisper-large-v3-turbo"
     TRANSCRIPTION_CONFIDENCE_THRESHOLD: float = 0.5
+    AUDIO_TRANSCRIBE_PROMPT: str = AUDIO_TRANSCRIBE_PROMPT
 
-    # LLM1
-    LLM1: str = "Groq"
+    # Text-to-speech. NVIDIA Magpie is the only provider wired up.
+    TTS_PROVIDER: str = "magpie"
+    MAGPIE_TTS_MODEL: str = "magpie-tts-multilingual"
+    NVIDIA_API_KEY: str | None = None
+
+    # Asterisk ARI. Control channel for the voice service: it subscribes to the
+    # Stasis app and drives record/playback on live calls. ARI can originate
+    # calls, so http.conf binds it to loopback and it must stay there -- see
+    # docs/telephony.md.
+    ARI_BASE_URL: str = "http://127.0.0.1:8088"
+    ARI_USERNAME: str = "pana"
+    # Shared with the Asterisk container, which reads the same value from .env
+    # and renders it into ari.conf. No default: both sides refuse to start
+    # rather than fall back to a known password.
+    ARI_PASSWORD: str | None = None
+    ARI_APP_NAME: str = "pana-voice"
+    # Generated speech, written by the voice service and read by Asterisk. Two
+    # views of one directory: the host path this process writes to, and the
+    # path inside the container, which is what a playback URI must name. Both
+    # sides of the bind mount in docker-compose.asterisk.yml.
+    VOICE_TTS_DIR: str = "var/voice"
+    VOICE_TTS_CONTAINER_DIR: str = "/var/spool/pana-tts"
+
+    # LLM Providers
+    LLM_PRIMARY_PROVIDER: str = "groq"
+    LLM_FALLBACK_PROVIDER: str = "gemini"
+
+    # Groq
     GROQ_API_KEY: str | None = None
     GROQ_MODEL_SMALL: str = "qwen/qwen3.8-27b"
     GROQ_MODEL_LARGE: str = "openai/gpt-oss-120b"
 
-    # LLM2
-    LLM2: str = "Gemini"
+    # Gemini
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
