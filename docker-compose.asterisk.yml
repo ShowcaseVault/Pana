@@ -12,7 +12,6 @@ services:
       context: ./asterisk
     image: pana-asterisk
     container_name: asterisk-pana
-    restart: unless-stopped
     # Asterisk needs to see the real source address of carrier traffic and to
     # use a wide RTP port range; host networking avoids both a NAT hop and a
     # hundred published-port entries. The trade-off is that http.conf's
