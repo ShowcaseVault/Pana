@@ -44,6 +44,7 @@ dependencies = [
     "celery",
     "redis",
     "cachetools>=7.1.8",
+    "nvidia-riva-client>=2.27.0",
 ]
 
 [tool.uv]
