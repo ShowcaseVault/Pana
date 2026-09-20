@@ -1,0 +1,108 @@
+/* ============================================================================
+   The swipe shell.
+
+   Three panes on one horizontal track. Snap points make a drag land on exactly
+   one pane; `overscroll-behavior-x: contain` stops a swipe at the calendar
+   edge from triggering the platform's back gesture.
+   ========================================================================= */
+
+.shell {
+  position: fixed;
+  inset: 0;
+  background: var(--ground);
+  overflow: hidden;
+}
+
+.shell__track {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.shell__track::-webkit-scrollbar {
+  display: none;
+}
+
+.shell__pane {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* Clear the status bar and the home indicator. The app draws edge to edge,
+     so the inset has to be paid here rather than by the platform. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 3.5rem);
+}
+
+/* --- Pane indicator -------------------------------------------------------
+   Sits above the home indicator, centred, and stays out of the way: it says
+   where you are, it is not a primary control. */
+.shell__dots {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 0.85rem);
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 72%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--rule);
+}
+
+.shell__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink-ghost);
+  transition: background 160ms ease, width 160ms ease;
+  cursor: pointer;
+}
+
+.shell__dot.is-active {
+  width: 1.15rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+/* --- Shared pane furniture ----------------------------------------------- */
+
+.pane {
+  min-height: 100%;
+  padding: 1.25rem 1.1rem 0;
+}
+
+.pane__title {
+  margin: 0 0 0.15rem;
+  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.pane__subtitle {
+  margin: 0 0 1.4rem;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+.pane__empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-faint);
+}

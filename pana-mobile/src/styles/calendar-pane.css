@@ -1,0 +1,118 @@
+/* The month grid. A marked day is the only coloured thing here. */
+
+.calendar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.2rem;
+}
+
+.calendar__head button {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.calendar__head button:active {
+  background: var(--sunken);
+}
+
+.calendar__month {
+  margin: 0;
+  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-size: 1.3rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.calendar__month span {
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.calendar__weekdays,
+.calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.3rem;
+}
+
+.calendar__weekdays {
+  margin-bottom: 0.45rem;
+}
+
+.calendar__weekdays span {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-ghost);
+}
+
+.calendar__day {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+/* A day with content is legible; an empty one recedes. That contrast is the
+   whole information design of this grid. */
+.calendar__day.has-recording,
+.calendar__day.has-diary {
+  color: var(--ink);
+  font-weight: 500;
+  background: var(--sunken);
+}
+
+.calendar__day.has-diary {
+  background: var(--accent-tint);
+  color: var(--accent-deep);
+}
+
+.calendar__day.is-today {
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1.5px;
+}
+
+.calendar__day.is-selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* The dot distinguishes a written day from a day with only audio, for anyone
+   who cannot rely on the background colour alone. */
+.calendar__mark {
+  position: absolute;
+  bottom: 0.3rem;
+  width: 0.22rem;
+  height: 0.22rem;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.calendar__blank {
+  aspect-ratio: 1;
+}
+
+.calendar__legend {
+  margin-top: 1.4rem;
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+}

@@ -1,0 +1,12 @@
+{
+  "appId": "com.pana.app",
+  "appName": "Pana",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

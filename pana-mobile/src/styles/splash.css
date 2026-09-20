@@ -1,0 +1,47 @@
+/* The opening screen: the logo on the app's own ground, nothing else. */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  background: var(--ground);
+}
+
+.splash__logo {
+  width: 5.5rem;
+  height: 5.5rem;
+  object-fit: contain;
+  border-radius: 1.3rem;
+  animation: splash-rise 620ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.splash__word {
+  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-size: 1.45rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  animation: splash-rise 620ms cubic-bezier(0.2, 0.7, 0.3, 1) 90ms both;
+}
+
+@keyframes splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash__logo,
+  .splash__word {
+    animation: none;
+  }
+}

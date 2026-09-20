@@ -10,6 +10,7 @@ UV         ?= uv
 NPM        ?= npm
 APP_DIR    ?= pana-app
 LANDING_DIR ?= pana-landing
+MOBILE_DIR ?= pana-mobile
 
 CELERY := $(UV) run celery -A celery_service.celery_app worker --loglevel=info
 
@@ -20,7 +21,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: voice asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: voice asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix install-mobile mobile mobile-live mobile-release celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -30,6 +31,9 @@ install-frontend:
 
 install-landing:
 	$(NPM) --prefix $(LANDING_DIR) install
+
+install-mobile:
+	$(NPM) --prefix $(MOBILE_DIR) install
 
 # --- Development datastores -------------------------------------------------
 
@@ -55,6 +59,24 @@ landing:
 
 landing-build:
 	$(NPM) --prefix $(LANDING_DIR) run build
+
+# --- Mobile -----------------------------------------------------------------
+#
+# The device reaches the API over the LAN, so the backend must already be
+# running and VITE_BASE_API_URL in pana-mobile/.env must name this machine.
+
+mobile:
+	$(NPM) --prefix $(MOBILE_DIR) run dev
+
+# Hot reload straight onto the handset: the installed app loads its bundle
+# from the dev server rather than from the APK, so an edit appears without a
+# rebuild.
+mobile-live:
+	$(NPM) --prefix $(MOBILE_DIR) run android:live
+
+# Build, archive under release/, and install on the connected phone.
+mobile-release:
+	$(NPM) --prefix $(MOBILE_DIR) run release
 
 celery:
 	$(CELERY) -P $(CELERY_POOL) -Q high_priority,default -n worker@%h
@@ -196,6 +218,10 @@ help:
 	@echo "make frontend-build  build the app for production"
 	@echo "make landing         run the landing page dev server (5174)"
 	@echo "make landing-build   build the landing page for production"
+	@echo "make install-mobile  install the mobile app dependencies"
+	@echo "make mobile          run the mobile dev server (5175)"
+	@echo "make mobile-live     run on the connected phone with hot reload"
+	@echo "make mobile-release  build an APK into release/ and install it"
 	@echo "make celery          run one worker consuming both queues"
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"
