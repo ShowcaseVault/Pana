@@ -6,6 +6,26 @@
 
 ---
 
+## 📸 A Look Inside
+
+### Web
+
+| Home | Recording |
+| :--: | :--: |
+| ![Pana web home screen](docs/Pana-Web/Pana_Home.png) | ![Pana web recording screen](docs/Pana-Web/Pana_Recording.png) |
+
+| Diary | Calendar |
+| :--: | :--: |
+| ![Pana web diary entry](docs/Pana-Web/Pana_Diary.png) | ![Pana web calendar history](docs/Pana-Web/Pana_Calendar.png) |
+
+### Mobile
+
+| Recording | Diary | Calendar |
+| :--: | :--: | :--: |
+| <img src="docs/Pana-Mobile/Pana_Recording.jpg" alt="Pana mobile recording screen" width="240"> | <img src="docs/Pana-Mobile/Pana_Diary.jpg" alt="Pana mobile diary entry" width="240"> | <img src="docs/Pana-Mobile/Pana_Calendar.jpg" alt="Pana mobile calendar history" width="240"> |
+
+---
+
 ## 🚀 Key Features
 
 - **High-Fidelity Audio Capture**
