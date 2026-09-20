@@ -40,7 +40,11 @@ def _to_wav(ulaw: bytes) -> bytes:
 async def stt(audio: bytes) -> str:
     """Transcribe one turn of 8 kHz u-law call audio."""
     if len(audio) < MIN_AUDIO_BYTES:
-        logger.info("stt: %d bytes is below the floor, treating as silence", len(audio))
+        logger.info(
+            "stt: %d bytes (%.2fs) is below the floor, treating as silence",
+            len(audio),
+            len(audio) / TELEPHONY_RATE,
+        )
         return ""
 
     response = await get_groq_client().audio.transcriptions.create(

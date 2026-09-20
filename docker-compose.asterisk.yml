@@ -43,6 +43,10 @@ services:
       # is not ours any more. Empty when detection failed, in which case the
       # secret file's value stands.
       SIP_EXTERNAL_IP: "${SIP_EXTERNAL_IP:-}"
+      # Let STUN supply the media address and port instead of pinning it to
+      # SIP_EXTERNAL_IP. For a NAT that rewrites RTP ports, where the port in
+      # the SDP has to be the mapped one rather than Asterisk's own.
+      SIP_MEDIA_VIA_STUN: "${SIP_MEDIA_VIA_STUN:-false}"
     healthcheck:
       # Reports healthy only when the trunk is actually registered, so a
       # credential or network problem surfaces as an unhealthy container

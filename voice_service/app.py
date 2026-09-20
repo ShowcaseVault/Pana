@@ -36,7 +36,7 @@ from pathlib import Path
 from api.config.config import settings
 from voice_service.ari import AriClient
 from voice_service.audio import TELEPHONY_RATE
-from voice_service.pipeline import NO_SPEECH_REPLY, llm_stream, stt, tts_stream
+from voice_service.pipeline import NO_SPEECH_REPLY, llm_stream, stt, tts, tts_stream
 
 logger = logging.getLogger("voice")
 
@@ -72,6 +72,10 @@ BACKCHANNELS = ("Mm.", "Yeah.", "Right.", "Go on.", "I'm here.")
 MAX_SILENT_TURNS = 3
 # Said before hanging up on a line nothing is coming through on.
 GIVE_UP_REPLY = "I can't hear you, so I'll let you go. Call back any time."
+
+# How long to wait for the synthesiser to connect at startup before giving up
+# and letting the first call pay for it instead.
+WARM_UP_TIMEOUT = 20
 
 GREETING = "Hey, it's Pana. What's going on?"
 
@@ -240,6 +244,20 @@ class CallSession:
             return b""
 
         audio = await self.ari.stored_recording(name)
+        if settings.VOICE_KEEP_RECORDINGS:
+            # Size alone tells most of the story: a turn that captured nothing
+            # is a media path problem, not a recognition one.
+            kept = Path(settings.VOICE_TTS_DIR) / f"{name}.ulaw"
+            kept.write_bytes(audio)
+            logger.info(
+                "call %s: recorded %d bytes (%.1fs), kept at %s",
+                self.channel_id,
+                len(audio),
+                len(audio) / TELEPHONY_RATE,
+                kept,
+            )
+        else:
+            logger.debug("call %s: recorded %d bytes", self.channel_id, len(audio))
         await self.ari.delete_recording(name)
         return audio
 
@@ -271,11 +289,32 @@ class CallSession:
             audio = await self._listen()
             if self.hung_up.is_set():
                 break
-            if not audio:
-                logger.info("call %s: nothing recorded, ending", self.channel_id)
-                break
-            text = await stt(audio)
-            if text.strip() and self._is_backchannel_moment(audio, text):
+
+            # Two ways a turn can come through as nothing, and they are the
+            # same thing to the caller: no audio captured at all (a one-way
+            # media path, or they said nothing), or audio the recogniser could
+            # not resolve into words. Neither is a reason to hang up on them
+            # without a word -- the line just goes dead and they are left
+            # wondering whether it was them. Ask again, and say goodbye before
+            # giving up.
+            text = await stt(audio) if audio else ""
+            if not text.strip():
+                silent_turns += 1
+                logger.info(
+                    "call %s: nothing heard (%d of %d)",
+                    self.channel_id,
+                    silent_turns,
+                    MAX_SILENT_TURNS,
+                )
+                if silent_turns >= MAX_SILENT_TURNS:
+                    await self._speak(GIVE_UP_REPLY)
+                    break
+                if not await self._speak(NO_SPEECH_REPLY):
+                    break
+                continue
+
+            silent_turns = 0
+            if self._is_backchannel_moment(audio, text):
                 # Their turn still goes in the history -- Pana heard it, and
                 # the next real reply is answering all of it.
                 self._remember("user", text)
@@ -283,23 +322,28 @@ class CallSession:
                 if not await self._speak(backchannel):
                     break
                 continue
-            if not text.strip():
-                # Nothing recognised: re-prompt without polluting the history
-                # with an empty turn the model would have to interpret.
-                silent_turns += 1
-                if silent_turns >= MAX_SILENT_TURNS:
-                    logger.info("call %s: nothing heard in %d turns", self.channel_id, silent_turns)
-                    await self._speak(GIVE_UP_REPLY)
-                    break
-                if not await self._speak(NO_SPEECH_REPLY):
-                    break
-                continue
-            silent_turns = 0
+
             self._remember("user", text)
             if not await self._respond():
                 break
 
         logger.info("call %s: conversation finished", self.channel_id)
+
+
+async def warm_up() -> None:
+    """Open the synthesis connection so the first call does not pay for it."""
+    try:
+        # A real phrase, not an empty one: synthesis of "" returns before the
+        # connection is built, which is the cost this exists to pay early.
+        await asyncio.wait_for(tts("ready"), timeout=WARM_UP_TIMEOUT)
+    except TimeoutError:
+        logger.warning("tts did not warm up in %ss; the first call may lag", WARM_UP_TIMEOUT)
+    except Exception:
+        # A provider that cannot be reached now may work by the first call,
+        # and the pipeline reports its own failures per turn.
+        logger.warning("tts could not be warmed up; the first call may lag", exc_info=True)
+    else:
+        logger.info("tts connection ready")
 
 
 async def handle_call(session: CallSession) -> None:
@@ -339,6 +383,12 @@ async def run() -> None:
         settings.ARI_PASSWORD,
         settings.ARI_APP_NAME,
     ) as ari:
+        # Build the synthesis connection before the first call rather than
+        # during it. The TLS handshake to a hosted synthesiser costs seconds,
+        # and on the first call that is silence on an answered line between
+        # the greeting being asked for and any audio reaching the caller.
+        await warm_up()
+
         logger.info("voice service ready, waiting for calls")
         async for event in ari.events():
             kind = event.get("type")

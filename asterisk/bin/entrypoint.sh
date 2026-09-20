@@ -108,10 +108,23 @@ CARRIER_DID = ${SIP_USERNAME}"
 # NAT handling. Only emitted when an external IP was supplied, because
 # external_media_address with an empty value makes Asterisk advertise a blank
 # address in SDP and one-way audio is the result.
+#
+# SIP_MEDIA_VIA_STUN leaves external_media_address off so that the STUN
+# address discovered per RTP socket (stunaddr in rtp.conf) is what reaches the
+# SDP. external_media_address rewrites the SDP after RTP has filled it in, and
+# it only knows the address, not the port -- so with it set, media is
+# advertised on Asterisk's internal port, which a NAT that rewrites ports has
+# already mapped to something else. Signalling keeps the static address either
+# way: registration needs one that does not move.
 NAT_TRANSPORT_LINES=""
 if [ -n "${SIP_EXTERNAL_IP:-}" ]; then
-    NAT_TRANSPORT_LINES="external_media_address = ${SIP_EXTERNAL_IP}
+    if [ "${SIP_MEDIA_VIA_STUN:-false}" = "true" ]; then
+        echo "entrypoint: media address comes from STUN; signalling stays on ${SIP_EXTERNAL_IP}"
+        NAT_TRANSPORT_LINES="external_signaling_address = ${SIP_EXTERNAL_IP}"
+    else
+        NAT_TRANSPORT_LINES="external_media_address = ${SIP_EXTERNAL_IP}
 external_signaling_address = ${SIP_EXTERNAL_IP}"
+    fi
     if [ -n "${SIP_LOCAL_NET:-}" ]; then
         NAT_TRANSPORT_LINES="${NAT_TRANSPORT_LINES}
 local_net = ${SIP_LOCAL_NET}"

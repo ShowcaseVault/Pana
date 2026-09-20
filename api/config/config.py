@@ -95,6 +95,13 @@ class Settings(BaseSettings):
     VOICE_TTS_DIR: str = "var/voice"
     VOICE_TTS_CONTAINER_DIR: str = "/var/spool/pana-tts"
 
+    # Keep each turn's recording instead of deleting it, and log its size. For
+    # diagnosing a call where the caller cannot be heard: the file is what
+    # Asterisk actually captured, which separates a media path problem (no
+    # audio arrived) from a recognition one (audio arrived, words did not).
+    # Off in normal operation -- these are recordings of real conversations.
+    VOICE_KEEP_RECORDINGS: bool = False
+
     # Database
     POSTGRES_USER: str = "pana"
     POSTGRES_PASSWORD: str = "pana"
