@@ -9,6 +9,11 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from prompts.audio_transcribe import AUDIO_TRANSCRIBE_PROMPT
 from prompts.voice_companion import VOICE_COMPANION_PROMPT
 
+# Schemes an Origin header may carry. A browser sends http or https; a native
+# WebView serves the app from its own scheme and sends that instead --
+# `capacitor://localhost` on iOS, `http://localhost` on Android.
+ORIGIN_SCHEMES = frozenset({"http", "https", "capacitor"})
+
 
 class Settings(BaseSettings):
     """Application settings.
@@ -229,6 +234,11 @@ class Settings(BaseSettings):
         An origin is scheme + host + optional port, nothing more. A wildcard, a
         trailing path, or a missing scheme all silently break CORS at runtime,
         so they fail here instead.
+
+        `capacitor` joins http and https because a native WebView serves the
+        app from its own scheme -- `capacitor://localhost` on iOS -- and sends
+        that as the Origin. Rejecting it would mean the mobile app could not be
+        allowed through CORS at all.
         """
         if not origins:
             raise ValueError("ALLOWED_ORIGINS must list at least one origin")
@@ -242,9 +252,10 @@ class Settings(BaseSettings):
                 )
 
             parsed = urlparse(origin)
-            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            if parsed.scheme not in ORIGIN_SCHEMES or not parsed.netloc:
                 raise ValueError(
-                    f"Invalid origin {origin!r}: expected scheme://host[:port], "
+                    f"Invalid origin {origin!r}: expected scheme://host[:port] "
+                    f"with scheme one of {', '.join(sorted(ORIGIN_SCHEMES))}, "
                     "e.g. http://localhost:5173"
                 )
             if parsed.path or parsed.query or parsed.fragment:
