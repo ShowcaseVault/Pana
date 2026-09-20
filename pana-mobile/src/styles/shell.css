@@ -1,0 +1,125 @@
+/* ============================================================================
+   The swipe shell.
+
+   Three panes on one horizontal track. Snap points make a drag land on exactly
+   one pane; `overscroll-behavior-x: contain` stops a swipe at the calendar
+   edge from triggering the platform's back gesture.
+   ========================================================================= */
+
+.shell {
+  position: fixed;
+  inset: 0;
+  background: var(--ground);
+  overflow: hidden;
+}
+
+.shell__track {
+  display: flex;
+
+  /* The track is the viewport; each pane grows inside it. `align-items` is
+     left at stretch so a pane shorter than the screen still fills it. */
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.shell__track::-webkit-scrollbar {
+  display: none;
+}
+
+.shell__pane {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* Clear the status bar, and leave room above the home indicator for the pane
+     dots. The app draws edge to edge, so the insets are paid here rather than
+     by the platform.
+
+     min-height rather than height, and no border-box shorthand: a fixed height
+     with padding makes the padding eat into the pane, which clips whatever
+     sits at the very top and bottom. Letting the box grow past the viewport is
+     what keeps a full month on screen.
+
+     The bottom clears the floating indicator, so the last row of a list is
+     not left sitting underneath it. */
+  min-height: 100%;
+  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 3.75rem);
+}
+
+/* --- Pane indicator -------------------------------------------------------
+   Sits above the home indicator, centred, and stays out of the way: it says
+   where you are, it is not a primary control. Icons rather than dots, so a
+   glance tells you which pane is which and not merely that there are three. */
+.shell__dots {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom) + 0.85rem);
+  left: 50%;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transform: translateX(-50%);
+}
+
+.shell__dot {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-ghost);
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease;
+}
+
+/* The active pane is filled rather than merely tinted: at this size a colour
+   change alone is easy to miss against the translucent pill. */
+.shell__dot.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* --- Shared pane furniture ----------------------------------------------- */
+
+.pane {
+  min-height: 100%;
+  padding: 1.25rem 1.1rem 0;
+}
+
+.pane__title {
+  margin: 0 0 0.15rem;
+  font-family: var(--font-prose);
+  font-size: 1.6rem;
+  font-weight: 500;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.pane__subtitle {
+  margin: 0 0 1.4rem;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+.pane__empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--ink-faint);
+}

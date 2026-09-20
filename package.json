@@ -1,0 +1,14 @@
+{
+  "name": "pana-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Workspace root for the Pana frontends. Not published, not built -- it exists so the three apps share one node_modules.",
+  "workspaces": [
+    "pana-app",
+    "pana-landing",
+    "pana-mobile"
+  ],
+  "scripts": {
+    "install:all": "npm install"
+  }
+}

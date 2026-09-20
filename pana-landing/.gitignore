@@ -6,6 +6,9 @@ yarn-debug.log*
 pnpm-debug.log*
 
 # Build output
+# Dependencies live in the workspace root's node_modules, and the root
+# .gitignore covers them. Kept here only for a stray install run inside
+# this directory.
 node_modules
 dist
 dist-ssr
@@ -25,3 +28,6 @@ dist-ssr
 .DS_Store
 *.suo
 *.sw?
+
+# Superseded by the workspace root lockfile.
+package-lock.json

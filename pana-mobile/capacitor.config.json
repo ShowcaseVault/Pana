@@ -1,0 +1,14 @@
+{
+  "appId": "com.pana.app",
+  "appName": "Pana",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#eef1f4"
+  },
+  "backgroundColor": "#eef1f4"
+}

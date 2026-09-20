@@ -1,0 +1,94 @@
+/* The record pane: the control dominates, the list reads as a quiet thread. */
+
+.record__head {
+  text-align: center;
+}
+
+.record__stage {
+  height: 32vh;
+  min-height: 11rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 -1.1rem;
+}
+
+.record__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 0.5rem 0 1.75rem;
+}
+
+/* The one primary control in the app. Sized for a thumb, not for a cursor. */
+.record__button {
+  display: grid;
+  place-items: center;
+  width: 4.75rem;
+  height: 4.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(56, 178, 172, 0.35);
+  transition: transform 140ms ease, background 200ms ease, box-shadow 200ms ease;
+  cursor: pointer;
+}
+
+.record__button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.record__button:disabled {
+  opacity: 0.55;
+}
+
+.record__button.is-recording {
+  background: var(--warn);
+  box-shadow: 0 6px 20px rgba(192, 57, 47, 0.3);
+  animation: record-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes record-breathe {
+  0%, 100% { box-shadow: 0 6px 20px rgba(192, 57, 47, 0.3); }
+  50% { box-shadow: 0 6px 28px rgba(192, 57, 47, 0.5); }
+}
+
+/* Pause sits beside the main control, clearly subordinate to it. The ghost is
+   an invisible twin on the other side, so adding pause does not shunt the
+   record button off centre. */
+.record__secondary {
+  display: grid;
+  place-items: center;
+  width: 2.9rem;
+  height: 2.9rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.record__secondary--ghost {
+  visibility: hidden;
+  border: 0;
+}
+
+.record__saving {
+  margin: -1rem 0 1rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+}
+
+.record__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record__button.is-recording { animation: none; }
+}

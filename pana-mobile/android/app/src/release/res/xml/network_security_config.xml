@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The release counterpart of the development config.
+
+  The debug build opens cleartext to the LAN hosts the API runs on while it is
+  being developed. A shipped build talks to the real API over HTTPS and has no
+  reason to permit plain HTTP to anything, so this permits none: the exception
+  lives in the debug source set, where it cannot reach a user.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

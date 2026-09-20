@@ -11,14 +11,25 @@ transcriptions, location lookup, and the LLM.
 
 `GET /diary?date=YYYY-MM-DD` (defaults to today).
 
-**A day with no diary yet is not a 404.** It comes back empty but with the
-day's recording paths listed. The client shows the day either way, and the
-listed recordings are what let it offer "generate" instead of an error.
+**A day with no diary yet is not a 404.** It answers with its own
+`diary_date` and a null `content`. The client shows the day either way, and a
+null `content` is what lets it offer "generate" instead of an error.
+
+The response deliberately does not carry the day's recording paths. That list
+is the record of which audio the entry was generated from, and the client
+already has it from [listing that day's recordings](recordings.md#listing);
+sending a second copy only invites the two to disagree.
 
 ## Generating
 
 `POST /diary?date=` writes or rewrites the day. Regenerating is free and
 non-destructive to the recordings, so it is an upsert rather than a create.
+
+**A day with no recordings is a 400.** A diary is written *from* a day's
+audio, so storing an entry for a day with none creates a row that survives on
+its own and marks the day as written in the calendar -- the same orphan that
+[deleting the last recording](recordings.md#reading-updating-deleting) is
+careful to remove.
 
 Three steps:
 
@@ -48,10 +59,11 @@ place name it supplied beats nothing. Absent entirely, `"Unknown Location"`.
 
 Two cases, and neither is an error the user sees.
 
-**No usable events** -- a day with no recordings, or none that transcribed
-clearly. The entry is stored with mood `neutral` and a line saying there was
-nothing clear to work from. A day with nothing to say is a fact about the day,
-not a failure.
+**No usable events** -- the day has recordings, but none transcribed clearly
+enough to use. (A day with no recordings at all never gets this far; it is
+rejected above.) The entry is stored with mood `neutral` and a line saying
+there was nothing clear to work from. A day with nothing to say is a fact about
+the day, not a failure.
 
 **The model failed** -- the generation is caught, logged with a traceback, and
 a placeholder is stored with mood `unknown` asking the user to try again in a

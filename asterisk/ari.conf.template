@@ -1,0 +1,11 @@
+[general]
+enabled = yes
+pretty = no
+; Events are sent as they happen; no allowed_origins, since no browser talks
+; to ARI directly.
+
+[pana]
+type = user
+read_only = no
+password = ${ARI_PASSWORD}
+password_format = plain

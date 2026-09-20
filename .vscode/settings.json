@@ -1,0 +1,35 @@
+{
+  // Folders the editor hides entirely. These are all generated -- npm's
+  // workspace install, Python's caches, build output, the native Android
+  // build -- and git ignores every one of them. Hiding them keeps the
+  // explorer and the search results to files that are actually the project.
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/.ruff_cache": true,
+    "**/.pytest_cache": true,
+    "**/dist": true,
+    "pana-mobile/android/.gradle": true,
+    "pana-mobile/android/build": true,
+    "pana-mobile/android/app/build": true
+  },
+
+  // Excluded from search but still visible in the explorer: the lockfile and
+  // the built APKs are worth opening on purpose, never worth matching in a
+  // full-text search.
+  "search.exclude": {
+    "**/package-lock.json": true,
+    "pana-mobile/release": true
+  },
+
+  // Watching generated trees costs file handles and wakes the editor on every
+  // build; nothing here is edited by hand.
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/.venv/**": true,
+    "pana-mobile/android/build/**": true,
+    "pana-mobile/android/app/build/**": true,
+    "pana-mobile/android/.gradle/**": true
+  }
+}

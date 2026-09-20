@@ -17,9 +17,13 @@ The day's recordings for that screen come from
 
 ## History calendar
 
-`GET /history/calendar/{year}/{month}` returns, for one month:
-`days_in_month`, the days that have a diary, and the days that have recordings.
-Enough to dot a calendar widget without a request per day.
+`GET /history/calendar/{year}/{month}` returns, for one month, two lists:
+`diary_days` and `recording_days`. Enough to dot a calendar widget without a
+request per day.
+
+It echoes back neither the year and month nor the length of the month. The
+caller put the first two in the URL, and the third follows from them -- a
+client that can render a calendar already knows how long the month is.
 
 **An out-of-range or missing year or month falls back to today's** rather than
 failing. This backs a calendar widget: a 422 over a stray month number would

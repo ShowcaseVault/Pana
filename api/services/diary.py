@@ -153,7 +153,7 @@ class DiaryService:
 
             # A low-confidence transcript is more likely to mislead the model
             # than to help it, so it is left out entirely.
-            if (transcription.confidence or 0) <= settings.TRANSCRIPTION_CONFIDENCE_THRESHOLD:
+            if (transcription.confidence or 0) <= settings.STT_CONFIDENCE_THRESHOLD:
                 continue
 
             events.append(

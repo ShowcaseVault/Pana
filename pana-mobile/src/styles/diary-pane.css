@@ -1,0 +1,98 @@
+/* The written day. Serif, generous measure: this is the one screen that is
+   meant to be read rather than operated. */
+
+/* The pane's name. The date below it is the thing that changes; this is the
+   fixed label that says which pane you are on. */
+.diary__title {
+  margin-bottom: 2.25rem;
+  text-align: center;
+}
+
+.diary__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.diary__head button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.diary__head button:active:not(:disabled) {
+  background: var(--sunken);
+}
+
+.diary__head button:disabled {
+  opacity: 0.25;
+}
+
+.diary__date {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-prose);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.diary__body {
+  padding-bottom: 2rem;
+}
+
+.diary__body p {
+  margin: 0 0 1.1rem;
+  font-family: var(--font-prose);
+  font-size: 1.02rem;
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+.diary__blank {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 3rem;
+}
+
+.diary__generate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.2rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.diary__generate:disabled {
+  opacity: 0.7;
+}
+
+.diary__spin {
+  animation: diary-spin 900ms linear infinite;
+}
+
+@keyframes diary-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diary__spin { animation: none; }
+}

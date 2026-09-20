@@ -1,0 +1,83 @@
+/* Sign-in: brand centred, the one control below it, nothing competing. */
+
+.login {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.6rem;
+  padding: 2rem 1.75rem calc(env(safe-area-inset-bottom) + 2rem);
+  background: var(--ground);
+}
+
+.login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  text-align: center;
+}
+
+.login__logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+  border-radius: 1.1rem;
+  margin-bottom: 0.35rem;
+}
+
+.login__title {
+  margin: 0;
+  font-family: var(--font-prose);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.login__tagline {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+}
+
+.login__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  width: 100%;
+  max-width: 20rem;
+  padding: 0.95rem 1.25rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 0.9rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.login__button:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.login__button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login__g {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+}
+
+.login__legal {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--ink-faint);
+  text-align: center;
+}

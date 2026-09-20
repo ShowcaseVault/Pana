@@ -7,6 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies live in the workspace root's node_modules, and the root
+# .gitignore covers them. Kept here only for a stray install run inside
+# this directory.
 node_modules
 dist
 dist-ssr
@@ -27,3 +30,6 @@ dist-ssr
 *.sw?
 
 .agents
+
+# Superseded by the workspace root lockfile.
+package-lock.json

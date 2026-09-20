@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release overrides.
+
+  `cleartext: true` in capacitor.config.json is a development setting: it lets
+  the app talk to the plain-HTTP API on the LAN. Capacitor turns it into
+  android:usesCleartextTraffic="true" on a generated manifest that `cap sync`
+  rewrites, so it cannot be edited out there. Left alone it merges into the
+  release build too, where it would permit plain HTTP to anything.
+
+  tools:replace overrides that attribute for this build type only. Together
+  with the release network_security_config, which permits no cleartext at all,
+  a shipped build requires HTTPS regardless of what the development config
+  says.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:usesCleartextTraffic="false"
+        tools:replace="android:usesCleartextTraffic">
+    </application>
+</manifest>

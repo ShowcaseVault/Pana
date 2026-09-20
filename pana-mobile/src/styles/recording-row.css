@@ -1,0 +1,148 @@
+/* One recording in the day's list. */
+
+/* The row is a column: the controls on one line, and the words that follow
+   along beneath them once it is playing. */
+.row {
+  display: flex;
+  flex-direction: column;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.8rem;
+  background: var(--paper);
+}
+
+.row__main {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+/* The rolling transcript. Ruled off on the left the way a quotation is, so it
+   reads as the recording speaking rather than as another field in the row. */
+.row__transcript {
+  min-height: 3.24em;
+  margin: 0.6rem 0 0 0.5rem;
+  padding: 0.3rem 0 0.2rem 0.7rem;
+  font-family: var(--font-prose);
+  font-size: 0.88rem;
+  line-height: 1.62;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent-wash);
+}
+
+.row__transcript--waiting {
+  font-style: italic;
+  color: var(--ink-ghost);
+}
+
+.row__play {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 0;
+  border-radius: 50%;
+  background: var(--sunken);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.row__play.is-playing {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Playback position as a ring around the control, so progress belongs to the
+   thing that is playing rather than to a bar somewhere else. */
+.row__progress {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--progress), transparent 0);
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  pointer-events: none;
+}
+
+.row__spin {
+  animation: row-spin 900ms linear infinite;
+}
+
+@keyframes row-spin {
+  to { transform: rotate(360deg); }
+}
+
+.row__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.row__time {
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.row__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  color: var(--ink-faint);
+}
+
+.row__dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--ink-ghost);
+}
+
+/* Transcription in progress. The pulse is the only moving thing in the row,
+   so it reads as work happening rather than as decoration. */
+.row__transcribing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  color: var(--accent-deep);
+}
+
+.row__pulse {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: row-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes row-pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.row__delete {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--ink-ghost);
+  cursor: pointer;
+}
+
+.row__delete:active {
+  color: var(--warn);
+  background: var(--warn-tint);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row__pulse, .row__spin { animation: none; }
+}

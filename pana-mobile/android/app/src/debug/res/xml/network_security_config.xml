@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The development API is plain HTTP on the LAN, which Android refuses by
+  default.
+
+  This file is in the debug source set, so the exception exists only in a
+  build made for this machine. The release build uses its own config, which
+  permits no cleartext at all -- the hosts named here are development
+  machines, and a shipped app has no business reaching them.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.11</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

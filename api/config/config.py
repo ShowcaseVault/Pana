@@ -7,6 +7,12 @@ from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from prompts.audio_transcribe import AUDIO_TRANSCRIBE_PROMPT
+from prompts.voice_companion import VOICE_COMPANION_PROMPT
+
+# Schemes an Origin header may carry. A browser sends http or https; a native
+# WebView serves the app from its own scheme and sends that instead --
+# `capacitor://localhost` on iOS, `http://localhost` on Android.
+ORIGIN_SCHEMES = frozenset({"http", "https", "capacitor"})
 
 
 class Settings(BaseSettings):
@@ -37,22 +43,69 @@ class Settings(BaseSettings):
     # Recordings: on-disk directory for uploaded audio, served at /recordings.
     RECORDINGS_DIR: str = "recordings"
 
-    # Transcriptions
-    AUDIO_TRANSCRIBE_PROMPT: str = AUDIO_TRANSCRIBE_PROMPT
-    TRANSCRIPTION_MODEL: str = "whisper-large-v3"
-    TRANSCRIPTION_MODEL_TURBO: str = "whisper-large-v3-turbo"
-    TRANSCRIPTION_CONFIDENCE_THRESHOLD: float = 0.5
+    # ---- STT: speech in -------------------------------------------------
+    # Groq (Whisper). Uploaded audio gets the accurate model; a live call gets
+    # the turbo one, because a call is latency-bound, not accuracy-bound.
+    STT_MODEL: str = "whisper-large-v3"
+    STT_MODEL_REALTIME: str = "whisper-large-v3-turbo"
+    # Below this, a transcript is treated as unreliable rather than as text.
+    STT_CONFIDENCE_THRESHOLD: float = 0.5
+    # Domain hint sent with the audio: names Whisper would otherwise mangle.
+    STT_PROMPT: str = AUDIO_TRANSCRIBE_PROMPT
 
-    # LLM1
-    LLM1: str = "Groq"
+    # ---- LLM: the reply -------------------------------------------------
+    # Groq. Same split as STT: the realtime model answers a caller.
     GROQ_API_KEY: str | None = None
-    GROQ_MODEL_SMALL: str = "qwen/qwen3.8-27b"
-    GROQ_MODEL_LARGE: str = "openai/gpt-oss-120b"
+    LLM_MODEL: str = "openai/gpt-oss-120b"
+    LLM_MODEL_REALTIME: str = "openai/gpt-oss-120b"
+    # A spoken reply that runs long is one the caller talks over. Capped on
+    # the model, so nothing is generated and then thrown away.
+    LLM_MAX_TOKENS: int = 600
+    LLM_TEMPERATURE: float = 0.7
+    # Who Pana is on a call: a friend who talks back, not a prompt-and-wait
+    # assistant. See prompts/voice_companion.py.
+    VOICE_LLM_PROMPT: str = VOICE_COMPANION_PROMPT
 
-    # LLM2
-    LLM2: str = "Gemini"
-    GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    # ---- TTS: speech out -------------------------------------------------
+    # NVIDIA Magpie. The hosted build runs on Cloud Functions: TLS, plus the
+    # function ID as call metadata. A self-hosted NIM
+    # (docker-compose.magpie.yml) is a plain gRPC target with neither, so
+    # pointing TTS_URI at it and clearing TTS_FUNCTION_ID is the whole switch.
+    NVIDIA_API_KEY: str | None = None
+    TTS_URI: str = "grpc.nvcf.nvidia.com:443"
+    TTS_FUNCTION_ID: str | None = "877104f7-e885-42b9-8de8-f6e4c6303969"
+    TTS_USE_SSL: bool = True
+    TTS_VOICE: str = "Magpie-Multilingual.EN-US.Sofia"
+    TTS_LANGUAGE: str = "en-US"
+    # Synthesis rate. The trunk gets 8 kHz after voice_service/audio.py
+    # resamples; 22.05 kHz is already past what a phone line carries, at half
+    # the bytes per chunk of 44.1 kHz.
+    TTS_SAMPLE_RATE: int = 22050
+
+    # Asterisk ARI. Control channel for the voice service: it subscribes to the
+    # Stasis app and drives record/playback on live calls. ARI can originate
+    # calls, so http.conf binds it to loopback and it must stay there -- see
+    # docs/telephony.md.
+    ARI_BASE_URL: str = "http://127.0.0.1:8088"
+    ARI_USERNAME: str = "pana"
+    # Shared with the Asterisk container, which reads the same value from .env
+    # and renders it into ari.conf. No default: both sides refuse to start
+    # rather than fall back to a known password.
+    ARI_PASSWORD: str | None = None
+    ARI_APP_NAME: str = "pana-voice"
+    # Generated speech, written by the voice service and read by Asterisk. Two
+    # views of one directory: the host path this process writes to, and the
+    # path inside the container, which is what a playback URI must name. Both
+    # sides of the bind mount in docker-compose.asterisk.yml.
+    VOICE_TTS_DIR: str = "var/voice"
+    VOICE_TTS_CONTAINER_DIR: str = "/var/spool/pana-tts"
+
+    # Keep each turn's recording instead of deleting it, and log its size. For
+    # diagnosing a call where the caller cannot be heard: the file is what
+    # Asterisk actually captured, which separates a media path problem (no
+    # audio arrived) from a recognition one (audio arrived, words did not).
+    # Off in normal operation -- these are recordings of real conversations.
+    VOICE_KEEP_RECORDINGS: bool = False
 
     # Database
     POSTGRES_USER: str = "pana"
@@ -181,6 +234,11 @@ class Settings(BaseSettings):
         An origin is scheme + host + optional port, nothing more. A wildcard, a
         trailing path, or a missing scheme all silently break CORS at runtime,
         so they fail here instead.
+
+        `capacitor` joins http and https because a native WebView serves the
+        app from its own scheme -- `capacitor://localhost` on iOS -- and sends
+        that as the Origin. Rejecting it would mean the mobile app could not be
+        allowed through CORS at all.
         """
         if not origins:
             raise ValueError("ALLOWED_ORIGINS must list at least one origin")
@@ -194,9 +252,10 @@ class Settings(BaseSettings):
                 )
 
             parsed = urlparse(origin)
-            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            if parsed.scheme not in ORIGIN_SCHEMES or not parsed.netloc:
                 raise ValueError(
-                    f"Invalid origin {origin!r}: expected scheme://host[:port], "
+                    f"Invalid origin {origin!r}: expected scheme://host[:port] "
+                    f"with scheme one of {', '.join(sorted(ORIGIN_SCHEMES))}, "
                     "e.g. http://localhost:5173"
                 )
             if parsed.path or parsed.query or parsed.fragment:

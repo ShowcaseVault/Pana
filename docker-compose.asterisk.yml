@@ -1,0 +1,62 @@
+# Asterisk, the SIP trunk to the carrier. Separate from the datastores file so
+# that `make up` (development) does not start a PBX, and so that the telephony
+# stack can be brought up and down on its own.
+#
+# SECURITY: the SIP port is published to 127.0.0.1 by default. A SIP port open
+# to the internet is scanned continuously by toll-fraud bots. Open it wider
+# only once the carrier's signalling addresses are known, and then only to
+# those addresses -- see docs/telephony.md.
+services:
+  asterisk-pana:
+    build:
+      context: ./asterisk
+    image: pana-asterisk
+    container_name: asterisk-pana
+    # Asterisk needs to see the real source address of carrier traffic and to
+    # use a wide RTP port range; host networking avoids both a NAT hop and a
+    # hundred published-port entries. The trade-off is that http.conf's
+    # 127.0.0.1 binding is now the host's loopback, which is what we want for
+    # ARI, but it also means SIP_BIND_ADDRESS must be set carefully.
+    network_mode: host
+    volumes:
+      # The credentials. Read-only, and never copied into the image.
+      - ./secrets/sip_trunk.env:/run/secrets/sip_trunk.env:ro
+      # Generated speech. The voice service writes a turn's reply here and
+      # Asterisk plays it back by path. A host directory, not a volume: the
+      # writer runs on the host. Kept outside /var/lib/asterisk so it does not
+      # collide with the state volume mounted there.
+      - ./var/voice:/var/spool/pana-tts
+      # Asterisk's own state (astdb and friends), persisted across restarts.
+      - asterisk_pana_lib:/var/lib/asterisk
+      - asterisk_pana_spool:/var/spool/asterisk
+    env_file:
+      - .env
+    environment:
+      # Concurrent call ceiling on the trunk. The cost cap if credentials leak.
+      SIP_MAX_CHANNELS: "${SIP_MAX_CHANNELS:-2}"
+      # Per-call ceiling in seconds: carrier minutes on one side, a held
+      # channel and media session on ours.
+      SIP_MAX_CALL_SECONDS: "${SIP_MAX_CALL_SECONDS:-180}"
+      # The host's public address, detected by make asterisk-up. Overrides the
+      # value in the secret file, which goes stale the moment the ISP hands
+      # out a new address -- inbound calls are then routed to an address that
+      # is not ours any more. Empty when detection failed, in which case the
+      # secret file's value stands.
+      SIP_EXTERNAL_IP: "${SIP_EXTERNAL_IP:-}"
+      # Let STUN supply the media address and port instead of pinning it to
+      # SIP_EXTERNAL_IP. For a NAT that rewrites RTP ports, where the port in
+      # the SDP has to be the mapped one rather than Asterisk's own.
+      SIP_MEDIA_VIA_STUN: "${SIP_MEDIA_VIA_STUN:-false}"
+    healthcheck:
+      # Reports healthy only when the trunk is actually registered, so a
+      # credential or network problem surfaces as an unhealthy container
+      # rather than as silence.
+      test: ["CMD-SHELL", "asterisk -rx 'pjsip show registrations' | grep -q Registered"]
+      interval: 60s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  asterisk_pana_lib:
+  asterisk_pana_spool:

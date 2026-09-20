@@ -1,0 +1,49 @@
+/* ============================================================================
+   Device baseline.
+
+   The design tokens come from pana-app's themes.css, shared rather than
+   copied. What is here is only what a handset needs and a browser does not:
+   no text inflation, no tap highlight, no rubber-banding of the page itself.
+   ========================================================================= */
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.5;
+
+  /* Android enlarges text in wide blocks unless told not to; it breaks any
+     layout that assumes the size it was given. */
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+/* Text should be selectable where it is content and nowhere else -- a long
+   press on a control should feel like a control, not like a document. */
+button,
+.shell__dots,
+.calendar__grid {
+  user-select: none;
+  -webkit-user-select: none;
+}

@@ -3,9 +3,10 @@
 A recording is one piece of captured audio: the file on disk, the row that
 describes it, and the transcription job that follows automatically.
 
-`RecordingService` (`api/services/recordings.py`) over three repositories --
+`RecordingService` (`api/services/recordings.py`) over four repositories --
 `RecordingRepository` for the rows, `TranscriptionRepository` for the job row,
-`RecordingFileRepository` for the bytes.
+`RecordingFileRepository` for the bytes, and `DiaryRepository` for the delete
+cascade below.
 
 ## Uploading
 
@@ -41,8 +42,8 @@ parameterless. Pass `recording_date=YYYY-MM-DD` for another day, or
 
 Paged: `page` from 1, `page_size` 1-200 (default 100). The count and page come
 back together, and the route puts the totals in the envelope's `pagination`
-block. Each row carries its transcription's status, id, and confidence inline,
-so a list view does not need a second call per recording to know what is ready.
+block. Each row carries its transcription's status and id inline, so a list
+view does not need a second call per recording to know what is ready.
 
 ## Reading, updating, deleting
 
@@ -54,6 +55,18 @@ timestamp it was derived from.
 `DELETE` soft-deletes the recording **and its transcription together**, since a
 transcript of a deleted recording is not something a user asked to keep. The
 audio file stays on disk.
+
+**Deleting the last recording of a day also deletes that day's diary.** A
+diary is written from a day's recordings, so it cannot outlive them -- left
+behind, it stays readable while claiming to be written from nothing, and the
+[calendar](home-and-history.md#history-calendar) keeps marking the day as
+written. Deleting one recording out of several leaves the diary alone: it is
+now slightly out of date, which regenerating fixes, but it is not orphaned.
+
+Rows that predate this cascade were cleared once, by the
+`soft_delete_orphaned_diaries` migration. It touches only diaries whose day has
+no live recordings left, and it does not reverse: once the timestamp is set,
+those rows are indistinguishable from entries the user deleted deliberately.
 
 Everything is scoped to the caller. A recording id belonging to someone else is
 a 404, not a 403.

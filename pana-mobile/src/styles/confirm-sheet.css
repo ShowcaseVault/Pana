@@ -1,0 +1,89 @@
+/* ============================================================================
+   The confirmation sheet.
+
+   Rises from the bottom edge, over a scrim. The destructive action is the
+   upper button: it is the one being asked about, and putting it above Cancel
+   keeps it clear of the home indicator, where a mis-swipe would land.
+   ========================================================================= */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(15, 23, 32, 0.38);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: sheet-fade 160ms ease both;
+}
+
+.sheet__panel {
+  width: 100%;
+  padding: 1.4rem 1.1rem calc(env(safe-area-inset-bottom) + 1.1rem);
+  background: var(--paper);
+  border-radius: 1.25rem 1.25rem 0 0;
+  animation: sheet-rise 220ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.sheet__title {
+  margin: 0 0 0.45rem;
+  font-family: var(--font-prose);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.sheet__body {
+  margin: 0 0 1.25rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--ink-faint);
+}
+
+.sheet__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+/* Full width and thumb height: these are the only two things on screen, so
+   they should not have to be aimed at. */
+.sheet__button {
+  padding: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 0;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.sheet__button:active {
+  opacity: 0.75;
+}
+
+.sheet__button--destructive {
+  color: #fff;
+  background: var(--warn);
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet__panel {
+    animation: none;
+  }
+}
