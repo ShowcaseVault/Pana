@@ -16,7 +16,14 @@
     </style>
 
 
+    <!--
+      The launch window, shown for the moment between the process starting and
+      the web view drawing. Capacitor ships an image here; Pana paints the
+      app's own ground colour instead, so the splash the user sees is the one
+      the app draws rather than a system image handing over to it.
+    
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="android:background">@color/launch_background</item>
     </style>
 </resources>

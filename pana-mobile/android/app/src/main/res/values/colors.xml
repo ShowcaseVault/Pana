@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The app's ground colour, matching the `ground` token in pana-app's
+      design tokens. The launch window is painted with it so the handover from
+      the system window to the web view is invisible: without it the window is
+      white and the app's own splash arrives a moment later, which reads as a
+      flash.
+    -->
+    <color name="launch_background">#EEF1F4</color>
+</resources>
