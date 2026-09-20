@@ -1,0 +1,35 @@
+services:
+  # NVIDIA MAGPIE TTS NIM
+  magpie-tts:
+    image: nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
+    container_name: magpie-tts
+    runtime: nvidia
+    shm_size: "8gb"
+    environment:
+      # container reads NGC_API_KEY; .env stores it as NVIDIA_API_KEY
+      NGC_API_KEY: ${NVIDIA_API_KEY}
+      NIM_HTTP_API_PORT: 9000
+      NIM_GRPC_API_PORT: 50051
+      # lowest-memory profile (~12.58 GB VRAM); drop this line to auto-select
+      NIM_TAGS_SELECTOR: name=magpie-tts-multilingual
+    ports:
+      - "9000:9000"
+      - "50051:50051"
+    volumes:
+      - magpie_nim_cache:/opt/nim/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    networks:
+      - pana-network
+
+volumes:
+  magpie_nim_cache:
+
+networks:
+  pana-network:
+    driver: bridge

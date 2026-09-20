@@ -1,5 +1,10 @@
 DATASTORES ?= docker compose -f docker-compose.datastores.yml
 ASTERISK   ?= docker compose -f docker-compose.asterisk.yml
+# Generated speech, shared with the Asterisk container by bind mount. Must be
+# owned by the user running the voice service, so it is created here rather
+# than by Docker (which would create it as root) or by the container's
+# entrypoint (which would chown it to the container's asterisk uid).
+VOICE_TTS_DIR ?= var/voice
 COMPOSE    ?= docker compose
 UV         ?= uv
 NPM        ?= npm
@@ -15,7 +20,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: voice voice-models asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -60,6 +65,19 @@ celery-high:
 celery-default:
 	$(CELERY) -P $(CELERY_POOL) -Q default -n default_worker@%h
 
+# The TTS directory is created before Asterisk starts on purpose: Docker
+# creates a missing bind-mount source as root, which would lock the voice
+# service out of its own output directory.
+voice: $(VOICE_TTS_DIR)
+	$(UV) run python -m voice_service.app
+
+$(VOICE_TTS_DIR):
+	mkdir -p $@
+
+# Fetch the offline speech models. Needed once before the first make voice.
+voice-models:
+	./scripts/fetch-voice-models.sh
+
 # --- Telephony (Asterisk SIP trunk) -----------------------------------------
 # Credentials live in secrets/sip_trunk.env, which is git-ignored and mounted
 # into the container read-only. See docs/telephony.md.
@@ -76,7 +94,7 @@ asterisk-secret:
 asterisk-build:
 	$(ASTERISK) build
 
-asterisk-up:
+asterisk-up: $(VOICE_TTS_DIR)
 	@test -f secrets/sip_trunk.env || { echo "secrets/sip_trunk.env is missing; run: make asterisk-secret"; exit 1; }
 	$(ASTERISK) up -d
 
@@ -179,6 +197,8 @@ help:
 	@echo "make celery          run one worker consuming both queues"
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"
+	@echo "make voice           run the voice service (needs Asterisk up)"
+	@echo "make voice-models    fetch the offline speech models (once)"
 	@echo "make lint            check code with ruff"
 	@echo "make format          format code with ruff"
 	@echo "make lint-frontend   check the app with eslint"

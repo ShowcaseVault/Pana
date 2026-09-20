@@ -185,17 +185,27 @@ chown asterisk:asterisk /etc/asterisk/extensions_globals.conf
 
 sed -i "s/KEEPALIVE_PLACEHOLDER/${SIP_KEEPALIVE_INTERVAL}/" "$RENDERED"
 
-# ARI credentials for the media service. Generated on first start and kept in
-# a volume, so the operator never has to invent or store one, and it never
-# appears in compose or in the repo.
-ARI_PASSWORD_FILE="${ARI_PASSWORD_FILE:-/var/lib/asterisk/ari_password}"
-if [ ! -f "$ARI_PASSWORD_FILE" ]; then
-    umask 077
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 48 > "$ARI_PASSWORD_FILE"
-    chown asterisk:asterisk "$ARI_PASSWORD_FILE"
-    chmod 600 "$ARI_PASSWORD_FILE"
+# ARI records into this directory and will not create it. The Debian package
+# does not ship it, and /var/spool/asterisk is a named volume, so creating it
+# in the Dockerfile would be masked at run time -- it has to happen here, on
+# every start. Without it every /channels/<id>/record returns a 500 whose only
+# explanation is "No such file or directory" in the Asterisk log.
+install -d -o asterisk -g asterisk -m 750 /var/spool/asterisk/recording
+
+# Generated speech arrives through a bind mount from the host, so this
+# directory is deliberately NOT created or chowned here: the writer is the
+# voice service running as the host user, and taking ownership for the
+# container's asterisk uid (101) is what locks that writer out. Asterisk only
+# ever reads from it, and world-readable files are enough for that.
+
+# ARI credentials for the voice service. Supplied through the environment from
+# .env, so Asterisk and the voice service read one value from one place -- a
+# password generated in here could not be shared without also being exported.
+# Required: ARI can originate calls, so it must never fall back to a default.
+if [ -z "${ARI_PASSWORD:-}" ]; then
+    echo "ARI_PASSWORD is not set. Add it to .env (see .env.example)." >&2
+    exit 1
 fi
-ARI_PASSWORD=$(cat "$ARI_PASSWORD_FILE")
 export ARI_PASSWORD
 
 umask 077
@@ -203,10 +213,9 @@ umask 077
 chmod 600 /etc/asterisk/ari.conf
 chown asterisk:asterisk /etc/asterisk/ari.conf
 envsubst < /etc/asterisk/templates/ari.conf.template >> /etc/asterisk/ari.conf
-unset ARI_PASSWORD
 
 # Drop the secrets from the environment before exec'ing Asterisk, so they do
 # not appear in /proc/<pid>/environ for the long-running process.
-unset SIP_PASSWORD SIP_AUTH_NAME SIP_USERNAME
+unset SIP_PASSWORD SIP_AUTH_NAME SIP_USERNAME ARI_PASSWORD
 
 exec /usr/sbin/asterisk -f -U asterisk -G asterisk -vvv
