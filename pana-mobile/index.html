@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#eef1f4" />
     <title>Pana</title>
+
+    <!--
+      The document's ground, inline so it applies on the first frame rather
+      than once the stylesheet has loaded. The launch window, the web view and
+      this page are all painted the same colour, so the handover between them
+      is invisible: any one of them left at its own default shows as a flash
+      of white or black before the app draws.
+    -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #eef1f4;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
