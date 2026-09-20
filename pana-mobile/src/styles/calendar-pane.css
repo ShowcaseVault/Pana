@@ -19,20 +19,26 @@
 .calendar {
   display: flex;
   flex-direction: column;
-
-  /* Centred in the pane. `justify-content: center` alone would push the
-     heading off the top on a short screen, so the growth is given to the grid
-     instead and the whole block sits in the middle. */
-  justify-content: center;
   min-height: 100%;
   padding: 1rem 0.9rem 0;
 }
 
-/* The pane's name, sitting above the centred month rather than inside it: the
-   month slides between values, the name does not. */
+/* The pane's name sits at the top of the screen, where a heading belongs.
+   Only the month below it is centred in what is left, which is what the empty
+   space around a calendar is for. */
 .calendar__title {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
   text-align: center;
+}
+
+/* Everything below the heading takes the remaining height and centres itself
+   in it, so the month sits in the middle of the space it has rather than
+   against the title. */
+.calendar__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
 }
 
 /* --- Heading -------------------------------------------------------------

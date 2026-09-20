@@ -20,6 +20,7 @@ import {
   useRecordings,
 } from '@app/hooks/queries/useRecordings.js';
 import { useTranscriptionSSE } from '../lib/useTranscriptionSSE.js';
+import ConfirmSheet from '../components/ConfirmSheet.jsx';
 import RecordingRow from '../components/RecordingRow.jsx';
 import '@app/styles/recorder.css';
 import '../styles/record-pane.css';
@@ -33,6 +34,11 @@ const formatDuration = (seconds) => {
 
 export default function RecordPane() {
   const [saving, setSaving] = useState(false);
+
+  // The recording awaiting confirmation, or null. Deleting is the one
+  // irreversible thing in the app, and a row's delete button sits under the
+  // thumb while scrolling a list.
+  const [pendingDelete, setPendingDelete] = useState(null);
 
   const {
     isRecording,
@@ -82,6 +88,18 @@ export default function RecordPane() {
       setSaving(false);
     }
   }, [createRecording, duration, getAudioBlob, resetRecording, stopRecording]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (pendingDelete === null) return;
+    try {
+      await deleteRecording.mutateAsync(pendingDelete);
+    } catch (error) {
+      console.error('Delete failed', error);
+      toast.error('Could not delete that recording');
+    } finally {
+      setPendingDelete(null);
+    }
+  }, [deleteRecording, pendingDelete]);
 
   const handleStart = useCallback(async () => {
     try {
@@ -141,10 +159,22 @@ export default function RecordPane() {
           <RecordingRow
             key={recording.id}
             recording={recording}
-            onDelete={(id) => deleteRecording.mutate(id)}
+            onDelete={(id) => setPendingDelete(id)}
           />
         ))}
       </section>
+
+      <ConfirmSheet
+        open={pendingDelete !== null}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete this recording?"
+        message={
+          recordings.length === 1
+            ? 'This is the only recording for today, so today\u2019s diary entry goes with it. This cannot be undone.'
+            : 'The audio and its transcript are removed for good. This cannot be undone.'
+        }
+      />
     </div>
   );
 }

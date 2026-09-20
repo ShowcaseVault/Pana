@@ -4,7 +4,7 @@
 /* The pane's name. The date below it is the thing that changes; this is the
    fixed label that says which pane you are on. */
 .diary__title {
-  margin-bottom: 1rem;
+  margin-bottom: 2.25rem;
   text-align: center;
 }
 

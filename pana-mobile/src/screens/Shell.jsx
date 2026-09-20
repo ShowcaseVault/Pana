@@ -20,9 +20,10 @@ import RecordPane from '../panes/RecordPane.jsx';
 import DiaryPane from '../panes/DiaryPane.jsx';
 import '../styles/shell.css';
 
-/* The bar names the three panes. An icon says which pane a tab is far faster
-   than a dot does, and the label under it removes the guesswork an icon alone
-   leaves -- this is the app's only navigation, so it should not be a puzzle. */
+/* The indicator names the three panes. An icon says which pane each one is
+   far faster than a dot does, without becoming a chrome bar: the swipe is
+   still the way you move, and this floats above the content saying where you
+   are and offering the jump. */
 const PANES = [
   { name: 'Calendar', Icon: CalendarDays },
   { name: 'Record', Icon: Mic },
@@ -88,17 +89,17 @@ export default function Shell() {
         </section>
       </div>
 
-      <nav className="shell__tabs" aria-label="Panes">
+      <nav className="shell__dots" aria-label="Panes">
         {PANES.map(({ name, Icon }, i) => (
           <button
             key={name}
             type="button"
-            className={`shell__tab ${i === index ? 'is-active' : ''}`}
+            className={`shell__dot ${i === index ? 'is-active' : ''}`}
+            aria-label={name}
             aria-current={i === index}
             onClick={() => goTo(i)}
           >
-            <Icon size={20} aria-hidden="true" />
-            <span className="shell__tab-label">{name}</span>
+            <Icon size={17} aria-hidden="true" />
           </button>
         ))}
       </nav>

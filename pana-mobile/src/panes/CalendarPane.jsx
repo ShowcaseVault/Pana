@@ -112,93 +112,95 @@ export default function CalendarPane({ selectedDate, onSelectDate }) {
     <div className="pane calendar">
       <h1 className="pane__title calendar__title">Calendar</h1>
 
-      <header className="calendar__head">
-        <button
-          type="button"
-          className="calendar__arrow"
-          onClick={() => step(-1)}
-          aria-label="Previous month"
-        >
-          <LongArrow direction="left" />
-        </button>
+      <div className="calendar__body">
+        <header className="calendar__head">
+          <button
+            type="button"
+            className="calendar__arrow"
+            onClick={() => step(-1)}
+            aria-label="Previous month"
+          >
+            <LongArrow direction="left" />
+          </button>
 
-        <h2 className="calendar__month">
-          {monthName} <span className="calendar__year">{view.year}</span>
-        </h2>
+          <h2 className="calendar__month">
+            {monthName} <span className="calendar__year">{view.year}</span>
+          </h2>
 
-        <button
-          type="button"
-          className="calendar__arrow"
-          onClick={() => step(1)}
-          aria-label="Next month"
-        >
-          <LongArrow direction="right" />
-        </button>
-      </header>
+          <button
+            type="button"
+            className="calendar__arrow"
+            onClick={() => step(1)}
+            aria-label="Next month"
+          >
+            <LongArrow direction="right" />
+          </button>
+        </header>
 
-      <div className="calendar__grid">
-        {WEEKDAYS.map((day, i) => (
-          <div key={i} className="calendar__weekday">
-            {day}
-          </div>
-        ))}
+        <div className="calendar__grid">
+          {WEEKDAYS.map((day, i) => (
+            <div key={i} className="calendar__weekday">
+              {day}
+            </div>
+          ))}
 
-        {cells.map((day, i) => {
-          if (day === null) return <div key={`pad-${i}`} className="calendar__day is-empty" />;
+          {cells.map((day, i) => {
+            if (day === null) return <div key={`pad-${i}`} className="calendar__day is-empty" />;
 
-          const written = diaryDays.has(day);
-          const recorded = recordingDays.has(day);
-          const filled = written || recorded;
-          const iso = isoFor(view.year, view.month, day);
-          const isToday = isCurrentMonth && today.getDate() === day;
-          const isRejected = rejected === day;
+            const written = diaryDays.has(day);
+            const recorded = recordingDays.has(day);
+            const filled = written || recorded;
+            const iso = isoFor(view.year, view.month, day);
+            const isToday = isCurrentMonth && today.getDate() === day;
+            const isRejected = rejected === day;
 
-          const label = written
-            ? `${day}: diary written`
-            : recorded
-              ? `${day}: recordings, no diary yet`
-              : `${day}: nothing recorded`;
+            const label = written
+              ? `${day}: diary written`
+              : recorded
+                ? `${day}: recordings, no diary yet`
+                : `${day}: nothing recorded`;
 
-          return (
-            <button
-              key={iso}
-              type="button"
-              className={[
-                'calendar__day',
-                filled ? 'is-filled' : 'is-bare',
-                isToday && 'is-today',
-                iso === selectedDate && 'is-selected',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              aria-label={label}
-              aria-current={isToday ? 'date' : undefined}
-              onClick={() => (filled ? onSelectDate(iso) : reject(day))}
-            >
-              {filled && (
-                <span
-                  className={`calendar__blob calendar__blob--${written ? 'diary' : 'recording'}`}
-                  aria-hidden="true"
-                />
-              )}
-              {isRejected && (
-                <span className="calendar__blob calendar__blob--missed" aria-hidden="true" />
-              )}
-              <span className="calendar__num">{day}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={iso}
+                type="button"
+                className={[
+                  'calendar__day',
+                  filled ? 'is-filled' : 'is-bare',
+                  isToday && 'is-today',
+                  iso === selectedDate && 'is-selected',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-label={label}
+                aria-current={isToday ? 'date' : undefined}
+                onClick={() => (filled ? onSelectDate(iso) : reject(day))}
+              >
+                {filled && (
+                  <span
+                    className={`calendar__blob calendar__blob--${written ? 'diary' : 'recording'}`}
+                    aria-hidden="true"
+                  />
+                )}
+                {isRejected && (
+                  <span className="calendar__blob calendar__blob--missed" aria-hidden="true" />
+                )}
+                <span className="calendar__num">{day}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="calendar__key">
-        <span className="calendar__key-item">
-          <span className="calendar__swatch calendar__swatch--diary" />
-          Written
-        </span>
-        <span className="calendar__key-item">
-          <span className="calendar__swatch calendar__swatch--recording" />
-          Recorded
-        </span>
+        <div className="calendar__key">
+          <span className="calendar__key-item">
+            <span className="calendar__swatch calendar__swatch--diary" />
+            Written
+          </span>
+          <span className="calendar__key-item">
+            <span className="calendar__swatch calendar__swatch--recording" />
+            Recorded
+          </span>
+        </div>
       </div>
     </div>
   );

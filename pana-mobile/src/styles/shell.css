@@ -48,55 +48,51 @@
      sits at the very top and bottom. Letting the box grow past the viewport is
      what keeps a full month on screen.
 
-     The bottom clears the tab bar, which is taller than the dots it replaced;
-     without it the last row of a list sits under the bar. */
+     The bottom clears the floating indicator, so the last row of a list is
+     not left sitting underneath it. */
   min-height: 100%;
   padding-top: calc(env(safe-area-inset-top) + 0.5rem);
-  padding-bottom: calc(env(safe-area-inset-bottom) + 4.25rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 3.75rem);
 }
 
-/* --- Tab bar --------------------------------------------------------------
-   A full-width bar rather than a floating pill: it is the app's only
-   navigation, so it gets a fixed place at the bottom of the screen. The pane
-   still answers to a swipe -- the bar says where you are and offers the jump.
-
-   Translucent over the content it covers, so a list scrolling underneath
-   stays legible as it passes behind. */
-.shell__tabs {
+/* --- Pane indicator -------------------------------------------------------
+   Sits above the home indicator, centred, and stays out of the way: it says
+   where you are, it is not a primary control. Icons rather than dots, so a
+   glance tells you which pane is which and not merely that there are three. */
+.shell__dots {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  bottom: calc(env(safe-area-inset-bottom) + 0.85rem);
+  left: 50%;
   display: flex;
-  padding-bottom: env(safe-area-inset-bottom);
-  border-top: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--paper) 86%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transform: translateX(-50%);
 }
 
-.shell__tab {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.18rem;
-  padding: 0.5rem 0 0.45rem;
+.shell__dot {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
   border: 0;
+  border-radius: 999px;
   background: transparent;
   color: var(--ink-ghost);
   cursor: pointer;
-  transition: color 160ms ease;
+  transition: color 160ms ease, background 160ms ease;
 }
 
-.shell__tab.is-active {
-  color: var(--accent);
-}
-
-.shell__tab-label {
-  font-size: 0.66rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+/* The active pane is filled rather than merely tinted: at this size a colour
+   change alone is easy to miss against the translucent pill. */
+.shell__dot.is-active {
+  background: var(--accent);
+  color: #fff;
 }
 
 /* --- Shared pane furniture ----------------------------------------------- */

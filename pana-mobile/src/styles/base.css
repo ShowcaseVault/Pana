@@ -42,7 +42,7 @@ button {
 /* Text should be selectable where it is content and nowhere else -- a long
    press on a control should feel like a control, not like a document. */
 button,
-.shell__tabs,
+.shell__dots,
 .calendar__grid {
   user-select: none;
   -webkit-user-select: none;
