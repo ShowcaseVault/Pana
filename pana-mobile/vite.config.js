@@ -4,38 +4,53 @@ import { fileURLToPath, URL } from 'node:url'
 
 const app = (p) => fileURLToPath(new URL(`../pana-app/src/${p}`, import.meta.url))
 const here = (p) => fileURLToPath(new URL(`./src/${p}`, import.meta.url))
-const dep = (p) => fileURLToPath(new URL(`./node_modules/${p}`, import.meta.url))
 
-// Packages that must exist exactly once in the bundle.
-//
-// The shared code lives in pana-app, which has its own node_modules, so a bare
-// import of `react` from a file under `@app` resolves there while the same
-// import here resolves to this project's copy. Two copies of React means two
-// sets of hooks; two copies of react-query means the provider is set on one
-// and read from the other -- "No QueryClient set", on a screen that renders
-// blank with the error only in the device log.
-//
-// Pinning them to this project's node_modules is what makes the shared modules
-// genuinely shared rather than merely duplicated.
-const SINGLETONS = [
-  'react',
-  'react-dom',
-  'react/jsx-runtime',
-  '@tanstack/react-query',
-  'axios',
-  'sonner',
-  'lucide-react',
-]
+/**
+ * Modules of pana-app that this app replaces with its own.
+ *
+ * The two clients differ in exactly one respect: how credentials travel. A
+ * browser holds httpOnly cookies and sends them automatically; a device holds
+ * the token pair itself and sends a bearer header, and its auth endpoints are
+ * the `/auth/mobile/*` group. Everything above that -- the services, the query
+ * hooks, the cache keys -- is identical, and is imported from pana-app rather
+ * than copied.
+ *
+ * Substituting these two modules is what lets that shared code run unchanged
+ * on either client.
+ */
+const SUBSTITUTES = new Map([
+  [app('lib/apiClient.js'), here('lib/apiClient.js')],
+  [app('api/routes.js'), here('lib/routes.js')],
+])
 
-// The mobile app is its own Vite project but shares pana-app's data layer:
-// the services and query hooks are identical, and the design tokens must stay
-// one file so the two clients cannot drift apart visually.
-//
-// Those shared services import `../lib/apiClient.js` and `../api/routes.js`
-// relative to pana-app, which would bind them to the cookie-based web client.
-// Redirecting both specifiers here substitutes the native client -- bearer
-// tokens, body-carried refresh -- without editing a line of pana-app. The
-// substitutes keep the same public shape, so the services are none the wiser.
+/**
+ * Redirect the substituted modules.
+ *
+ * This has to be a plugin rather than a `resolve.alias` entry. An alias is
+ * matched against the import specifier as written -- the literal
+ * `'../lib/apiClient.js'` inside a pana-app service -- and an absolute path
+ * never matches that string, so the alias silently does nothing and both the
+ * web and the native client end up in the bundle. `resolveId` sees the
+ * resolved absolute path, which is the thing actually worth matching on.
+ */
+function substituteTransport() {
+  return {
+    name: 'pana-substitute-transport',
+    enforce: 'pre',
+    async resolveId(source, importer, options) {
+      // Let the default resolver do the work, then check what it landed on.
+      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true })
+      if (!resolved) return null
+
+      const substitute = SUBSTITUTES.get(resolved.id)
+      return substitute ? { id: substitute } : null
+    },
+  }
+}
+
+// The mobile app is its own Vite project but shares pana-app's data layer: the
+// services and query hooks are identical, and the design tokens must stay one
+// file so the two clients cannot drift apart visually.
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
@@ -44,13 +59,11 @@ export default defineConfig(({ mode }) => {
   const apiHost = (env.VITE_BASE_API_URL || '').replace(/^https?:\/\//, '').split(':')[0]
 
   return {
-    plugins: [react()],
+    plugins: [substituteTransport(), react()],
     resolve: {
-      alias: [
-        { find: '@app', replacement: fileURLToPath(new URL('../pana-app/src', import.meta.url)) },
-        { find: app('lib/apiClient.js'), replacement: here('lib/apiClient.js') },
-        { find: app('api/routes.js'), replacement: here('lib/routes.js') },
-      ],
+      alias: {
+        '@app': fileURLToPath(new URL('../pana-app/src', import.meta.url)),
+      },
     },
     server: {
       host: true,

@@ -23,7 +23,7 @@ body,
 body {
   background: var(--ground);
   color: var(--ink);
-  font-family: var(--font-ui, 'Inter Tight', system-ui, sans-serif);
+  font-family: var(--font-ui);
   font-size: 16px;
   line-height: 1.5;
 
@@ -42,7 +42,7 @@ button {
 /* Text should be selectable where it is content and nowhere else -- a long
    press on a control should feel like a control, not like a document. */
 button,
-.shell__dots,
+.shell__tabs,
 .calendar__grid {
   user-select: none;
   -webkit-user-select: none;

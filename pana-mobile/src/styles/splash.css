@@ -20,7 +20,7 @@
 }
 
 .splash__word {
-  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-family: var(--font-prose);
   font-size: 1.45rem;
   font-weight: 500;
   letter-spacing: 0.02em;
