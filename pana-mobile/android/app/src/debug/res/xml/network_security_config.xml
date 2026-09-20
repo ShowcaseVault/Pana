@@ -5,8 +5,8 @@
 
   This file is in the debug source set, so the exception exists only in a
   build made for this machine. The release build uses its own config, which
-  permits no cleartext at all -- the hosts named here are development
-  machines, and a shipped app has no business reaching them.
+  permits no cleartext at all. The hosts named here are development machines,
+  and a shipped app has no business reaching them.
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
