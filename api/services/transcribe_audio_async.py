@@ -21,8 +21,8 @@ async def transcribe_audio_file(file_path: str):
     with open(file_name, "rb") as file:
         transcription = await get_groq_client().audio.transcriptions.create(
             file=file,
-            model=settings.TRANSCRIPTION_MODEL,
-            prompt=settings.AUDIO_TRANSCRIBE_PROMPT,
+            model=settings.STT_MODEL,
+            prompt=settings.STT_PROMPT,
             response_format="verbose_json",
             timestamp_granularities=["word", "segment"],
             temperature=0.0,

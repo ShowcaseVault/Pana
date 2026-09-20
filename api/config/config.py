@@ -37,17 +37,49 @@ class Settings(BaseSettings):
     # Recordings: on-disk directory for uploaded audio, served at /recordings.
     RECORDINGS_DIR: str = "recordings"
 
-    # Speech-to-text. Provider names the service; the models are its own.
-    TRANSCRIPTION_PROVIDER: str = "groq"
-    TRANSCRIPTION_MODEL: str = "whisper-large-v3"
-    TRANSCRIPTION_MODEL_TURBO: str = "whisper-large-v3-turbo"
-    TRANSCRIPTION_CONFIDENCE_THRESHOLD: float = 0.5
-    AUDIO_TRANSCRIBE_PROMPT: str = AUDIO_TRANSCRIBE_PROMPT
+    # ---- STT: speech in -------------------------------------------------
+    # Groq (Whisper). Uploaded audio gets the accurate model; a live call gets
+    # the turbo one, because a call is latency-bound, not accuracy-bound.
+    STT_MODEL: str = "whisper-large-v3"
+    STT_MODEL_REALTIME: str = "whisper-large-v3-turbo"
+    # Below this, a transcript is treated as unreliable rather than as text.
+    STT_CONFIDENCE_THRESHOLD: float = 0.5
+    # Domain hint sent with the audio: names Whisper would otherwise mangle.
+    STT_PROMPT: str = AUDIO_TRANSCRIBE_PROMPT
 
-    # Text-to-speech. NVIDIA Magpie is the only provider wired up.
-    TTS_PROVIDER: str = "magpie"
-    MAGPIE_TTS_MODEL: str = "magpie-tts-multilingual"
+    # ---- LLM: the reply -------------------------------------------------
+    # Groq. Same split as STT: the realtime model answers a caller.
+    GROQ_API_KEY: str | None = None
+    LLM_MODEL: str = "openai/gpt-oss-120b"
+    LLM_MODEL_REALTIME: str = "openai/gpt-oss-120b"
+    # A spoken reply that runs long is one the caller talks over. Capped on
+    # the model, so nothing is generated and then thrown away.
+    LLM_MAX_TOKENS: int = 160
+    LLM_TEMPERATURE: float = 0.7
+
+    # ---- TTS: speech out -------------------------------------------------
+    # NVIDIA Magpie. The hosted build runs on Cloud Functions: TLS, plus the
+    # function ID as call metadata. A self-hosted NIM
+    # (docker-compose.magpie.yml) is a plain gRPC target with neither, so
+    # pointing TTS_URI at it and clearing TTS_FUNCTION_ID is the whole switch.
     NVIDIA_API_KEY: str | None = None
+    TTS_URI: str = "grpc.nvcf.nvidia.com:443"
+    TTS_FUNCTION_ID: str | None = "877104f7-e885-42b9-8de8-f6e4c6303969"
+    TTS_USE_SSL: bool = True
+    TTS_VOICE: str = "Magpie-Multilingual.EN-US.Sofia"
+    TTS_LANGUAGE: str = "en-US"
+    # Synthesis rate. The trunk gets 8 kHz after voice_service/audio.py
+    # resamples; 22.05 kHz is already past what a phone line carries, at half
+    # the bytes per chunk of 44.1 kHz.
+    TTS_SAMPLE_RATE: int = 22050
+
+    # ---- Voice pipeline --------------------------------------------------
+    # Which implementation each stage of a live call uses. "local" forces the
+    # offline Vosk/Piper path: no key, no network, and the fallback when a
+    # hosted provider is unreachable.
+    VOICE_STT_PROVIDER: str = "groq"
+    VOICE_LLM_PROVIDER: str = "groq"
+    VOICE_TTS_PROVIDER: str = "magpie"
 
     # Asterisk ARI. Control channel for the voice service: it subscribes to the
     # Stasis app and drives record/playback on live calls. ARI can originate
@@ -66,19 +98,6 @@ class Settings(BaseSettings):
     # sides of the bind mount in docker-compose.asterisk.yml.
     VOICE_TTS_DIR: str = "var/voice"
     VOICE_TTS_CONTAINER_DIR: str = "/var/spool/pana-tts"
-
-    # LLM Providers
-    LLM_PRIMARY_PROVIDER: str = "groq"
-    LLM_FALLBACK_PROVIDER: str = "gemini"
-
-    # Groq
-    GROQ_API_KEY: str | None = None
-    GROQ_MODEL_SMALL: str = "qwen/qwen3.8-27b"
-    GROQ_MODEL_LARGE: str = "openai/gpt-oss-120b"
-
-    # Gemini
-    GEMINI_API_KEY: str | None = None
-    GEMINI_MODEL: str = "gemini-2.5-flash"
 
     # Database
     POSTGRES_USER: str = "pana"

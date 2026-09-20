@@ -3,6 +3,13 @@
 Connects to Asterisk, subscribes to the `pana-voice` Stasis app, and runs one
 turn loop per call: record the caller, transcribe, generate a reply, speak it.
 
+A turn is processed in chunks rather than as one block. The model writes the
+reply a sentence at a time and each sentence is synthesised and played while
+the next is still being written, so the caller hears the first words in about
+the time that first sentence takes instead of waiting for the whole answer.
+Playback is still sequential -- Asterisk plays one file per sentence, in order
+-- so the chunking buys time to first word, not overlapping audio.
+
 Turns are record-then-respond, which needs nothing beyond ARI itself. The end
 state is an `externalMedia` channel forking RTP, which is what makes barge-in
 possible; the pipeline's stt/llm/tts seams do not change when that arrives.
@@ -18,7 +25,7 @@ from pathlib import Path
 
 from api.config.config import settings
 from voice_service.ari import AriClient
-from voice_service.pipeline import llm, stt, tts
+from voice_service.pipeline import NO_SPEECH_REPLY, llm_stream, stt, tts_stream
 
 logger = logging.getLogger("voice")
 
@@ -31,6 +38,11 @@ SILENCE_SECONDS = 2
 # Backstop for waiting on an Asterisk operation. Reached only if the event that
 # should end it never arrives, which would otherwise hang the turn loop.
 EVENT_TIMEOUT = MAX_TURN_SECONDS + 10
+# Turns kept as context for the model. A phone call does not refer back far,
+# and every kept turn is tokens on the critical path of the next reply.
+HISTORY_TURNS = 12
+
+GREETING = "Hello, thanks for calling Pana. How can I help?"
 
 
 class CallSession:
@@ -48,6 +60,15 @@ class CallSession:
         self.recording_done = asyncio.Event()
         self.playback_done = asyncio.Event()
         self.hung_up = asyncio.Event()
+        # The conversation so far, in the shape the model takes.
+        self.history: list[dict[str, str]] = []
+
+    def _remember(self, role: str, content: str) -> None:
+        """Add a turn to the history, dropping the oldest once it is full."""
+        if not content.strip():
+            return
+        self.history.append({"role": role, "content": content})
+        del self.history[:-HISTORY_TURNS]
 
     async def _wait(self, event: asyncio.Event, what: str) -> bool:
         """Wait for `event`, or for the caller to hang up. False if it timed out."""
@@ -64,14 +85,9 @@ class CallSession:
             return False
         return not self.hung_up.is_set()
 
-    async def _speak(self, text: str) -> bool:
-        """Synthesise `text`, hand the file to Asterisk, and wait for playback."""
-        audio = await tts(text)
-        if not audio:
-            logger.warning("call %s: tts produced no audio", self.channel_id)
-            return True
-
-        # Asterisk plays from a file by path, not from bytes, so the reply is
+    async def _play_file(self, audio: bytes) -> bool:
+        """Hand one piece of u-law audio to Asterisk and wait for it to finish."""
+        # Asterisk plays from a file by path, not from bytes, so the audio is
         # written to the directory shared with the container. `.ulaw` is a
         # headerless format Asterisk reads by extension, and the audio is
         # already at the trunk's rate, so playback does not transcode.
@@ -88,9 +104,54 @@ class CallSession:
                 return False
             return await self._wait(self.playback_done, "playback")
         finally:
-            # One file per turn would otherwise accumulate for the life of the
-            # host; the audio is worthless once played.
+            # One file per sentence would otherwise accumulate for the life of
+            # the host; the audio is worthless once played.
             path.unlink(missing_ok=True)
+
+    async def _speak(self, text: str) -> bool:
+        """Synthesise `text` and play it. False if the call ended."""
+        audio = b"".join([chunk async for chunk in tts_stream(text)])
+        if not audio:
+            logger.warning("call %s: tts produced no audio", self.channel_id)
+            return True
+        return await self._play_file(audio)
+
+    async def _respond(self) -> bool:
+        """Generate a reply to the history and speak it as it is written.
+
+        Synthesis of the next sentence is started before the current one has
+        finished playing, so the gap between sentences is whatever synthesis
+        did not manage to hide behind playback, rather than its full cost.
+        """
+        spoken: list[str] = []
+        pending: asyncio.Task[bytes] | None = None
+
+        async def synthesise(sentence: str) -> bytes:
+            return b"".join([chunk async for chunk in tts_stream(sentence)])
+
+        try:
+            async for sentence in llm_stream(self.history):
+                # Play what the previous pass synthesised, then queue this
+                # sentence so it is made while that one is on the wire.
+                if pending is not None and not await self._play_file(await pending):
+                    return False
+                if self.hung_up.is_set():
+                    return False
+                spoken.append(sentence)
+                pending = asyncio.create_task(synthesise(sentence))
+
+            if pending is not None:
+                audio = await pending
+                pending = None
+                if audio and not await self._play_file(audio):
+                    return False
+        finally:
+            # A reply abandoned mid-stream must not leave synthesis running.
+            if pending is not None:
+                pending.cancel()
+            self._remember("assistant", " ".join(spoken))
+
+        return not self.hung_up.is_set()
 
     async def _listen(self) -> bytes:
         """Record the caller's next utterance and return it as u-law."""
@@ -108,8 +169,9 @@ class CallSession:
         await self.ari.answer(self.channel_id)
         logger.info("call %s: answered", self.channel_id)
 
-        if not await self._speak("Hello, thanks for calling Pana. How can I help?"):
+        if not await self._speak(GREETING):
             return
+        self._remember("assistant", GREETING)
 
         while not self.hung_up.is_set():
             audio = await self._listen()
@@ -118,7 +180,15 @@ class CallSession:
             if not audio:
                 logger.info("call %s: nothing recorded, ending", self.channel_id)
                 break
-            if not await self._speak(await llm(await stt(audio))):
+            text = await stt(audio)
+            if not text.strip():
+                # Nothing recognised: re-prompt without polluting the history
+                # with an empty turn the model would have to interpret.
+                if not await self._speak(NO_SPEECH_REPLY):
+                    break
+                continue
+            self._remember("user", text)
+            if not await self._respond():
                 break
 
         logger.info("call %s: conversation finished", self.channel_id)

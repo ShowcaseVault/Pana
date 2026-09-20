@@ -38,9 +38,7 @@ class DiaryAIRepository:
                     {"role": "system", "content": DIARY_AI_PROMPT},
                     {"role": "user", "content": user_message},
                 ],
-                model=settings.GROQ_MODEL_LARGE,
-                # The prompt asks for structured fields, so the model is held
-                # to JSON rather than trusted to remember.
+                model=settings.LLM_MODEL,
                 response_format={"type": "json_object"},
             )
         except Exception as e:

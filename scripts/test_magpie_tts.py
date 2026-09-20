@@ -7,9 +7,10 @@ NVIDIA's hardware.
     uv add nvidia-riva-client
     uv run python scripts/test_magpie_tts.py --text "Hello from Pana."
 
-The function ID and voice names below are defaults. Confirm the current values
-on https://build.nvidia.com/nvidia/magpie-tts-multilingual/api and override with
---function-id / --voice if the call fails with NOT_FOUND or an invalid voice.
+Endpoint, function ID and voice default to the TTS settings. Confirm the
+current values on https://build.nvidia.com/nvidia/magpie-tts-multilingual/api
+and override with --function-id / --voice if the call fails with NOT_FOUND or
+an invalid voice.
 """
 
 from __future__ import annotations
@@ -23,14 +24,10 @@ import time
 import wave
 from pathlib import Path
 
-sys.path.insert(0,"/home/vishal/Project/Pana")
-
 from api.config.config import settings
 
-NVCF_URI = "grpc.nvcf.nvidia.com:443"
-DEFAULT_FUNCTION_ID = "877104f7-e885-42b9-8de8-f6e4c6303969"
-DEFAULT_VOICE = "Magpie-Multilingual.EN-US.Sofia"
-DEFAULT_LANGUAGE = "en-US"
+# Defaults come from the TTS settings, so the script exercises the same
+# endpoint, voice and rate a call does.
 SAMPLE_RATE_HZ = 44100
 SAMPLE_WIDTH_BYTES = 2  # LINEAR_PCM is 16-bit
 
@@ -38,9 +35,9 @@ SAMPLE_WIDTH_BYTES = 2  # LINEAR_PCM is 16-bit
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--text", default="Hello from Pana. This is a text to speech test.")
-    parser.add_argument("--voice", default=DEFAULT_VOICE)
-    parser.add_argument("--language", default=DEFAULT_LANGUAGE)
-    parser.add_argument("--function-id", default=DEFAULT_FUNCTION_ID)
+    parser.add_argument("--voice", default=settings.TTS_VOICE)
+    parser.add_argument("--language", default=settings.TTS_LANGUAGE)
+    parser.add_argument("--function-id", default=settings.TTS_FUNCTION_ID)
     parser.add_argument(
         "--output",
         type=Path,
@@ -68,8 +65,8 @@ def build_service(function_id: str):
         sys.exit("NVIDIA_API_KEY is empty. Set it in .env before running.")
 
     auth = riva.client.Auth(
-        uri=NVCF_URI,
-        use_ssl=True,
+        uri=settings.TTS_URI,
+        use_ssl=settings.TTS_USE_SSL,
         metadata_args=[
             ["function-id", function_id],
             ["authorization", f"Bearer {api_key}"],

@@ -32,7 +32,7 @@ and the client is told about, not an exception for Celery to retry blindly --
 corrupt audio would fail identically on every attempt, so retrying only burns
 the queue.
 
-The audio goes to Groq (`TRANSCRIPTION_MODEL`) with word and segment
+The audio goes to Groq (`STT_MODEL`) with word and segment
 granularity. Confidence is computed per segment from the model's own signals --
 `avg_logprob` weighted 0.7, `1 - no_speech_prob` weighted 0.3 -- and averaged.
 That single number is what the diary later uses to decide whether a transcript
