@@ -92,7 +92,13 @@ asterisk-build:
 
 asterisk-up: $(VOICE_TTS_DIR)
 	@test -f secrets/sip_trunk.env || { echo "secrets/sip_trunk.env is missing; run: make asterisk-secret"; exit 1; }
-	$(ASTERISK) up -d
+	@ip=$$(curl -4 -s --max-time 5 https://ident.me || curl -4 -s --max-time 5 https://api.ipify.org || true); \
+	if [ -n "$$ip" ]; then \
+		echo "public address: $$ip"; \
+	else \
+		echo "could not detect the public address; using the value in secrets/sip_trunk.env"; \
+	fi; \
+	SIP_EXTERNAL_IP="$$ip" $(ASTERISK) up -d
 
 asterisk-down:
 	$(ASTERISK) down

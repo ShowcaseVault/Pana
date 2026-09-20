@@ -34,8 +34,26 @@ if [ "$group_other" != "00" ]; then
     exit 1
 fi
 
+# The public address the host detected at start, if it passed one. Read before
+# the secret file is sourced, because that file may also carry a value and a
+# detected address is the fresher of the two.
+DETECTED_EXTERNAL_IP="${SIP_EXTERNAL_IP:-}"
+
 # shellcheck disable=SC1090
 . "$SECRET_FILE"
+
+# A home or office connection is usually on a dynamic address. A stale one
+# still registers -- that is an outbound request the carrier answers over the
+# same flow -- but every inbound INVITE is sent to an address that is no
+# longer ours and the call never arrives. Preferring the detected value is
+# what keeps a reassignment from silently breaking inbound calls.
+if [ -n "$DETECTED_EXTERNAL_IP" ]; then
+    if [ -n "${SIP_EXTERNAL_IP:-}" ] && [ "$SIP_EXTERNAL_IP" != "$DETECTED_EXTERNAL_IP" ]; then
+        echo "entrypoint: public address is $DETECTED_EXTERNAL_IP, but the secret file" >&2
+        echo "entrypoint: says $SIP_EXTERNAL_IP. Using the detected one." >&2
+    fi
+    SIP_EXTERNAL_IP="$DETECTED_EXTERNAL_IP"
+fi
 
 for var in SIP_USERNAME SIP_PASSWORD SIP_AUTH_NAME SIP_DOMAIN SIP_OUTBOUND_PROXY; do
     eval "value=\${$var:-}"

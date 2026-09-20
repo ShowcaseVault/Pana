@@ -37,6 +37,12 @@ services:
       # Per-call ceiling in seconds: carrier minutes on one side, a held
       # channel and media session on ours.
       SIP_MAX_CALL_SECONDS: "${SIP_MAX_CALL_SECONDS:-180}"
+      # The host's public address, detected by make asterisk-up. Overrides the
+      # value in the secret file, which goes stale the moment the ISP hands
+      # out a new address -- inbound calls are then routed to an address that
+      # is not ours any more. Empty when detection failed, in which case the
+      # secret file's value stands.
+      SIP_EXTERNAL_IP: "${SIP_EXTERNAL_IP:-}"
     healthcheck:
       # Reports healthy only when the trunk is actually registered, so a
       # credential or network problem surfaces as an unhealthy container
