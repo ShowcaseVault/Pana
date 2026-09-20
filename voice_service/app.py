@@ -66,6 +66,13 @@ BACKCHANNEL_ENDINGS = ("?", "!")
 # their next sentence rather than interrupt it.
 BACKCHANNELS = ("Mm.", "Yeah.", "Right.", "Go on.", "I'm here.")
 
+# Consecutive turns that come through as nothing before the call is given up
+# on. A bad line or an open mic that never resolves into words would otherwise
+# re-prompt until the dialplan's own timeout, billing the whole way.
+MAX_SILENT_TURNS = 3
+# Said before hanging up on a line nothing is coming through on.
+GIVE_UP_REPLY = "I can't hear you, so I'll let you go. Call back any time."
+
 GREETING = "Hey, it's Pana. What's going on?"
 
 
@@ -81,11 +88,29 @@ class CallSession:
     def __init__(self, ari: AriClient, channel_id: str) -> None:
         self.ari = ari
         self.channel_id = channel_id
-        self.recording_done = asyncio.Event()
-        self.playback_done = asyncio.Event()
         self.hung_up = asyncio.Event()
+        # One waiter per operation in flight, keyed by the id Asterisk reports
+        # it under: a playback id, or the name a recording was started with.
+        # A single shared event per kind would let a late or duplicate event
+        # for one operation release the wait belonging to the next, which a
+        # chunked reply -- several playbacks back to back -- makes likely.
+        self.waiters: dict[str, asyncio.Event] = {}
         # The conversation so far, in the shape the model takes.
         self.history: list[dict[str, str]] = []
+
+    def expect(self, key: str) -> asyncio.Event:
+        """Register an operation before starting it, and return its waiter.
+
+        Registering first is what makes a short operation safe: Asterisk can
+        report a one-word recording finished before the code that started it
+        gets back to waiting, and an event with nowhere to land is lost.
+        """
+        return self.waiters.setdefault(key, asyncio.Event())
+
+    def resolve(self, key: str) -> None:
+        """Release whatever is waiting on the operation called `key`."""
+        if key:
+            self.expect(key).set()
 
     def _remember(self, role: str, content: str) -> None:
         """Add a turn to the history, dropping the oldest once it is full."""
@@ -94,8 +119,13 @@ class CallSession:
         self.history.append({"role": role, "content": content})
         del self.history[:-HISTORY_TURNS]
 
-    async def _wait(self, event: asyncio.Event, what: str) -> bool:
-        """Wait for `event`, or for the caller to hang up. False if it timed out."""
+    async def _wait(self, key: str, what: str) -> bool:
+        """Wait for operation `key` to finish.
+
+        False if the caller hung up or the event never came, which the turn
+        loop treats the same way: stop driving this call.
+        """
+        event = self.expect(key)
         waiters = [asyncio.create_task(event.wait()), asyncio.create_task(self.hung_up.wait())]
         try:
             done, _ = await asyncio.wait(
@@ -104,6 +134,7 @@ class CallSession:
         finally:
             for task in waiters:
                 task.cancel()
+            self.waiters.pop(key, None)
         if not done:
             logger.warning("call %s: timed out waiting for %s", self.channel_id, what)
             return False
@@ -121,23 +152,31 @@ class CallSession:
         path.write_bytes(audio)
 
         try:
-            self.playback_done.clear()
             # A `sound:` URI takes the path without its extension.
             media = f"sound:{settings.VOICE_TTS_CONTAINER_DIR}/{name}"
-            if await self.ari.play(self.channel_id, media) is None:
+            playback_id = await self.ari.play(self.channel_id, media)
+            if playback_id is None:
                 return False
-            return await self._wait(self.playback_done, "playback")
+            # Asterisk only names the playback in its reply, so the waiter
+            # cannot be registered before the request -- but an event arriving
+            # in between is kept by resolve() rather than dropped.
+            return await self._wait(playback_id, "playback")
         finally:
             # One file per sentence would otherwise accumulate for the life of
             # the host; the audio is worthless once played.
             path.unlink(missing_ok=True)
 
     async def _speak(self, text: str) -> bool:
-        """Synthesise `text` and play it. False if the call ended."""
+        """Synthesise `text` and play it. False if the call cannot go on.
+
+        Synthesis producing nothing means the caller heard silence where a
+        sentence should have been. Reporting that as success leaves them on an
+        open line with no idea anyone is there, so it ends the call instead.
+        """
         audio = b"".join([chunk async for chunk in tts_stream(text)])
         if not audio:
-            logger.warning("call %s: tts produced no audio", self.channel_id)
-            return True
+            logger.warning("call %s: tts produced no audio for %r", self.channel_id, text)
+            return False
         return await self._play_file(audio)
 
     async def _respond(self) -> bool:
@@ -147,42 +186,58 @@ class CallSession:
         finished playing, so the gap between sentences is whatever synthesis
         did not manage to hide behind playback, rather than its full cost.
         """
-        spoken: list[str] = []
-        pending: asyncio.Task[bytes] | None = None
+        # Only what the caller actually heard. A reply cut short by a hangup
+        # must not be remembered as said, or the next turn answers a sentence
+        # that never reached them.
+        heard: list[str] = []
+        pending: tuple[str, asyncio.Task[bytes]] | None = None
 
         async def synthesise(sentence: str) -> bytes:
             return b"".join([chunk async for chunk in tts_stream(sentence)])
+
+        async def play_pending() -> bool:
+            """Play the sentence queued last pass, if any."""
+            nonlocal pending
+            if pending is None:
+                return True
+            sentence, task = pending
+            pending = None
+            audio = await task
+            if audio and not await self._play_file(audio):
+                return False
+            heard.append(sentence)
+            return not self.hung_up.is_set()
 
         try:
             async for sentence in llm_stream(self.history):
                 # Play what the previous pass synthesised, then queue this
                 # sentence so it is made while that one is on the wire.
-                if pending is not None and not await self._play_file(await pending):
+                if not await play_pending():
                     return False
-                if self.hung_up.is_set():
-                    return False
-                spoken.append(sentence)
-                pending = asyncio.create_task(synthesise(sentence))
-
-            if pending is not None:
-                audio = await pending
-                pending = None
-                if audio and not await self._play_file(audio):
-                    return False
+                pending = (sentence, asyncio.create_task(synthesise(sentence)))
+            if not await play_pending():
+                return False
         finally:
             # A reply abandoned mid-stream must not leave synthesis running.
             if pending is not None:
-                pending.cancel()
-            self._remember("assistant", " ".join(spoken))
+                pending[1].cancel()
+            self._remember("assistant", " ".join(heard))
 
         return not self.hung_up.is_set()
 
     async def _listen(self) -> bytes:
         """Record the caller's next utterance and return it as u-law."""
         name = f"pana-{self.channel_id}-{uuid.uuid4().hex[:8]}"
-        self.recording_done.clear()
+        # We choose the recording's name, so its waiter exists before Asterisk
+        # can possibly report it finished.
+        self.expect(name)
         await self.ari.record(self.channel_id, name, MAX_TURN_SECONDS, SILENCE_SECONDS)
-        await self._wait(self.recording_done, "recording")
+        if not await self._wait(name, "recording"):
+            # Hung up or the event never came. Asterisk still holds whatever
+            # it captured, so clean that up, but do not spend a round trip
+            # downloading audio no one will hear a reply to.
+            await self.ari.delete_recording(name)
+            return b""
 
         audio = await self.ari.stored_recording(name)
         await self.ari.delete_recording(name)
@@ -211,6 +266,7 @@ class CallSession:
             return
         self._remember("assistant", GREETING)
 
+        silent_turns = 0
         while not self.hung_up.is_set():
             audio = await self._listen()
             if self.hung_up.is_set():
@@ -230,9 +286,15 @@ class CallSession:
             if not text.strip():
                 # Nothing recognised: re-prompt without polluting the history
                 # with an empty turn the model would have to interpret.
+                silent_turns += 1
+                if silent_turns >= MAX_SILENT_TURNS:
+                    logger.info("call %s: nothing heard in %d turns", self.channel_id, silent_turns)
+                    await self._speak(GIVE_UP_REPLY)
+                    break
                 if not await self._speak(NO_SPEECH_REPLY):
                     break
                 continue
+            silent_turns = 0
             self._remember("user", text)
             if not await self._respond():
                 break
@@ -266,6 +328,11 @@ async def run() -> None:
     sessions: dict[str, CallSession] = {}
     tasks: dict[str, asyncio.Task[None]] = {}
 
+    def forget(channel_id: str) -> None:
+        """Drop a finished call, whichever way it ended."""
+        sessions.pop(channel_id, None)
+        tasks.pop(channel_id, None)
+
     async with AriClient(
         settings.ARI_BASE_URL,
         settings.ARI_USERNAME,
@@ -288,20 +355,29 @@ async def run() -> None:
                 logger.info("call %s: entered Stasis", channel_id)
                 session = CallSession(ari, channel_id)
                 sessions[channel_id] = session
-                tasks[channel_id] = asyncio.create_task(handle_call(session))
+                task = asyncio.create_task(handle_call(session))
+                tasks[channel_id] = task
+                # A handler that finishes without a StasisEnd -- the call ended
+                # in a way Asterisk did not report, or the handler hung up
+                # itself -- would otherwise sit in both dicts for the life of
+                # the process.
+                task.add_done_callback(lambda _, cid=channel_id: forget(cid))
             elif session is None:
                 continue
             elif kind == "StasisEnd":
                 logger.info("call %s: left Stasis", channel_id)
                 session.hung_up.set()
-                sessions.pop(channel_id, None)
-                task = tasks.pop(channel_id, None)
-                if task is not None:
-                    task.cancel()
+                # Let the handler unwind on hung_up rather than cancelling it
+                # mid-await: cancellation there can abandon a synthesis thread
+                # or leave a recording undeleted. The done callback reaps it.
+                ended = tasks.get(channel_id)
+                if ended is None:
+                    forget(channel_id)
             elif kind in ("RecordingFinished", "RecordingFailed"):
-                session.recording_done.set()
+                # A recording is reported under the name it was started with.
+                session.resolve(event.get("recording", {}).get("name", ""))
             elif kind in ("PlaybackFinished", "PlaybackFailed"):
-                session.playback_done.set()
+                session.resolve(event.get("playback", {}).get("id", ""))
 
 
 def main() -> None:

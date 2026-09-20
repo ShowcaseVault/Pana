@@ -370,6 +370,19 @@ carries, at half the bytes per chunk.
 and handed back over a bounded queue. Iterating it on the event loop would
 block every other call on the service for the length of the synthesis.
 
+That handoff uses a thread-native queue and a stop flag, not an `asyncio`
+queue. The consumer routinely abandons the stream mid-reply -- the caller hung
+up -- and a producer parked on a full `asyncio.Queue` can only be released by
+the event loop, which the abandoned generator never gets back to. The thread
+would sit there for the life of the process, and enough hangups exhaust the
+executor pool and stop synthesis entirely. With a stop flag the producer
+notices, drops the gRPC stream so the rest is never synthesised or billed, and
+unwinds.
+
+Resampling carries its state between chunks. 22.05 kHz to 8 kHz is a ratio of
+2.75625, so every chunk boundary falls mid-sample; resampling each chunk from a
+standing start loses that fraction and clicks at every join.
+
 ### What Pana is on the call
 
 A companion, not an assistant: someone who listens and also takes a turn of
@@ -407,6 +420,23 @@ Playback stays sequential: Asterisk plays one file per sentence, in order, and
 the turn loop waits for each `PlaybackFinished`. The chunking buys time to
 first word, not overlapping audio. A synthesis failure partway through a reply
 ends it there rather than restarting and repeating half a sentence.
+
+Each wait is keyed on the operation it belongs to -- the id ARI returns for a
+playback, the name we chose for a recording -- rather than on one event per
+kind. A shared event is wrong as soon as a reply is several playbacks long: a
+late or duplicate `PlaybackFinished` for one sentence releases the wait
+belonging to the next, and the caller hears it cut off. Waiters are registered
+before the operation starts where the key is known in advance, because
+Asterisk can report a short recording finished before the code that started it
+is back to waiting on it.
+
+Only what the caller actually heard goes into the history. A reply cut short by
+a hangup is remembered as far as it was played and no further, so the next turn
+never answers a sentence that never reached them.
+
+Three consecutive turns that transcribe to nothing end the call, after saying
+so. A bad line or an open mic would otherwise re-prompt until the dialplan's
+own timeout, billing the whole way.
 
 The service keeps the last `HISTORY_TURNS` turns as context -- enough to pick
 up something said several minutes earlier, which is most of what makes it feel
