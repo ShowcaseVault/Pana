@@ -6,7 +6,11 @@ dist/
 
 # Built APKs. Binaries do not belong in the repository; a build is
 # reproducible from source, and an APK is tens of megabytes per version.
-release/
+#
+# Anchored to this directory: unanchored, `release/` also matches the Android
+# release source set, whose manifest and network config are source and must be
+# tracked.
+/release/
 
 # Superseded by the workspace root lockfile.
 package-lock.json

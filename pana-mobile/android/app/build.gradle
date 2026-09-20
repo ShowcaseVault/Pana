@@ -4,6 +4,18 @@ def packageVersion = new groovy.json.JsonSlurper()
     .parseText(file("../../package.json").text)
     .version
 
+// Signing credentials live in secrets/, outside the repository and outside any
+// image layer, alongside the other things that must never be committed. A
+// release build without them is not a failure: it falls back to the debug
+// signature so `assembleDebug` and CI still work on a machine that has no
+// business holding the release key.
+def signingProps = new Properties()
+def signingFile = file("../../../secrets/android_signing.env")
+if (signingFile.exists()) {
+    signingFile.withInputStream { signingProps.load(it) }
+}
+def hasSigningConfig = signingProps.containsKey('PANA_KEYSTORE_PASSWORD')
+
 android {
     namespace = "com.pana.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -20,12 +32,32 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+    signingConfigs {
+        if (hasSigningConfig) {
+            release {
+                storeFile file("../../../secrets/pana-release.jks")
+                storePassword signingProps['PANA_KEYSTORE_PASSWORD']
+                keyAlias signingProps['PANA_KEY_ALIAS']
+                keyPassword signingProps['PANA_KEY_PASSWORD']
+            }
         }
     }
+
+    buildTypes {
+        release {
+            // R8 removes the classes nothing reaches and rewrites what is left.
+            // The dex is the bulk of the APK -- the web bundle is well under a
+            // megabyte -- so this is where the size actually is.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            if (hasSigningConfig) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
 }
 
 repositories {

@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   The development API is plain HTTP on the LAN, which Android refuses by
-  default. Cleartext is opened for the development hosts only, so a release
-  build talking to anything else still requires HTTPS.
+  default.
+
+  This file is in the debug source set, so the exception exists only in a
+  build made for this machine. The release build uses its own config, which
+  permits no cleartext at all -- the hosts named here are development
+  machines, and a shipped app has no business reaching them.
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
