@@ -288,6 +288,17 @@ they need config files we do not ship and are not used here.
 `pjsip set logger on` prints full SIP messages including the `Authorization`
 header. Do not paste that output into a ticket or a chat without removing it.
 
+## Inbound audio from a NAT'd network
+
+Calls connect and the caller hears Pana, but on the development connection
+Pana hears nothing: the NAT there rewrites RTP ports, so the port Asterisk
+advertises in its SDP is not the one the carrier can reach. It is not a code
+fault and it is not configurable around -- see
+[telephony-nat.md](telephony-nat.md) for the evidence, the settings that were
+tried, and what actually resolves it. `scripts/rtp_probe.py` is the isolation
+test: it records one call through ARI alone, so a zero-byte result places the
+fault below the application.
+
 ## The AI conversation
 
 `from-carrier` hands an answered call to `Stasis(pana-voice)`, the app served

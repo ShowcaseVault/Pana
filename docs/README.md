@@ -16,5 +16,6 @@ follows; the rest are one page per thing the app does for a user.
 | [diary.md](diary.md) | Daily entry generation, transcript gap-filling and filtering, location resolution, why a day with no recordings is refused, the two empty-day fallbacks |
 | [home-and-history.md](home-and-history.md) | Profile endpoint and the calendar month view |
 | [telephony.md](telephony.md) | The SIP trunk to the carrier: where the credentials live and why, firewall requirements, blast-radius limits, registration troubleshooting |
+| [telephony-nat.md](telephony-nat.md) | Why inbound audio does not work from the development network, what was ruled out and how, and what would fix it |
 
 Conventions, layout, and commands live in [../CLAUDE.md](../CLAUDE.md).

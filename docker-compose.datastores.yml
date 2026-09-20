@@ -24,21 +24,6 @@ services:
     networks:
       - pana-network
 
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    container_name: redis-commander
-    ports:
-      - "8081:8081"
-    environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_DB=0
-    depends_on:
-      - redis-pana
-    networks:
-      - pana-network
-
 volumes:
   postgres_pana_data:
 
