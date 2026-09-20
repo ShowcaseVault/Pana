@@ -16,7 +16,7 @@ class TranscriptionStatus(str, PyEnum):
 
 class TranscriptionCreate(BaseModel):
     recording_id: int
-    model_name: str = settings.TRANSCRIPTION_MODEL
+    model_name: str = settings.STT_MODEL
     status: TranscriptionStatus = TranscriptionStatus.pending.value
     created_at: datetime = datetime.now()
 

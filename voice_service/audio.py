@@ -10,8 +10,6 @@ unchanged on either.
 """
 
 import audioop
-import io
-import wave
 
 # What the trunk delivers and accepts. Anything else needs Asterisk to
 # transcode, which is what the codec choice in pjsip.conf exists to avoid.
@@ -21,36 +19,22 @@ CHANNELS = 1
 
 
 def ulaw_to_pcm(ulaw: bytes, rate: int = TELEPHONY_RATE) -> bytes:
-    """Decode u-law to 16-bit linear PCM, resampled to `rate`.
-
-    Vosk's models refuse a rate they were not built for -- the small English
-    model wants 16 kHz and rejects 8 kHz outright rather than resampling -- so
-    upsampling here is required, not an optimisation.
-    """
+    """Decode u-law to 16-bit linear PCM, resampled to `rate`."""
     pcm = audioop.ulaw2lin(ulaw, SAMPLE_WIDTH)
     if rate != TELEPHONY_RATE:
         pcm, _ = audioop.ratecv(pcm, SAMPLE_WIDTH, CHANNELS, TELEPHONY_RATE, rate, None)
     return pcm
 
 
-def pcm_to_ulaw(pcm: bytes, rate: int) -> bytes:
-    """Downsample 16-bit linear PCM to 8 kHz and encode it as u-law."""
-    if rate != TELEPHONY_RATE:
-        pcm, _ = audioop.ratecv(pcm, SAMPLE_WIDTH, CHANNELS, rate, TELEPHONY_RATE, None)
-    return audioop.lin2ulaw(pcm, SAMPLE_WIDTH)
+def pcm_to_ulaw(pcm: bytes, rate: int, state: object = None) -> tuple[bytes, object]:
+    """Downsample 16-bit linear PCM to 8 kHz and encode it as u-law.
 
-
-def wav_to_ulaw(data: bytes) -> bytes:
-    """Convert a WAV file's bytes to 8 kHz u-law.
-
-    Piper writes WAV at its voice's own rate (22.05 kHz for the medium
-    voices), so its output cannot go to the trunk untouched.
+    Returns the audio and the resampler's state. A stream arriving in chunks
+    must pass that state back on the next call: the conversion ratio is rarely
+    a whole number of samples (22.05 kHz to 8 kHz is 2.75625), so a chunk
+    resampled from a standing start loses the fraction at its edge, and every
+    boundary clicks. Callers converting one whole buffer can ignore it.
     """
-    with wave.open(io.BytesIO(data)) as source:
-        rate = source.getframerate()
-        pcm = source.readframes(source.getnframes())
-        if source.getnchannels() != CHANNELS:
-            pcm = audioop.tomono(pcm, source.getsampwidth(), 0.5, 0.5)
-        if source.getsampwidth() != SAMPLE_WIDTH:
-            pcm = audioop.lin2lin(pcm, source.getsampwidth(), SAMPLE_WIDTH)
-    return pcm_to_ulaw(pcm, rate)
+    if rate != TELEPHONY_RATE:
+        pcm, state = audioop.ratecv(pcm, SAMPLE_WIDTH, CHANNELS, rate, TELEPHONY_RATE, state)
+    return audioop.lin2ulaw(pcm, SAMPLE_WIDTH), state

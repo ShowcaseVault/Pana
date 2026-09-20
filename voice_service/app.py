@@ -1,7 +1,23 @@
-"""The voice service: drives an AI conversation on a live call over ARI.
+"""The voice service: Pana on a live call, over ARI.
 
 Connects to Asterisk, subscribes to the `pana-voice` Stasis app, and runs one
 turn loop per call: record the caller, transcribe, generate a reply, speak it.
+
+What Pana is on that call is a companion, not an assistant -- someone who
+listens and also takes a turn of their own. Most of that lives in the prompt
+(prompts/voice_companion.py); what lives here is the turn-taking. Turns are
+long and the silence threshold generous, because cutting someone off at the
+length of a command is what makes a line feel like a kiosk. A turn that runs
+past BACKCHANNEL_OVER_SECONDS without ending on a question gets a short "mm"
+rather than a considered reply: they are mid-flow, and an insight there is an
+interruption.
+
+A turn is processed in chunks rather than as one block. The model writes the
+reply a sentence at a time and each sentence is synthesised and played while
+the next is still being written, so the caller hears the first words in about
+the time that first sentence takes instead of waiting for the whole answer.
+Playback is still sequential -- Asterisk plays one file per sentence, in order
+-- so the chunking buys time to first word, not overlapping audio.
 
 Turns are record-then-respond, which needs nothing beyond ARI itself. The end
 state is an `externalMedia` channel forking RTP, which is what makes barge-in
@@ -13,24 +29,55 @@ Run with: make voice
 
 import asyncio
 import logging
+import random
 import uuid
 from pathlib import Path
 
 from api.config.config import settings
 from voice_service.ari import AriClient
-from voice_service.pipeline import llm, stt, tts
+from voice_service.audio import TELEPHONY_RATE
+from voice_service.pipeline import NO_SPEECH_REPLY, llm_stream, stt, tts, tts_stream
 
 logger = logging.getLogger("voice")
 
-# One caller turn. The whole call is already capped by TIMEOUT(absolute) in the
-# dialplan, so this only shapes how long a single utterance may run.
-MAX_TURN_SECONDS = 15
-# Silence that ends a turn: short enough to feel responsive, long enough to
-# survive a mid-sentence pause.
-SILENCE_SECONDS = 2
+# One caller turn. Long, deliberately: someone telling you about their day is
+# not answering a prompt, and cutting them off at the length of a command is
+# what makes a companion feel like a kiosk. The whole call is still capped by
+# TIMEOUT(absolute) in the dialplan.
+MAX_TURN_SECONDS = 45
+# Silence that ends a turn. A friend waits through the pause in the middle of a
+# hard sentence; an assistant jumps into it. Two seconds was the latter.
+SILENCE_SECONDS = 3
 # Backstop for waiting on an Asterisk operation. Reached only if the event that
 # should end it never arrives, which would otherwise hang the turn loop.
 EVENT_TIMEOUT = MAX_TURN_SECONDS + 10
+# Turns kept as context. Enough that Pana can pick up something said several
+# minutes ago, which is most of what makes it feel like the same conversation
+# rather than a series of exchanges.
+HISTORY_TURNS = 24
+
+# A turn this long is someone in full flow. Answering it with a considered
+# reply steps on them; a short acknowledgement lets them keep going.
+BACKCHANNEL_OVER_SECONDS = 20
+# ...but only when they have not stopped. A turn that ran long and ended on a
+# question still wants a real answer.
+BACKCHANNEL_ENDINGS = ("?", "!")
+# Said instead of a reply when they are mid-flow. Short enough to sit under
+# their next sentence rather than interrupt it.
+BACKCHANNELS = ("Mm.", "Yeah.", "Right.", "Go on.", "I'm here.")
+
+# Consecutive turns that come through as nothing before the call is given up
+# on. A bad line or an open mic that never resolves into words would otherwise
+# re-prompt until the dialplan's own timeout, billing the whole way.
+MAX_SILENT_TURNS = 3
+# Said before hanging up on a line nothing is coming through on.
+GIVE_UP_REPLY = "I can't hear you, so I'll let you go. Call back any time."
+
+# How long to wait for the synthesiser to connect at startup before giving up
+# and letting the first call pay for it instead.
+WARM_UP_TIMEOUT = 20
+
+GREETING = "Hey, it's Pana. What's going on?"
 
 
 class CallSession:
@@ -45,12 +92,44 @@ class CallSession:
     def __init__(self, ari: AriClient, channel_id: str) -> None:
         self.ari = ari
         self.channel_id = channel_id
-        self.recording_done = asyncio.Event()
-        self.playback_done = asyncio.Event()
         self.hung_up = asyncio.Event()
+        # One waiter per operation in flight, keyed by the id Asterisk reports
+        # it under: a playback id, or the name a recording was started with.
+        # A single shared event per kind would let a late or duplicate event
+        # for one operation release the wait belonging to the next, which a
+        # chunked reply -- several playbacks back to back -- makes likely.
+        self.waiters: dict[str, asyncio.Event] = {}
+        # The conversation so far, in the shape the model takes.
+        self.history: list[dict[str, str]] = []
 
-    async def _wait(self, event: asyncio.Event, what: str) -> bool:
-        """Wait for `event`, or for the caller to hang up. False if it timed out."""
+    def expect(self, key: str) -> asyncio.Event:
+        """Register an operation before starting it, and return its waiter.
+
+        Registering first is what makes a short operation safe: Asterisk can
+        report a one-word recording finished before the code that started it
+        gets back to waiting, and an event with nowhere to land is lost.
+        """
+        return self.waiters.setdefault(key, asyncio.Event())
+
+    def resolve(self, key: str) -> None:
+        """Release whatever is waiting on the operation called `key`."""
+        if key:
+            self.expect(key).set()
+
+    def _remember(self, role: str, content: str) -> None:
+        """Add a turn to the history, dropping the oldest once it is full."""
+        if not content.strip():
+            return
+        self.history.append({"role": role, "content": content})
+        del self.history[:-HISTORY_TURNS]
+
+    async def _wait(self, key: str, what: str) -> bool:
+        """Wait for operation `key` to finish.
+
+        False if the caller hung up or the event never came, which the turn
+        loop treats the same way: stop driving this call.
+        """
+        event = self.expect(key)
         waiters = [asyncio.create_task(event.wait()), asyncio.create_task(self.hung_up.wait())]
         try:
             done, _ = await asyncio.wait(
@@ -59,19 +138,15 @@ class CallSession:
         finally:
             for task in waiters:
                 task.cancel()
+            self.waiters.pop(key, None)
         if not done:
             logger.warning("call %s: timed out waiting for %s", self.channel_id, what)
             return False
         return not self.hung_up.is_set()
 
-    async def _speak(self, text: str) -> bool:
-        """Synthesise `text`, hand the file to Asterisk, and wait for playback."""
-        audio = await tts(text)
-        if not audio:
-            logger.warning("call %s: tts produced no audio", self.channel_id)
-            return True
-
-        # Asterisk plays from a file by path, not from bytes, so the reply is
+    async def _play_file(self, audio: bytes) -> bool:
+        """Hand one piece of u-law audio to Asterisk and wait for it to finish."""
+        # Asterisk plays from a file by path, not from bytes, so the audio is
         # written to the directory shared with the container. `.ulaw` is a
         # headerless format Asterisk reads by extension, and the audio is
         # already at the trunk's rate, so playback does not transcode.
@@ -81,47 +156,194 @@ class CallSession:
         path.write_bytes(audio)
 
         try:
-            self.playback_done.clear()
             # A `sound:` URI takes the path without its extension.
             media = f"sound:{settings.VOICE_TTS_CONTAINER_DIR}/{name}"
-            if await self.ari.play(self.channel_id, media) is None:
+            playback_id = await self.ari.play(self.channel_id, media)
+            if playback_id is None:
                 return False
-            return await self._wait(self.playback_done, "playback")
+            # Asterisk only names the playback in its reply, so the waiter
+            # cannot be registered before the request -- but an event arriving
+            # in between is kept by resolve() rather than dropped.
+            return await self._wait(playback_id, "playback")
         finally:
-            # One file per turn would otherwise accumulate for the life of the
-            # host; the audio is worthless once played.
+            # One file per sentence would otherwise accumulate for the life of
+            # the host; the audio is worthless once played.
             path.unlink(missing_ok=True)
+
+    async def _speak(self, text: str) -> bool:
+        """Synthesise `text` and play it. False if the call cannot go on.
+
+        Synthesis producing nothing means the caller heard silence where a
+        sentence should have been. Reporting that as success leaves them on an
+        open line with no idea anyone is there, so it ends the call instead.
+        """
+        audio = b"".join([chunk async for chunk in tts_stream(text)])
+        if not audio:
+            logger.warning("call %s: tts produced no audio for %r", self.channel_id, text)
+            return False
+        return await self._play_file(audio)
+
+    async def _respond(self) -> bool:
+        """Generate a reply to the history and speak it as it is written.
+
+        Synthesis of the next sentence is started before the current one has
+        finished playing, so the gap between sentences is whatever synthesis
+        did not manage to hide behind playback, rather than its full cost.
+        """
+        # Only what the caller actually heard. A reply cut short by a hangup
+        # must not be remembered as said, or the next turn answers a sentence
+        # that never reached them.
+        heard: list[str] = []
+        pending: tuple[str, asyncio.Task[bytes]] | None = None
+
+        async def synthesise(sentence: str) -> bytes:
+            return b"".join([chunk async for chunk in tts_stream(sentence)])
+
+        async def play_pending() -> bool:
+            """Play the sentence queued last pass, if any."""
+            nonlocal pending
+            if pending is None:
+                return True
+            sentence, task = pending
+            pending = None
+            audio = await task
+            if audio and not await self._play_file(audio):
+                return False
+            heard.append(sentence)
+            return not self.hung_up.is_set()
+
+        try:
+            async for sentence in llm_stream(self.history):
+                # Play what the previous pass synthesised, then queue this
+                # sentence so it is made while that one is on the wire.
+                if not await play_pending():
+                    return False
+                pending = (sentence, asyncio.create_task(synthesise(sentence)))
+            if not await play_pending():
+                return False
+        finally:
+            # A reply abandoned mid-stream must not leave synthesis running.
+            if pending is not None:
+                pending[1].cancel()
+            self._remember("assistant", " ".join(heard))
+
+        return not self.hung_up.is_set()
 
     async def _listen(self) -> bytes:
         """Record the caller's next utterance and return it as u-law."""
         name = f"pana-{self.channel_id}-{uuid.uuid4().hex[:8]}"
-        self.recording_done.clear()
+        # We choose the recording's name, so its waiter exists before Asterisk
+        # can possibly report it finished.
+        self.expect(name)
         await self.ari.record(self.channel_id, name, MAX_TURN_SECONDS, SILENCE_SECONDS)
-        await self._wait(self.recording_done, "recording")
+        if not await self._wait(name, "recording"):
+            # Hung up or the event never came. Asterisk still holds whatever
+            # it captured, so clean that up, but do not spend a round trip
+            # downloading audio no one will hear a reply to.
+            await self.ari.delete_recording(name)
+            return b""
 
         audio = await self.ari.stored_recording(name)
+        if settings.VOICE_KEEP_RECORDINGS:
+            # Size alone tells most of the story: a turn that captured nothing
+            # is a media path problem, not a recognition one.
+            kept = Path(settings.VOICE_TTS_DIR) / f"{name}.ulaw"
+            kept.write_bytes(audio)
+            logger.info(
+                "call %s: recorded %d bytes (%.1fs), kept at %s",
+                self.channel_id,
+                len(audio),
+                len(audio) / TELEPHONY_RATE,
+                kept,
+            )
+        else:
+            logger.debug("call %s: recorded %d bytes", self.channel_id, len(audio))
         await self.ari.delete_recording(name)
         return audio
+
+    def _is_backchannel_moment(self, audio: bytes, text: str) -> bool:
+        """True if the caller is mid-flow and wants an "mm", not an answer.
+
+        Length is measured on the audio rather than the transcript because it
+        is how long they held the floor that matters, not how many words they
+        got out. The trailing silence Asterisk waits through is subtracted, so
+        a long pause does not read as a long turn.
+        """
+        seconds = len(audio) / TELEPHONY_RATE - SILENCE_SECONDS
+        if seconds < BACKCHANNEL_OVER_SECONDS:
+            return False
+        # Something asked directly gets answered however long the run-up was.
+        return not text.rstrip().endswith(BACKCHANNEL_ENDINGS)
 
     async def run(self) -> None:
         """Greet the caller, then trade turns until they hang up."""
         await self.ari.answer(self.channel_id)
         logger.info("call %s: answered", self.channel_id)
 
-        if not await self._speak("Hello, thanks for calling Pana. How can I help?"):
+        if not await self._speak(GREETING):
             return
+        self._remember("assistant", GREETING)
 
+        silent_turns = 0
         while not self.hung_up.is_set():
             audio = await self._listen()
             if self.hung_up.is_set():
                 break
-            if not audio:
-                logger.info("call %s: nothing recorded, ending", self.channel_id)
-                break
-            if not await self._speak(await llm(await stt(audio))):
+
+            # Two ways a turn can come through as nothing, and they are the
+            # same thing to the caller: no audio captured at all (a one-way
+            # media path, or they said nothing), or audio the recogniser could
+            # not resolve into words. Neither is a reason to hang up on them
+            # without a word -- the line just goes dead and they are left
+            # wondering whether it was them. Ask again, and say goodbye before
+            # giving up.
+            text = await stt(audio) if audio else ""
+            if not text.strip():
+                silent_turns += 1
+                logger.info(
+                    "call %s: nothing heard (%d of %d)",
+                    self.channel_id,
+                    silent_turns,
+                    MAX_SILENT_TURNS,
+                )
+                if silent_turns >= MAX_SILENT_TURNS:
+                    await self._speak(GIVE_UP_REPLY)
+                    break
+                if not await self._speak(NO_SPEECH_REPLY):
+                    break
+                continue
+
+            silent_turns = 0
+            if self._is_backchannel_moment(audio, text):
+                # Their turn still goes in the history -- Pana heard it, and
+                # the next real reply is answering all of it.
+                self._remember("user", text)
+                self._remember("assistant", backchannel := random.choice(BACKCHANNELS))
+                if not await self._speak(backchannel):
+                    break
+                continue
+
+            self._remember("user", text)
+            if not await self._respond():
                 break
 
         logger.info("call %s: conversation finished", self.channel_id)
+
+
+async def warm_up() -> None:
+    """Open the synthesis connection so the first call does not pay for it."""
+    try:
+        # A real phrase, not an empty one: synthesis of "" returns before the
+        # connection is built, which is the cost this exists to pay early.
+        await asyncio.wait_for(tts("ready"), timeout=WARM_UP_TIMEOUT)
+    except TimeoutError:
+        logger.warning("tts did not warm up in %ss; the first call may lag", WARM_UP_TIMEOUT)
+    except Exception:
+        # A provider that cannot be reached now may work by the first call,
+        # and the pipeline reports its own failures per turn.
+        logger.warning("tts could not be warmed up; the first call may lag", exc_info=True)
+    else:
+        logger.info("tts connection ready")
 
 
 async def handle_call(session: CallSession) -> None:
@@ -150,12 +372,23 @@ async def run() -> None:
     sessions: dict[str, CallSession] = {}
     tasks: dict[str, asyncio.Task[None]] = {}
 
+    def forget(channel_id: str) -> None:
+        """Drop a finished call, whichever way it ended."""
+        sessions.pop(channel_id, None)
+        tasks.pop(channel_id, None)
+
     async with AriClient(
         settings.ARI_BASE_URL,
         settings.ARI_USERNAME,
         settings.ARI_PASSWORD,
         settings.ARI_APP_NAME,
     ) as ari:
+        # Build the synthesis connection before the first call rather than
+        # during it. The TLS handshake to a hosted synthesiser costs seconds,
+        # and on the first call that is silence on an answered line between
+        # the greeting being asked for and any audio reaching the caller.
+        await warm_up()
+
         logger.info("voice service ready, waiting for calls")
         async for event in ari.events():
             kind = event.get("type")
@@ -172,20 +405,29 @@ async def run() -> None:
                 logger.info("call %s: entered Stasis", channel_id)
                 session = CallSession(ari, channel_id)
                 sessions[channel_id] = session
-                tasks[channel_id] = asyncio.create_task(handle_call(session))
+                task = asyncio.create_task(handle_call(session))
+                tasks[channel_id] = task
+                # A handler that finishes without a StasisEnd -- the call ended
+                # in a way Asterisk did not report, or the handler hung up
+                # itself -- would otherwise sit in both dicts for the life of
+                # the process.
+                task.add_done_callback(lambda _, cid=channel_id: forget(cid))
             elif session is None:
                 continue
             elif kind == "StasisEnd":
                 logger.info("call %s: left Stasis", channel_id)
                 session.hung_up.set()
-                sessions.pop(channel_id, None)
-                task = tasks.pop(channel_id, None)
-                if task is not None:
-                    task.cancel()
+                # Let the handler unwind on hung_up rather than cancelling it
+                # mid-await: cancellation there can abandon a synthesis thread
+                # or leave a recording undeleted. The done callback reaps it.
+                ended = tasks.get(channel_id)
+                if ended is None:
+                    forget(channel_id)
             elif kind in ("RecordingFinished", "RecordingFailed"):
-                session.recording_done.set()
+                # A recording is reported under the name it was started with.
+                session.resolve(event.get("recording", {}).get("name", ""))
             elif kind in ("PlaybackFinished", "PlaybackFailed"):
-                session.playback_done.set()
+                session.resolve(event.get("playback", {}).get("id", ""))
 
 
 def main() -> None:

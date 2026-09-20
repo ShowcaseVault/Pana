@@ -31,7 +31,5 @@ misc/
 recordings/
 *.local
 
-# Speech models, fetched with make voice-models. A few hundred MB of binary.
-models/
 # Generated speech handed to Asterisk, one file per turn.
 var/

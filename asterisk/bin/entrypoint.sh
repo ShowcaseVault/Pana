@@ -34,8 +34,26 @@ if [ "$group_other" != "00" ]; then
     exit 1
 fi
 
+# The public address the host detected at start, if it passed one. Read before
+# the secret file is sourced, because that file may also carry a value and a
+# detected address is the fresher of the two.
+DETECTED_EXTERNAL_IP="${SIP_EXTERNAL_IP:-}"
+
 # shellcheck disable=SC1090
 . "$SECRET_FILE"
+
+# A home or office connection is usually on a dynamic address. A stale one
+# still registers -- that is an outbound request the carrier answers over the
+# same flow -- but every inbound INVITE is sent to an address that is no
+# longer ours and the call never arrives. Preferring the detected value is
+# what keeps a reassignment from silently breaking inbound calls.
+if [ -n "$DETECTED_EXTERNAL_IP" ]; then
+    if [ -n "${SIP_EXTERNAL_IP:-}" ] && [ "$SIP_EXTERNAL_IP" != "$DETECTED_EXTERNAL_IP" ]; then
+        echo "entrypoint: public address is $DETECTED_EXTERNAL_IP, but the secret file" >&2
+        echo "entrypoint: says $SIP_EXTERNAL_IP. Using the detected one." >&2
+    fi
+    SIP_EXTERNAL_IP="$DETECTED_EXTERNAL_IP"
+fi
 
 for var in SIP_USERNAME SIP_PASSWORD SIP_AUTH_NAME SIP_DOMAIN SIP_OUTBOUND_PROXY; do
     eval "value=\${$var:-}"
@@ -90,10 +108,23 @@ CARRIER_DID = ${SIP_USERNAME}"
 # NAT handling. Only emitted when an external IP was supplied, because
 # external_media_address with an empty value makes Asterisk advertise a blank
 # address in SDP and one-way audio is the result.
+#
+# SIP_MEDIA_VIA_STUN leaves external_media_address off so that the STUN
+# address discovered per RTP socket (stunaddr in rtp.conf) is what reaches the
+# SDP. external_media_address rewrites the SDP after RTP has filled it in, and
+# it only knows the address, not the port -- so with it set, media is
+# advertised on Asterisk's internal port, which a NAT that rewrites ports has
+# already mapped to something else. Signalling keeps the static address either
+# way: registration needs one that does not move.
 NAT_TRANSPORT_LINES=""
 if [ -n "${SIP_EXTERNAL_IP:-}" ]; then
-    NAT_TRANSPORT_LINES="external_media_address = ${SIP_EXTERNAL_IP}
+    if [ "${SIP_MEDIA_VIA_STUN:-false}" = "true" ]; then
+        echo "entrypoint: media address comes from STUN; signalling stays on ${SIP_EXTERNAL_IP}"
+        NAT_TRANSPORT_LINES="external_signaling_address = ${SIP_EXTERNAL_IP}"
+    else
+        NAT_TRANSPORT_LINES="external_media_address = ${SIP_EXTERNAL_IP}
 external_signaling_address = ${SIP_EXTERNAL_IP}"
+    fi
     if [ -n "${SIP_LOCAL_NET:-}" ]; then
         NAT_TRANSPORT_LINES="${NAT_TRANSPORT_LINES}
 local_net = ${SIP_LOCAL_NET}"

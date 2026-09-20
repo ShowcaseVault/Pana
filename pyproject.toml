@@ -3,52 +3,50 @@ name = "pana"
 version = "0.0.0"
 description = "Pana backend: FastAPI API and Celery workers."
 requires-python = ">=3.12"
+
 dependencies = [
-    # Environment
-    "python-dotenv",
-    "pydantic-settings",
-    "langchain",
-    "langchain-community",
-    "langchain-experimental==0.3.4",
-    "langchain-openai==0.3.9",
-    # Transcription
-    "groq",
-    # Telephony: ARI REST + websocket to Asterisk
-    "aiohttp",
-    # Offline speech for the voice service: Vosk recognises, Piper synthesises.
-    # Both run locally with no API key, which is what makes a test call work
-    # before a provider is chosen. Swap them out, not the pipeline seams.
-    "vosk",
-    "piper-tts",
-    # audioop left the stdlib in 3.13; the backport carries the same API, so
-    # the ulaw and resampling code in voice_service/audio.py is unchanged.
-    "audioop-lts; python_version >= '3.13'",
-    # Server-side
+    # ---- Web server ----
     "fastapi",
     "uvicorn",
     "python-multipart",
-    # Database
+
+    # ---- Outbound HTTP ----
+    "httpx",
+    # Runs the blocking google-auth verifier off the event loop.
+    "anyio",
+
+    # ---- Database ----
     "sqlalchemy",
-    "psycopg2-binary",
-    "asyncpg",
-    # Migration
     "alembic",
-    # Encryption
-    "bcrypt==4.0.0",
-    "passlib",
-    "python-jose",
-    # Authentication
-    "google-auth",
-    "google-auth-oauthlib",
-    # Task Queue
+    "asyncpg",
+    "psycopg2-binary",
+
+    # ---- Task queue and cache ----
     "celery",
     "redis",
     "cachetools>=7.1.8",
-    "nvidia-riva-client>=2.27.0",
-]
 
-[tool.uv]
-package = false
+    # ---- Auth ----
+    "google-auth[requests]",
+    "python-jose",
+
+    # ---- Speech and language ----
+    # Groq serves both: Whisper for transcription, chat for the reply.
+    "groq",
+    # NVIDIA Magpie speech synthesis, over gRPC.
+    "nvidia-riva-client>=2.27.0",
+
+    # ---- Telephony ----
+    # ARI: REST plus the Stasis events websocket.
+    "aiohttp",
+    # audioop left the stdlib in 3.13; the backport carries the same API, so
+    # the u-law and resampling code in voice_service/audio.py is unchanged.
+    "audioop-lts; python_version >= '3.13'",
+
+    # ---- Config ----
+    # Reads .env itself; python-dotenv is not needed alongside it.
+    "pydantic-settings",
+]
 
 [dependency-groups]
 dev = [
@@ -57,10 +55,21 @@ dev = [
     "ruff>=0.14",
 ]
 
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
 exclude = ["alembic/versions", ".venv", "Pana"]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.ruff.lint]
 select = [
@@ -74,19 +83,11 @@ select = [
     "C4",  # comprehensions
 ]
 ignore = [
-    "E501",  # line length is handled by the formatter
-    "B008",  # FastAPI relies on function calls (Depends) in argument defaults
+    "E501", # line length is handled by the formatter
+    "B008", # FastAPI relies on function calls (Depends) in argument defaults
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "alembic/env.py" = ["F401"]
 # `str, PyEnum` keeps the values JSON-serializable; StrEnum would change behavior.
 "api/schemas/transcriptions.py" = ["UP042"]
-
-[tool.ruff.format]
-quote-style = "double"
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
-asyncio_mode = "auto"

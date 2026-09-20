@@ -308,7 +308,7 @@ fallback is gated on `STASISSTATUS` rather than on reaching the next line:
       app.py           Stasis event loop and the per-call turn loop
       ari.py           ARI client -- events websocket plus the REST calls used
       pipeline.py      stt / llm / tts, the three seams
-      local_speech.py  Vosk and Piper, the offline models behind stt and tts
+      providers/       Groq for stt and llm, NVIDIA Magpie for tts
       audio.py         u-law and resampling between trunk and models
 
 Run it with `make voice`, alongside `make asterisk-up`. Both read
@@ -332,30 +332,117 @@ rather than in turns, so the caller can interrupt. The codec choice in
 expect, so no transcode is needed. The `stt`/`llm`/`tts` signatures do not
 change when that swap happens.
 
-### Speech, and what is still a stub
+### Speech and generation
 
-Recognition and synthesis are real and run locally: **Vosk** transcribes,
-**Piper** synthesises. Neither needs an API key or the network, which is what
-lets a call work end to end before a provider is chosen. `make voice-models`
-fetches both once into `models/` (git-ignored, ~130 MB).
+Three stages, all hosted:
 
-`llm` is the remaining stub. It echoes the caller back, so a test call proves
-recognition audibly -- say something and hear it repeated -- without deciding
-which provider answers.
+| Stage | Provider | Model setting |
+|---|---|---|
+| `stt` | Groq | `STT_MODEL_REALTIME` |
+| `llm` | Groq | `LLM_MODEL_REALTIME` |
+| `tts` | NVIDIA Magpie | `TTS_VOICE` |
 
-Two things to know about the models on phone audio:
+There is no offline path. Vosk and Piper were here while the providers were
+undecided, and were removed once they were: ~200 MB of models and packages
+standing in for services that are now configured. A stage that fails logs it
+and the turn ends short; the loop continues, so one bad turn does not end the
+call. A local recogniser that mishears the caller is not a better call than a
+short apology.
 
-- The small Vosk model is built for 16 kHz and *rejects* 8 kHz rather than
-  resampling, so `audio.py` upsamples the trunk's audio to match. It is
-  noticeably worse than a hosted model on 8 kHz speech; proper nouns suffer
-  ("Pana" comes back as "partner").
-- Piper's medium voices synthesise at 22.05 kHz, so its output is downsampled
-  to 8 kHz u-law before playback.
+Groq answers and Groq transcribes, so a call needs one key (`GROQ_API_KEY`)
+rather than two. Both stages have a `_REALTIME` model setting separate from the
+batch one, so a call can move to a faster model without touching diary
+generation. A call is latency-bound, not accuracy-bound: a better transcript
+that lands a second later is a worse call. The reply is capped at
+`LLM_MAX_TOKENS` on the model rather than trimmed afterwards, so nothing is
+generated and then thrown away.
 
-Both are fast enough on CPU that a GPU is not worth wiring up: Piper runs at
-roughly 0.07× real time and Vosk at 0.34×. Vosk is Kaldi, not ONNX, so it has
-no CUDA build on PyPI at all -- GPU only becomes interesting when a real model
-(Whisper, say) replaces it.
+Magpie runs two ways behind one client. The default is NVIDIA's hosted build on
+Cloud Functions, which wants `TTS_FUNCTION_ID` as call metadata over TLS plus
+`NVIDIA_API_KEY`; a self-hosted NIM (`docker-compose.magpie.yml`, needs a GPU)
+is a plain gRPC target with neither. Pointing `TTS_URI` at the local NIM,
+clearing `TTS_FUNCTION_ID` and setting `TTS_USE_SSL=false` is the whole switch.
+`scripts/test_magpie_tts.py` exercises the endpoint on its own, outside a call.
+22.05 kHz is asked for rather than 44.1: it is already past what a phone line
+carries, at half the bytes per chunk.
+
+`riva-client` is synchronous gRPC, so its stream is consumed on a worker thread
+and handed back over a bounded queue. Iterating it on the event loop would
+block every other call on the service for the length of the synthesis.
+
+That handoff uses a thread-native queue and a stop flag, not an `asyncio`
+queue. The consumer routinely abandons the stream mid-reply -- the caller hung
+up -- and a producer parked on a full `asyncio.Queue` can only be released by
+the event loop, which the abandoned generator never gets back to. The thread
+would sit there for the life of the process, and enough hangups exhaust the
+executor pool and stop synthesis entirely. With a stop flag the producer
+notices, drops the gRPC stream so the rest is never synthesised or billed, and
+unwinds.
+
+Resampling carries its state between chunks. 22.05 kHz to 8 kHz is a ratio of
+2.75625, so every chunk boundary falls mid-sample; resampling each chunk from a
+standing start loses that fraction and clicks at every join.
+
+### What Pana is on the call
+
+A companion, not an assistant: someone who listens and also takes a turn of
+their own. Most of that is the prompt (`prompts/voice_companion.py`, wired in
+as `VOICE_LLM_PROMPT`) -- react honestly, say what you think, pick a thread
+back up, ask a question only when you want the answer, never two in a row.
+
+The rest is turn-taking here, which has to agree with it. A `maxSilenceSeconds`
+of 2 and a 15-second ceiling are assistant numbers: they cut someone off in the
+pause in the middle of a hard sentence. A turn runs to 45 seconds and ends on
+3 seconds of silence instead.
+
+A turn longer than `BACKCHANNEL_OVER_SECONDS` that does not end in a question
+gets a short "Mm." or "Go on." rather than a considered reply -- the caller is
+mid-flow, and an insight there is an interruption. What they said still goes
+into the history, so the next real reply answers all of it. Length is measured
+on the audio, minus the trailing silence Asterisk waits through, not on the
+transcript: it is how long they held the floor that matters.
+
+### Chunked turns
+
+A turn is not processed as one block. The model streams its reply and
+`llm_stream` yields it a **sentence** at a time; each sentence is synthesised
+while the previous one is still playing. The caller hears the first words in
+about the time that first sentence takes, rather than waiting for generation
+plus synthesis of the whole answer.
+
+Sentences, not tokens, are the unit. A synthesiser needs a complete clause to
+get the prosody right -- handing Magpie three words at a time produces speech
+that sounds chopped even though the audio itself is continuous. A sentence
+shorter than `MIN_CHUNK_CHARS` waits and is spoken with the next one, so an
+abbreviation does not become its own utterance.
+
+Playback stays sequential: Asterisk plays one file per sentence, in order, and
+the turn loop waits for each `PlaybackFinished`. The chunking buys time to
+first word, not overlapping audio. A synthesis failure partway through a reply
+ends it there rather than restarting and repeating half a sentence.
+
+Each wait is keyed on the operation it belongs to -- the id ARI returns for a
+playback, the name we chose for a recording -- rather than on one event per
+kind. A shared event is wrong as soon as a reply is several playbacks long: a
+late or duplicate `PlaybackFinished` for one sentence releases the wait
+belonging to the next, and the caller hears it cut off. Waiters are registered
+before the operation starts where the key is known in advance, because
+Asterisk can report a short recording finished before the code that started it
+is back to waiting on it.
+
+Only what the caller actually heard goes into the history. A reply cut short by
+a hangup is remembered as far as it was played and no further, so the next turn
+never answers a sentence that never reached them.
+
+Three consecutive turns that transcribe to nothing end the call, after saying
+so. A bad line or an open mic would otherwise re-prompt until the dialplan's
+own timeout, billing the whole way.
+
+The service keeps the last `HISTORY_TURNS` turns as context -- enough to pick
+up something said several minutes earlier, which is most of what makes it feel
+like one conversation rather than a series of exchanges. A turn that
+transcribes to nothing is not added to it: the caller is re-prompted instead,
+so the model never has to interpret an empty message.
 
 ### Playing generated audio
 

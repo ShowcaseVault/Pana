@@ -37,6 +37,16 @@ services:
       # Per-call ceiling in seconds: carrier minutes on one side, a held
       # channel and media session on ours.
       SIP_MAX_CALL_SECONDS: "${SIP_MAX_CALL_SECONDS:-180}"
+      # The host's public address, detected by make asterisk-up. Overrides the
+      # value in the secret file, which goes stale the moment the ISP hands
+      # out a new address -- inbound calls are then routed to an address that
+      # is not ours any more. Empty when detection failed, in which case the
+      # secret file's value stands.
+      SIP_EXTERNAL_IP: "${SIP_EXTERNAL_IP:-}"
+      # Let STUN supply the media address and port instead of pinning it to
+      # SIP_EXTERNAL_IP. For a NAT that rewrites RTP ports, where the port in
+      # the SDP has to be the mapped one rather than Asterisk's own.
+      SIP_MEDIA_VIA_STUN: "${SIP_MEDIA_VIA_STUN:-false}"
     healthcheck:
       # Reports healthy only when the trunk is actually registered, so a
       # credential or network problem surfaces as an unhealthy container
