@@ -74,27 +74,59 @@
   transform: translateX(-50%);
 }
 
+/* The highlight is one element that travels, rather than a background painted
+   on whichever button is active. Fading a colour in on one and out on another
+   reads as two separate events; a shape that moves reads as one, and it is
+   what makes the change feel like crossing to a neighbouring pane rather than
+   jumping to an unrelated one.
+
+   --index is set by the shell from the settled pane; --step is one button plus
+   the gap between them. */
+.shell__marker {
+  position: absolute;
+  top: 0.3rem;
+  left: 0.4rem;
+  z-index: 0;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 999px;
+  background: var(--accent);
+  transform: translateX(calc(var(--index) * var(--step)));
+  pointer-events: none;
+}
+
+/* No transition, deliberately. The marker's position comes from the track's
+   scroll offset, and the track animates itself: a drag emits scroll events per
+   frame, and so does the smooth scrollTo behind a tab tap. A CSS transition
+   would animate an already-animating value, which lags the pane it is meant
+   to be reporting and settles after it. */
+
 .shell__dot {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: var(--size);
+  height: var(--size);
   padding: 0;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--ink-ghost);
   cursor: pointer;
-  transition: color 160ms ease, background 160ms ease;
+
+  /* Short, so the icon has turned white by the time the marker has finished
+     arriving under it. The marker itself is not transitioned, so this is the
+     only easing in the indicator. */
+  transition: color 140ms ease;
 }
 
-/* The active pane is filled rather than merely tinted: at this size a colour
-   change alone is easy to miss against the translucent pill. */
 .shell__dot.is-active {
-  background: var(--accent);
   color: #fff;
 }
 
+/* A drag between panes should not leave the marker mid-flight once the pane
+   has settled, so the travel is dropped rather than shortened. */
 /* --- Shared pane furniture ----------------------------------------------- */
 
 .pane {

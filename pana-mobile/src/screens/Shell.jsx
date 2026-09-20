@@ -43,6 +43,11 @@ function todayIso() {
 export default function Shell() {
   const trackRef = useRef(null);
   const [index, setIndex] = useState(RECORD_INDEX);
+
+  // Where the track actually is, as a fraction of a pane width. Separate from
+  // `index` so the marker can be mid-travel while the settled pane is still
+  // the one behind it.
+  const [offset, setOffset] = useState(RECORD_INDEX);
   const [diaryDate, setDiaryDate] = useState(todayIso);
 
   /** Scroll one pane into view. */
@@ -58,11 +63,21 @@ export default function Shell() {
     goTo(RECORD_INDEX, 'auto');
   }, [goTo]);
 
-  // Track which pane is settled, for the indicator dots. Reading scroll
-  // position beats onScrollEnd, which Safari does not implement.
+  // Track the scroll position, for the indicator. Reading it directly beats
+  // onScrollEnd, which Safari does not implement.
+  //
+  // Two values, because they answer different questions. `index` is the pane
+  // that has settled, which is what the tabs mark as current and what the
+  // panes are told about; `offset` is the fractional position, which the
+  // marker follows so it travels with the drag instead of waiting for it to
+  // finish and then jumping.
   const handleScroll = useCallback((event) => {
     const track = event.currentTarget;
-    const current = Math.round(track.scrollLeft / track.clientWidth);
+    const position = track.scrollLeft / track.clientWidth;
+
+    setOffset(position);
+
+    const current = Math.round(position);
     setIndex((previous) => (previous === current ? previous : current));
   }, []);
 
@@ -89,7 +104,16 @@ export default function Shell() {
         </section>
       </div>
 
-      <nav className="shell__dots" aria-label="Panes">
+      <nav
+        className="shell__dots"
+        aria-label="Panes"
+        // The marker's geometry, in one place: the button size and the step
+        // between buttons are the gap plus that size, and the CSS derives the
+        // travel from them rather than repeating the numbers.
+        style={{ '--size': '2rem', '--step': 'calc(2rem + 0.25rem)', '--index': offset }}
+      >
+        <span className="shell__marker" aria-hidden="true" />
+
         {PANES.map(({ name, Icon }, i) => (
           <button
             key={name}
