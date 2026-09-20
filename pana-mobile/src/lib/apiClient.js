@@ -17,14 +17,17 @@
 
 import axios from 'axios';
 import { ApiError, ApiResponse } from '@app/lib/ApiResponse.js';
-import { API_ROUTES, BASE_URL } from './routes.js';
+import { API_ROUTES } from './routes.js';
+import { getServerOrigin } from './serverStore.js';
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './tokenStore.js';
 
 /** Requests that must never trigger a refresh-and-retry cycle. */
 const AUTH_ENDPOINTS = [API_ROUTES.AUTH.REFRESH, API_ROUTES.AUTH.LOGOUT, API_ROUTES.AUTH.GOOGLE];
 
+// No baseURL here: a debug build can be pointed at a different server while
+// running, and axios fixes baseURL when the instance is created. It is set per
+// request instead, from the stored origin.
 const http = axios.create({
-  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -64,6 +67,8 @@ function notifySessionExpired() {
 }
 
 http.interceptors.request.use((config) => {
+  config.baseURL = getServerOrigin();
+
   const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

@@ -11,11 +11,33 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { USER_CANCELLED } from '../lib/auth.service.js';
+import { CAN_OVERRIDE, getServerOrigin, setServerOrigin } from '../lib/serverStore.js';
 import '../styles/login.css';
 
 export default function Login() {
   const { login } = useAuth();
   const [busy, setBusy] = useState(false);
+
+  // Only a build that permits it shows the server field at all, and in a
+  // release build the whole block is removed by the bundler rather than
+  // hidden: an app that can be pointed anywhere is an app that can be talked
+  // into handing a session token to someone else's server.
+  const [server, setServer] = useState(getServerOrigin);
+  const [savingServer, setSavingServer] = useState(false);
+
+  const handleSaveServer = async () => {
+    setSavingServer(true);
+    try {
+      await setServerOrigin(server);
+      setServer(getServerOrigin());
+      toast.success(`Server set to ${getServerOrigin()}`);
+    } catch (error) {
+      console.error('Could not save the server address', error);
+      toast.error('Could not save that address');
+    } finally {
+      setSavingServer(false);
+    }
+  };
 
   const handleSignIn = async () => {
     setBusy(true);
@@ -52,6 +74,39 @@ export default function Login() {
       </button>
 
       <p className="login__legal">Your recordings stay private to your account.</p>
+
+      {CAN_OVERRIDE && (
+        <div className="login__server">
+          <label className="login__server-label" htmlFor="server">
+            Server
+          </label>
+          <div className="login__server-row">
+            <input
+              id="server"
+              className="login__server-input"
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
+              placeholder="http://192.168.1.10:8000"
+              value={server}
+              onChange={(event) => setServer(event.target.value)}
+            />
+            <button
+              type="button"
+              className="login__server-save"
+              onClick={handleSaveServer}
+              disabled={savingServer}
+            >
+              Save
+            </button>
+          </div>
+          <p className="login__server-hint">
+            The address of your Pana API, as the phone sees it. Sign in again after changing it.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

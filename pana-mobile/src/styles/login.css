@@ -81,3 +81,72 @@
   color: var(--ink-faint);
   text-align: center;
 }
+
+/* --- Server address ---------------------------------------------------------
+   Present only in a build that allows the API origin to be changed, which is
+   why it is styled as a utility rather than as part of the sign-in: it is for
+   someone running their own Pana server, and it should not compete with the
+   one control that matters. */
+
+.login__server {
+  width: 100%;
+  max-width: 22rem;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.login__server-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.login__server-row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.login__server-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.7rem;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 0.6rem;
+}
+
+.login__server-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.login__server-save {
+  flex: none;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid var(--rule);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.login__server-save:active:not(:disabled) {
+  opacity: 0.7;
+}
+
+.login__server-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-ghost);
+}

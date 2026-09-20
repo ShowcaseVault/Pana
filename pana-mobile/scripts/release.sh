@@ -10,7 +10,8 @@
 # hunting for the newest.
 #
 # Usage: npm run release        # release build, signed with the release key
-#        npm run release debug  # debug build, for a quick iteration
+#        npm run release debug  # debug build, which can be pointed at any server
+#        npm run release both   # both, for publishing
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -26,21 +27,14 @@ export PATH="$PATH:$ANDROID_HOME/platform-tools"
 VARIANT="${1:-release}"
 
 case "$VARIANT" in
-  release)
-    GRADLE_TASK="assembleRelease"
-    BUILT="android/app/build/outputs/apk/release/app-release.apk"
-    ;;
-  debug)
-    GRADLE_TASK="assembleDebug"
-    BUILT="android/app/build/outputs/apk/debug/app-debug.apk"
-    ;;
+  release|debug|both) ;;
   *)
-    echo "Unknown variant '$VARIANT'. Use 'release' or 'debug'." >&2
+    echo "Unknown variant '$VARIANT'. Use 'release', 'debug' or 'both'." >&2
     exit 1
     ;;
 esac
 
-if [ "$VARIANT" = "release" ] && [ ! -f ../secrets/android_signing.env ]; then
+if [ "$VARIANT" != "debug" ] && [ ! -f ../secrets/android_signing.env ]; then
   echo "==> secrets/android_signing.env is missing." >&2
   echo "    Without it the release build falls back to the debug signature," >&2
   echo "    which is what Play Protect warns about. See pana-mobile/CONFIG.md." >&2
@@ -49,33 +43,70 @@ fi
 
 VERSION="$(node -p "require('./package.json').version")"
 STAMP="$(date +%Y%m%d-%H%M)"
-OUT="release/pana-${VERSION}-${STAMP}.apk"
-
-echo "==> Building web bundle"
-npm run build
-
-echo "==> Syncing to Android"
-npx cap sync android
-
-echo "==> Assembling ${VARIANT} APK"
-(cd android && ./gradlew "$GRADLE_TASK")
 
 mkdir -p release
 
 # Only the current build is kept. The archive was meant to make an older APK
 # reinstallable, but every build overwrote the phone's copy anyway, and a
-# directory of near-identical 3 MB files is not a version history -- git is.
-# A specific older build comes from checking out its commit and rebuilding.
+# directory of near-identical files is not a version history: git is. A
+# specific older build comes from checking out its commit and rebuilding.
 rm -f release/*.apk
 
-cp "$BUILT" "$OUT"
+# Build one variant, and leave its APK in release/ under a name that says
+# which variant it is.
+#
+# The web bundle is rebuilt per variant, not once: whether the server address
+# can be changed at runtime is compiled into it. VITE_ALLOW_SERVER_OVERRIDE is
+# what the debug bundle carries and the release bundle does not, so the
+# release bundle has no code path that points the app at another server.
+build_variant() {
+  local variant="$1"
+  local task out built
 
-# The unversioned copy is what a person actually taps; the versioned one
-# carries the version and timestamp for the release upload.
-cp "$BUILT" "release/pana.apk"
+  case "$variant" in
+    release)
+      task="assembleRelease"
+      built="android/app/build/outputs/apk/release/app-release.apk"
+      out="release/pana-${VERSION}-${STAMP}.apk"
+      ;;
+    debug)
+      task="assembleDebug"
+      built="android/app/build/outputs/apk/debug/app-debug.apk"
+      out="release/pana-${VERSION}-${STAMP}-debug.apk"
+      ;;
+  esac
 
-SIZE="$(du -h "$OUT" | cut -f1)"
-echo "==> Built $OUT ($SIZE)"
+  echo "==> Building web bundle (${variant})"
+  if [ "$variant" = "debug" ]; then
+    VITE_ALLOW_SERVER_OVERRIDE=true npm run build
+  else
+    npm run build
+  fi
+
+  echo "==> Syncing to Android"
+  npx cap sync android
+
+  echo "==> Assembling ${variant} APK"
+  (cd android && ./gradlew "$task")
+
+  cp "$built" "$out"
+  echo "==> Built $out ($(du -h "$out" | cut -f1))"
+
+  # The path of the APK to install, for the caller.
+  LAST_BUILT="$built"
+}
+
+if [ "$VARIANT" = "both" ]; then
+  # Release first, so the debug build is the one left installed: it is the one
+  # that can be pointed at a LAN server, which is what a person testing wants.
+  build_variant release
+  build_variant debug
+else
+  build_variant "$VARIANT"
+fi
+
+# The unversioned copy is what a person actually taps on the phone.
+cp "$LAST_BUILT" "release/pana.apk"
 
 # Pushing and installing are separate on purpose: the push leaves a file the
 # user can reinstall from the phone itself later, and the install is what makes
@@ -83,18 +114,18 @@ echo "==> Built $OUT ($SIZE)"
 if adb get-state >/dev/null 2>&1; then
   DEVICE="$(adb devices | awk 'NR==2 {print $1}')"
   echo "==> Copying to $DEVICE:/sdcard/Download/pana.apk"
-  adb push "$BUILT" /sdcard/Download/pana.apk >/dev/null
+  adb push "$LAST_BUILT" /sdcard/Download/pana.apk >/dev/null
 
   echo "==> Installing"
   # A debug and a release APK are signed by different keys, and Android will
-  # not replace one with the other. Reinstalling over a mismatched signature
-  # fails, so the old app is removed first -- which does sign the user out.
-  if ! adb install -r "$BUILT" 2>&1 | tail -2 | grep -q Success; then
+  # not replace one with the other, so a mismatch means removing the old app
+  # first. That does sign the user out.
+  if ! adb install -r "$LAST_BUILT" 2>&1 | tail -2 | grep -q Success; then
     echo "==> Signature differs from the installed build; reinstalling"
     adb uninstall com.pana.app >/dev/null 2>&1 || true
-    adb install "$BUILT" 2>&1 | tail -2
+    adb install "$LAST_BUILT" 2>&1 | tail -2
   fi
   echo "==> Done. Pana is on the phone."
 else
-  echo "==> No device connected; APK is in release/ only."
+  echo "==> No device connected; APKs are in release/ only."
 fi

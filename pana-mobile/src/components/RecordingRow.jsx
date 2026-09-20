@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Trash2, Loader2 } from 'lucide-react';
 import { useTranscription } from '@app/hooks/queries/useRecordings.js';
 import { API_ROUTES } from '../lib/routes.js';
+import { getServerOrigin } from '../lib/serverStore.js';
 import { getAccessToken } from '../lib/tokenStore.js';
 import '../styles/recording-row.css';
 
@@ -75,7 +76,7 @@ export default function RecordingRow({ recording, onDelete }) {
     if (audioRef.current) return audioRef.current;
 
     const base = API_ROUTES.AUDIO_BASE.replace(/\/$/, '');
-    const response = await fetch(`${API_ROUTES.ORIGIN}${base}/${recording.file_path}`, {
+    const response = await fetch(`${getServerOrigin()}${base}/${recording.file_path}`, {
       headers: { Authorization: `Bearer ${getAccessToken()}` },
     });
     if (!response.ok) throw new Error(`Audio failed: ${response.status}`);

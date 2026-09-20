@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The development API is plain HTTP on the LAN, which Android refuses by
-  default.
+  Cleartext for the debug build.
 
-  This file is in the debug source set, so the exception exists only in a
-  build made for this machine. The release build uses its own config, which
-  permits no cleartext at all. The hosts named here are development machines,
-  and a shipped app has no business reaching them.
+  A development API is plain HTTP on a LAN, which Android refuses by default.
+  The previous version of this file named one address, which worked only for
+  the machine that happened to build the APK; a debug build handed to anyone
+  else could not reach their server. Since the build already lets the origin
+  be typed in at runtime, the permission has to be as broad as the field.
+
+  This file is in the debug source set. The release build has its own, which
+  permits no cleartext at all, and its bundle has no way to change the origin,
+  so nothing here reaches a shipped app.
 -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">192.168.1.11</domain>
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="false">10.0.2.2</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>
