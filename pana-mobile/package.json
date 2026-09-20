@@ -11,7 +11,8 @@
     "android": "cap run android",
     "android:live": "cap run android --live-reload --host $(grep -oP '^VITE_BASE_API_URL=https?://\\K[^:/]+' .env) --port $(grep -oP '^VITE_PORT=\\K[0-9]+' .env)",
     "release": "bash scripts/release.sh",
-    "icons": "python3 scripts/icons.py"
+    "icons": "python3 scripts/icons.py",
+    "release:github": "bash scripts/publish.sh"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

@@ -61,10 +61,17 @@ echo "==> Assembling ${VARIANT} APK"
 (cd android && ./gradlew "$GRADLE_TASK")
 
 mkdir -p release
+
+# Only the current build is kept. The archive was meant to make an older APK
+# reinstallable, but every build overwrote the phone's copy anyway, and a
+# directory of near-identical 3 MB files is not a version history -- git is.
+# A specific older build comes from checking out its commit and rebuilding.
+rm -f release/*.apk
+
 cp "$BUILT" "$OUT"
 
-# The unversioned copy is what a person actually taps; the versioned one is the
-# archive beside it.
+# The unversioned copy is what a person actually taps; the versioned one
+# carries the version and timestamp for the release upload.
 cp "$BUILT" "release/pana.apk"
 
 SIZE="$(du -h "$OUT" | cut -f1)"

@@ -21,7 +21,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: voice asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix install-mobile mobile mobile-live mobile-release celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: voice asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix install-mobile mobile mobile-live mobile-release mobile-publish celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -77,6 +77,10 @@ mobile-live:
 # Build, archive under release/, and install on the connected phone.
 mobile-release:
 	$(NPM) --prefix $(MOBILE_DIR) run release
+
+# Upload the built APK to a GitHub release, as a draft.
+mobile-publish:
+	$(NPM) --prefix $(MOBILE_DIR) run release:github
 
 celery:
 	$(CELERY) -P $(CELERY_POOL) -Q high_priority,default -n worker@%h
@@ -222,6 +226,7 @@ help:
 	@echo "make mobile          run the mobile dev server (5175)"
 	@echo "make mobile-live     run on the connected phone with hot reload"
 	@echo "make mobile-release  build an APK into release/ and install it"
+	@echo "make mobile-publish  upload the built APK to a GitHub release"
 	@echo "make celery          run one worker consuming both queues"
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"

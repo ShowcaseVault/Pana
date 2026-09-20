@@ -80,3 +80,35 @@ plugin that works in debug and not in release as a missing keep rule.
 
 Splitting the APK per ABI was tried and removed: the app ships no native
 libraries, so every split was byte-for-byte identical to the universal one.
+
+## Distributing a build
+
+`release/` holds only the current build: `pana.apk` and one versioned copy.
+Every build clears it first. It is not a version history -- git is, and an
+older APK comes from checking out its commit and rebuilding.
+
+Builds are distributed through GitHub releases instead:
+
+    make mobile-release   # build and install on the connected phone
+    make mobile-publish   # upload that APK to a draft GitHub release
+
+The release is tagged `mobile-v<version>`, pinned to the commit it was built
+from, so an APK someone installed can be traced back to the source that
+produced it. Publishing to an existing tag replaces the asset rather than
+creating a second release.
+
+It is created as a **draft**, visible only to people who can write to the
+repository. Review it and then publish:
+
+    gh release edit mobile-v0.1.0 --draft=false
+
+Or skip the draft: `npm run release:github -- --publish`.
+
+The notes carry the signing certificate's SHA-256, so someone installing the
+APK can check it is the build we made.
+
+`gh` is installed at `~/.local/bin/gh` (the apt package needs root; the
+tarball does not). Authenticate once with `gh auth login`.
+
+Note that the repository is public, so a published release is a public
+download link. A draft is not.
