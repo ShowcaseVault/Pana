@@ -8,11 +8,13 @@
  * @module lib/routes
  */
 
-export const BASE_URL = import.meta.env.VITE_BASE_API_URL || 'http://localhost:8000';
 export const API_ROOT = import.meta.env.VITE_API_ROOT || '/api/v1';
 
+// The origin is not here. A debug build can be pointed at a different server
+// while running, so it lives in serverStore and is read at the moment of the
+// request; a constant captured at import time would go stale the first time
+// someone changed it.
 export const API_ROUTES = {
-  ORIGIN: BASE_URL,
 
   /** Native auth. Tokens travel in the body, for the device keychain. */
   AUTH: {

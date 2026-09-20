@@ -11,6 +11,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { onSessionExpired } from './apiClient.js';
+import { hydrateServerOrigin } from './serverStore.js';
 import { hydrate, getAccessToken } from './tokenStore.js';
 import { getCurrentUser, initGoogleAuth, signInWithGoogle, signOut } from './auth.service.js';
 
@@ -25,8 +26,11 @@ export function AuthProvider({ children }) {
     let cancelled = false;
 
     (async () => {
-      // Tokens must be read off disk before the first request: the interceptor
-      // reads them synchronously and would otherwise send an anonymous call.
+      // Both are read off disk before the first request, and in this order:
+      // the interceptor reads them synchronously, so an unhydrated origin
+      // would send the first call to the compiled-in server and an unhydrated
+      // token would send it anonymously.
+      await hydrateServerOrigin();
       await hydrate();
       await initGoogleAuth().catch((error) =>
         console.warn('Google SDK failed to initialize', error),

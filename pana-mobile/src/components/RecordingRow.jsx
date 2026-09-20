@@ -13,11 +13,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Trash2, Loader2 } from 'lucide-react';
 import { useTranscription } from '@app/hooks/queries/useRecordings.js';
 import { API_ROUTES } from '../lib/routes.js';
+import { getServerOrigin } from '../lib/serverStore.js';
 import { getAccessToken } from '../lib/tokenStore.js';
 import '../styles/recording-row.css';
 
-/** Words held on screen at once, as a rolling window over the playing audio. */
-const WINDOW_WORDS = 4;
+/**
+ * Words kept on screen, trailing the one being spoken.
+ *
+ * The line ends at the current word and never runs ahead of it: a transcript
+ * that shows what is coming reads the recording out before it plays. Behind
+ * it, enough words to fill two lines at this width, because the phrase
+ * leading up to now is what makes the current word mean anything -- a
+ * four-word line replaced wholesale gives the eye nothing to hold onto.
+ */
+const WINDOW_WORDS = 14;
 
 /** Clock time of a recording, e.g. "9:14 AM". */
 const formatClock = (iso) =>
@@ -34,7 +43,10 @@ export default function RecordingRow({ recording, onDelete }) {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [spokenText, setSpokenText] = useState('');
+  // The words on screen, and which of them is being said now. An object
+  // rather than a string: the highlight needs to move through the line
+  // without the line itself changing.
+  const [spoken, setSpoken] = useState({ words: [], current: -1 });
 
   // The transcript is only wanted once playback has started: most rows are
   // never played, and fetching every one of them on mount would be a request
@@ -75,7 +87,7 @@ export default function RecordingRow({ recording, onDelete }) {
     if (audioRef.current) return audioRef.current;
 
     const base = API_ROUTES.AUDIO_BASE.replace(/\/$/, '');
-    const response = await fetch(`${API_ROUTES.ORIGIN}${base}/${recording.file_path}`, {
+    const response = await fetch(`${getServerOrigin()}${base}/${recording.file_path}`, {
       headers: { Authorization: `Bearer ${getAccessToken()}` },
     });
     if (!response.ok) throw new Error(`Audio failed: ${response.status}`);
@@ -89,7 +101,7 @@ export default function RecordingRow({ recording, onDelete }) {
     audio.onended = () => {
       setPlaying(false);
       setProgress(0);
-      setSpokenText('');
+      setSpoken({ words: [], current: -1 });
     };
     audioRef.current = audio;
     return audio;
@@ -98,6 +110,10 @@ export default function RecordingRow({ recording, onDelete }) {
   // The window over the words, recomputed on each tick of the playing audio.
   // Attached only while playing: the element does not exist before the first
   // press, and there is nothing to follow along with once it stops.
+  //
+  // The window holds its position for several words at a time and the
+  // highlight travels through it, rather than the whole line being replaced on
+  // every word. Reading is easier when the text stays still.
   useEffect(() => {
     const audio = audioRef.current;
     if (!playing || !audio || words.length === 0) return undefined;
@@ -106,12 +122,20 @@ export default function RecordingRow({ recording, onDelete }) {
       const time = audio.currentTime;
       const lastSaid = words.findLastIndex((word) => time >= parseFloat(word.start));
       if (lastSaid < 0) {
-        setSpokenText('');
+        setSpoken({ words: [], current: -1 });
         return;
       }
 
-      const recent = words.slice(Math.max(0, lastSaid - WINDOW_WORDS + 1), lastSaid + 1);
-      setSpokenText(recent.map((word) => word.text.trim()).join(' '));
+      // The line ends at the word being said: nothing ahead of it is shown,
+      // since a transcript that runs in front of the audio reads the recording
+      // out before it plays. It grows up to the window size and then trails
+      // it, keeping the phrase that led up to now.
+      const start = Math.max(0, lastSaid - WINDOW_WORDS + 1);
+
+      setSpoken({
+        words: words.slice(start, lastSaid + 1),
+        current: lastSaid - start,
+      });
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -194,10 +218,23 @@ export default function RecordingRow({ recording, onDelete }) {
           is for. */}
       {playing && (
         <p
-          className={`row__transcript${spokenText ? '' : ' row__transcript--waiting'}`}
+          className={`row__transcript${spoken.words.length ? '' : ' row__transcript--waiting'}`}
           aria-live="polite"
         >
-          {spokenText || (loadingTranscript ? '' : 'The words for this one are not ready yet')}
+          {spoken.words.length
+            ? spoken.words.map((word, i) => (
+                <span
+                  // The index is the key because the same word recurs in a
+                  // sentence and the list is a window, not a collection.
+                  key={i}
+                  className={`row__word${i === spoken.current ? ' is-current' : ''}`}
+                >
+                  {word.text.trim()}{' '}
+                </span>
+              ))
+            : loadingTranscript
+              ? ''
+              : 'The words for this one are not ready yet'}
         </p>
       )}
     </article>

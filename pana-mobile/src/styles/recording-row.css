@@ -18,13 +18,19 @@
 }
 
 /* The rolling transcript. Ruled off on the left the way a quotation is, so it
-   reads as the recording speaking rather than as another field in the row. */
+   reads as the recording speaking rather than as another field in the row.
+
+   It takes the full width of the card and wraps: the words are the thing
+   worth reading here, and a transcript squeezed into a column beside the
+   controls is a transcript nobody reads. Two lines are reserved whatever the
+   current phrase is, so the card does not grow and shrink under the thumb as
+   playback moves between a short line and a long one. */
 .row__transcript {
   min-height: 3.24em;
-  margin: 0.6rem 0 0 0.5rem;
-  padding: 0.3rem 0 0.2rem 0.7rem;
+  margin: 0.7rem 0 0;
+  padding: 0.35rem 0 0.25rem 0.75rem;
   font-family: var(--font-prose);
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   line-height: 1.62;
   color: var(--ink-soft);
   border-left: 2px solid var(--accent-wash);
@@ -33,6 +39,19 @@
 .row__transcript--waiting {
   font-style: italic;
   color: var(--ink-ghost);
+}
+
+/* Every word on the line has already been said, so they are all legible: they
+   are the context that makes the current one mean anything. The last word is
+   the one being spoken now, and carries the emphasis. */
+.row__word {
+  color: var(--ink-soft);
+  transition: color 120ms ease;
+}
+
+.row__word.is-current {
+  color: var(--ink);
+  font-weight: 600;
 }
 
 .row__play {

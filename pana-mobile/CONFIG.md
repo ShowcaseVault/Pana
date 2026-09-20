@@ -89,8 +89,10 @@ older APK comes from checking out its commit and rebuilding.
 
 Builds are distributed through GitHub releases instead:
 
-    make mobile-release   # build and install on the connected phone
-    make mobile-publish   # upload that APK to a draft GitHub release
+    make mobile-release                      # release APK, installed on the phone
+    npm --prefix pana-mobile run release debug   # debug APK, for LAN testing
+    npm --prefix pana-mobile run release both    # both, for publishing
+    make mobile-publish                      # upload both to a draft release
 
 The release is tagged `mobile-v<version>`, pinned to the commit it was built
 from, so an APK someone installed can be traced back to the source that
@@ -112,3 +114,38 @@ tarball does not). Authenticate once with `gh auth login`.
 
 Note that the repository is public, so a published release is a public
 download link. A draft is not.
+
+
+## Two APKs
+
+A release carries both variants, because they answer different questions.
+
+The **release** APK talks to the API compiled into it, over HTTPS, and has no
+way to be pointed anywhere else: the code that would do it is not in the
+bundle, having been dropped by the minifier rather than merely disabled. That
+is the point. An app that can be aimed at an arbitrary server is an app that
+can be talked into handing a real session token to someone else's.
+
+The **debug** APK asks for a server address on the sign-in screen and permits
+plain HTTP, so it can reach an API on the LAN. That is what makes a build from
+this machine useful to somebody running Pana themselves -- the previous debug
+build named one IP address in its network config and so only ever worked here.
+It is unoptimised, several times larger, and signed with the shared Android
+debug key, which is why Android warns about installing it.
+
+Which one a build produces is decided in two places at once, and both have to
+agree:
+
+* `VITE_ALLOW_SERVER_OVERRIDE=true` puts the server field in the web bundle.
+  Both APKs are built by `vite build`, so `import.meta.env.DEV` is false in
+  each and cannot tell them apart; this variable is what does.
+* the debug source set permits cleartext, and the release source set forbids
+  it.
+
+`npm run release both` sets each correctly. Building the APKs separately, or
+syncing between them by hand, is how you end up with a release APK carrying a
+debug bundle.
+
+Only one can be installed at a time: different signing keys, so Android
+refuses to replace one with the other. Switching means uninstalling first,
+which signs the user out.

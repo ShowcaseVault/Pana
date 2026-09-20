@@ -15,6 +15,7 @@
 
 import { useEffect, useRef } from 'react';
 import { API_ROUTES } from './routes.js';
+import { getServerOrigin } from './serverStore.js';
 import { getAccessToken } from './tokenStore.js';
 
 /** Backoff between reconnection attempts, in milliseconds. */
@@ -57,7 +58,7 @@ export function useTranscriptionSSE(onComplete) {
 
       try {
         const response = await fetch(
-          `${API_ROUTES.ORIGIN}${API_ROUTES.TRANSCRIPTION_EVENTS}`,
+          `${getServerOrigin()}${API_ROUTES.TRANSCRIPTION_EVENTS}`,
           {
             headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
             signal: controller.signal,
