@@ -109,8 +109,20 @@ EOF
 )"
 
 if gh release view "$TAG" >/dev/null 2>&1; then
+  # The release already exists, so only its assets change. Its draft state and
+  # its tag were fixed when it was created and are not touched here: a tag that
+  # moved would stop describing the code its earlier downloads were built from.
+  WAS_DRAFT="$(gh release view "$TAG" --json isDraft --jq .isDraft)"
   echo "==> Release $TAG exists; replacing its APKs"
   gh release upload "$TAG" "release/${RELEASE_ASSET}" "release/${DEBUG_ASSET}" --clobber
+
+  if [ "$WAS_DRAFT" = "false" ]; then
+    echo "==> NOTE: that release is public, so the new APKs are live now."
+    echo "    Its tag still points at $(gh release view "$TAG" --json targetCommitish --jq '.targetCommitish[0:8]'),"
+    echo "    which is not necessarily the commit these were built from."
+  fi
+
+  DRAFT=false
 else
   echo "==> Creating release $TAG"
   # --target pins the tag to the commit being built rather than to whatever
