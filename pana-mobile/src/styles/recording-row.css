@@ -1,13 +1,38 @@
 /* One recording in the day's list. */
 
+/* The row is a column: the controls on one line, and the words that follow
+   along beneath them once it is playing. */
 .row {
   display: flex;
-  align-items: center;
-  gap: 0.8rem;
+  flex-direction: column;
   padding: 0.7rem 0.85rem;
   border: 1px solid var(--rule);
   border-radius: 0.8rem;
   background: var(--paper);
+}
+
+.row__main {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+/* The rolling transcript. Ruled off on the left the way a quotation is, so it
+   reads as the recording speaking rather than as another field in the row. */
+.row__transcript {
+  min-height: 3.24em;
+  margin: 0.6rem 0 0 0.5rem;
+  padding: 0.3rem 0 0.2rem 0.7rem;
+  font-family: var(--font-prose);
+  font-size: 0.88rem;
+  line-height: 1.62;
+  color: var(--ink-soft);
+  border-left: 2px solid var(--accent-wash);
+}
+
+.row__transcript--waiting {
+  font-style: italic;
+  color: var(--ink-ghost);
 }
 
 .row__play {

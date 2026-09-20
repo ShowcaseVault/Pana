@@ -37,7 +37,7 @@ export default function DiaryPane({ date, onChangeDate }) {
   const [generating, setGenerating] = useState(false);
 
   const { data: diary, isPending } = useDiary(date);
-  const { data: recordingData } = useRecordings({ recordingDate: date, listAll: true });
+  const { data: recordingData } = useRecordings({ recordingDate: date });
   const generate = useGenerateDiary();
 
   const recordingCount = recordingData?.recordings?.length ?? 0;
@@ -62,11 +62,13 @@ export default function DiaryPane({ date, onChangeDate }) {
 
   return (
     <div className="pane diary">
+      <h1 className="pane__title diary__title">Diary</h1>
+
       <header className="diary__head">
         <button type="button" onClick={() => step(-1)} aria-label="Previous day">
           <ChevronLeft size={20} />
         </button>
-        <h1 className="diary__date">{formatDay(date)}</h1>
+        <h2 className="diary__date">{formatDay(date)}</h2>
         <button
           type="button"
           onClick={() => step(1)}

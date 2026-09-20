@@ -9,11 +9,15 @@
  * @module components/RecordingRow
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Play, Pause, Trash2, Loader2 } from 'lucide-react';
+import { useTranscription } from '@app/hooks/queries/useRecordings.js';
 import { API_ROUTES } from '../lib/routes.js';
 import { getAccessToken } from '../lib/tokenStore.js';
 import '../styles/recording-row.css';
+
+/** Words held on screen at once, as a rolling window over the playing audio. */
+const WINDOW_WORDS = 4;
 
 /** Clock time of a recording, e.g. "9:14 AM". */
 const formatClock = (iso) =>
@@ -30,12 +34,31 @@ export default function RecordingRow({ recording, onDelete }) {
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [spokenText, setSpokenText] = useState('');
+
+  // The transcript is only wanted once playback has started: most rows are
+  // never played, and fetching every one of them on mount would be a request
+  // per row for text nobody is reading.
+  const [wantsTranscript, setWantsTranscript] = useState(false);
 
   const audioRef = useRef(null);
   const objectUrlRef = useRef(null);
 
   const status = String(recording.transcription_status || '').toLowerCase();
   const transcribing = status === 'pending' || status === 'processing';
+  const isTranscribed = status === 'completed';
+
+  // isFetching, not isPending: a disabled query reports pending forever, which
+  // would leave the waiting line up for a row that has no transcript.
+  const { data: transcription, isFetching: loadingTranscript } = useTranscription(
+    recording.transcription_id,
+    { enabled: wantsTranscript },
+  );
+
+  // Only timed words drive the rolling line. A whole-transcript fallback would
+  // pin the same text on screen for the recording's whole length, which reads
+  // as frozen rather than as following along.
+  const words = useMemo(() => transcription?.words ?? [], [transcription]);
 
   // A blob URL holds its data until it is revoked, so a list of played
   // recordings would otherwise keep every file in memory.
@@ -66,10 +89,34 @@ export default function RecordingRow({ recording, onDelete }) {
     audio.onended = () => {
       setPlaying(false);
       setProgress(0);
+      setSpokenText('');
     };
     audioRef.current = audio;
     return audio;
   }, [recording.file_path]);
+
+  // The window over the words, recomputed on each tick of the playing audio.
+  // Attached only while playing: the element does not exist before the first
+  // press, and there is nothing to follow along with once it stops.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!playing || !audio || words.length === 0) return undefined;
+
+    const handleTimeUpdate = () => {
+      const time = audio.currentTime;
+      const lastSaid = words.findLastIndex((word) => time >= parseFloat(word.start));
+      if (lastSaid < 0) {
+        setSpokenText('');
+        return;
+      }
+
+      const recent = words.slice(Math.max(0, lastSaid - WINDOW_WORDS + 1), lastSaid + 1);
+      setSpokenText(recent.map((word) => word.text.trim()).join(' '));
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    return () => audio.removeEventListener('timeupdate', handleTimeUpdate);
+  }, [playing, words]);
 
   const togglePlay = async () => {
     if (playing) {
@@ -81,6 +128,7 @@ export default function RecordingRow({ recording, onDelete }) {
     setLoading(true);
     try {
       const audio = await ensureAudio();
+      if (isTranscribed) setWantsTranscript(true);
       await audio.play();
       setPlaying(true);
     } catch (error) {
@@ -92,6 +140,7 @@ export default function RecordingRow({ recording, onDelete }) {
 
   return (
     <article className="row">
+      <div className="row__main">
       <button
         type="button"
         className={`row__play ${playing ? 'is-playing' : ''}`}
@@ -136,6 +185,20 @@ export default function RecordingRow({ recording, onDelete }) {
         >
           <Trash2 size={16} />
         </button>
+      )}
+      </div>
+
+      {/* What is being said, as it plays. Below the row rather than beside it
+          so the words get the full width and can wrap -- a transcript squeezed
+          into a column and clipped is not readable, which is the only thing it
+          is for. */}
+      {playing && (
+        <p
+          className={`row__transcript${spokenText ? '' : ' row__transcript--waiting'}`}
+          aria-live="polite"
+        >
+          {spokenText || (loadingTranscript ? '' : 'The words for this one are not ready yet')}
+        </p>
       )}
     </article>
   );

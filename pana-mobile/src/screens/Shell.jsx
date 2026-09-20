@@ -14,12 +14,21 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { CalendarDays, Mic, BookOpen } from 'lucide-react';
 import CalendarPane from '../panes/CalendarPane.jsx';
 import RecordPane from '../panes/RecordPane.jsx';
 import DiaryPane from '../panes/DiaryPane.jsx';
 import '../styles/shell.css';
 
-const PANES = ['Calendar', 'Record', 'Diary'];
+/* The bar names the three panes. An icon says which pane a tab is far faster
+   than a dot does, and the label under it removes the guesswork an icon alone
+   leaves -- this is the app's only navigation, so it should not be a puzzle. */
+const PANES = [
+  { name: 'Calendar', Icon: CalendarDays },
+  { name: 'Record', Icon: Mic },
+  { name: 'Diary', Icon: BookOpen },
+];
+
 const RECORD_INDEX = 1;
 const DIARY_INDEX = 2;
 
@@ -79,16 +88,18 @@ export default function Shell() {
         </section>
       </div>
 
-      <nav className="shell__dots" aria-label="Panes">
-        {PANES.map((name, i) => (
+      <nav className="shell__tabs" aria-label="Panes">
+        {PANES.map(({ name, Icon }, i) => (
           <button
             key={name}
             type="button"
-            className={`shell__dot ${i === index ? 'is-active' : ''}`}
-            aria-label={name}
+            className={`shell__tab ${i === index ? 'is-active' : ''}`}
             aria-current={i === index}
             onClick={() => goTo(i)}
-          />
+          >
+            <Icon size={20} aria-hidden="true" />
+            <span className="shell__tab-label">{name}</span>
+          </button>
         ))}
       </nav>
     </div>

@@ -1,6 +1,13 @@
 /* The written day. Serif, generous measure: this is the one screen that is
    meant to be read rather than operated. */
 
+/* The pane's name. The date below it is the thing that changes; this is the
+   fixed label that says which pane you are on. */
+.diary__title {
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
 .diary__head {
   display: flex;
   align-items: center;
@@ -34,7 +41,7 @@
   margin: 0;
   flex: 1;
   text-align: center;
-  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-family: var(--font-prose);
   font-size: 1.15rem;
   font-weight: 500;
   color: var(--ink);
@@ -46,7 +53,7 @@
 
 .diary__body p {
   margin: 0 0 1.1rem;
-  font-family: var(--font-display, 'Fraunces', Georgia, serif);
+  font-family: var(--font-prose);
   font-size: 1.02rem;
   line-height: 1.75;
   color: var(--ink);
