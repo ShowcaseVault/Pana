@@ -7,6 +7,7 @@ from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from prompts.audio_transcribe import AUDIO_TRANSCRIBE_PROMPT
+from prompts.voice_companion import VOICE_COMPANION_PROMPT
 
 
 class Settings(BaseSettings):
@@ -54,8 +55,11 @@ class Settings(BaseSettings):
     LLM_MODEL_REALTIME: str = "openai/gpt-oss-120b"
     # A spoken reply that runs long is one the caller talks over. Capped on
     # the model, so nothing is generated and then thrown away.
-    LLM_MAX_TOKENS: int = 160
+    LLM_MAX_TOKENS: int = 600
     LLM_TEMPERATURE: float = 0.7
+    # Who Pana is on a call: a friend who talks back, not a prompt-and-wait
+    # assistant. See prompts/voice_companion.py.
+    VOICE_LLM_PROMPT: str = VOICE_COMPANION_PROMPT
 
     # ---- TTS: speech out -------------------------------------------------
     # NVIDIA Magpie. The hosted build runs on Cloud Functions: TLS, plus the
@@ -72,14 +76,6 @@ class Settings(BaseSettings):
     # resamples; 22.05 kHz is already past what a phone line carries, at half
     # the bytes per chunk of 44.1 kHz.
     TTS_SAMPLE_RATE: int = 22050
-
-    # ---- Voice pipeline --------------------------------------------------
-    # Which implementation each stage of a live call uses. "local" forces the
-    # offline Vosk/Piper path: no key, no network, and the fallback when a
-    # hosted provider is unreachable.
-    VOICE_STT_PROVIDER: str = "groq"
-    VOICE_LLM_PROVIDER: str = "groq"
-    VOICE_TTS_PROVIDER: str = "magpie"
 
     # Asterisk ARI. Control channel for the voice service: it subscribes to the
     # Stasis app and drives record/playback on live calls. ARI can originate

@@ -21,12 +21,7 @@ CHANNELS = 1
 
 
 def ulaw_to_pcm(ulaw: bytes, rate: int = TELEPHONY_RATE) -> bytes:
-    """Decode u-law to 16-bit linear PCM, resampled to `rate`.
-
-    Vosk's models refuse a rate they were not built for -- the small English
-    model wants 16 kHz and rejects 8 kHz outright rather than resampling -- so
-    upsampling here is required, not an optimisation.
-    """
+    """Decode u-law to 16-bit linear PCM, resampled to `rate`."""
     pcm = audioop.ulaw2lin(ulaw, SAMPLE_WIDTH)
     if rate != TELEPHONY_RATE:
         pcm, _ = audioop.ratecv(pcm, SAMPLE_WIDTH, CHANNELS, TELEPHONY_RATE, rate, None)
@@ -41,11 +36,7 @@ def pcm_to_ulaw(pcm: bytes, rate: int) -> bytes:
 
 
 def wav_to_ulaw(data: bytes) -> bytes:
-    """Convert a WAV file's bytes to 8 kHz u-law.
-
-    Piper writes WAV at its voice's own rate (22.05 kHz for the medium
-    voices), so its output cannot go to the trunk untouched.
-    """
+    """Convert a WAV file's bytes to 8 kHz u-law."""
     with wave.open(io.BytesIO(data)) as source:
         rate = source.getframerate()
         pcm = source.readframes(source.getnframes())

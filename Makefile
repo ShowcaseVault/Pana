@@ -20,7 +20,7 @@ CELERY_POOL ?= prefork
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: voice voice-models asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
+.PHONY: voice asterisk-status asterisk-diagnose asterisk-call asterisk-watch asterisk-build asterisk-up asterisk-down asterisk-logs asterisk-cli asterisk-check asterisk-secret help install install-frontend install-landing up down logs backend frontend frontend-build lint-frontend lint-frontend-fix landing landing-build lint-landing lint-landing-fix celery celery-high celery-default lint format check test alembic-up alembic-create deploy-build deploy-up deploy-down
 
 install:
 	$(UV) sync --group dev
@@ -73,10 +73,6 @@ voice: $(VOICE_TTS_DIR)
 
 $(VOICE_TTS_DIR):
 	mkdir -p $@
-
-# Fetch the offline speech models. Needed once before the first make voice.
-voice-models:
-	./scripts/fetch-voice-models.sh
 
 # --- Telephony (Asterisk SIP trunk) -----------------------------------------
 # Credentials live in secrets/sip_trunk.env, which is git-ignored and mounted
@@ -198,7 +194,6 @@ help:
 	@echo "make celery-high     run the high priority worker only"
 	@echo "make celery-default  run the default priority worker only"
 	@echo "make voice           run the voice service (needs Asterisk up)"
-	@echo "make voice-models    fetch the offline speech models (once)"
 	@echo "make lint            check code with ruff"
 	@echo "make format          format code with ruff"
 	@echo "make lint-frontend   check the app with eslint"

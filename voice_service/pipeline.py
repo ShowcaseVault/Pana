@@ -1,19 +1,19 @@
 """The voice pipeline: speech in, speech out.
 
-Three stages, each behind one function, each with a hosted provider and a
-local fallback:
+Three stages, each behind one function, each hosted:
 
-    stt   Groq (Whisper turbo)   or Vosk, offline
-    llm   Groq (chat)            or a canned reply
-    tts   NVIDIA Magpie          or Piper, offline
+    stt   Groq, Whisper turbo
+    llm   Groq, chat
+    tts   NVIDIA Magpie
 
-Which one runs is a setting, not an import: VOICE_STT_PROVIDER,
-VOICE_LLM_PROVIDER and VOICE_TTS_PROVIDER, each of which takes "local" to force
-the offline path. A hosted stage that raises falls back to local for that turn
-rather than dropping the call -- a worse answer beats a dead line.
+There is no offline path. Vosk and Piper were here while the providers were
+undecided; they cost ~200 MB of models and packages to stand in for services
+that are now configured, and a local recogniser that mishears the caller is not
+a better call than a short apology. A stage that fails says so and the turn
+ends -- the loop continues, so one bad turn does not end the call.
 
-Two of the stages also stream. `llm_stream` yields the reply a sentence at a
-time and `tts_stream` yields audio as it is synthesised, which is what lets the
+Two of the stages stream. `llm_stream` yields the reply a sentence at a time
+and `tts_stream` yields audio as it is synthesised, which is what lets the
 caller hear the first sentence while the rest is still being written. The
 non-streaming forms remain for anything that wants the whole result.
 
@@ -24,33 +24,31 @@ voice_service/audio.py for the conversions each model needs.
 import logging
 from collections.abc import AsyncIterator
 
-from api.config.config import settings
-from voice_service.local_speech import stt as local_stt
-from voice_service.local_speech import tts as local_tts
+from voice_service.providers.groq_llm import llm_stream as groq_llm_stream
+from voice_service.providers.groq_speech import stt as groq_stt
+from voice_service.providers.magpie_tts import tts_stream as magpie_tts_stream
 
 logger = logging.getLogger("voice.pipeline")
 
 # Said when the caller's speech came through as nothing -- silence, or noise
-# the recogniser could not resolve into words.
-NO_SPEECH_REPLY = "Sorry, I didn't catch that. Could you say it again?"
+# the recogniser could not resolve into words. A friend says this plainly and
+# once; an assistant stacks apologies.
+NO_SPEECH_REPLY = "Sorry, I missed that. Say it again?"
 
 # Said when generation itself failed. The caller hears a sentence rather than
 # silence, and the turn loop keeps going.
-FALLBACK_REPLY = "Sorry, I'm having trouble answering right now. Could you try again?"
+FALLBACK_REPLY = "Sorry, I lost my train of thought there. What were you saying?"
 
 
 async def stt(audio: bytes) -> str:
-    """Transcribe one turn of caller audio."""
-    if settings.VOICE_STT_PROVIDER == "local":
-        return await local_stt(audio)
-
-    from voice_service.providers.groq_speech import stt as groq_stt
-
+    """Transcribe one turn of caller audio. Empty if recognition failed."""
     try:
         return await groq_stt(audio)
     except Exception:
-        logger.exception("stt: Groq failed, falling back to the local recogniser")
-        return await local_stt(audio)
+        # Treated as a turn that came through as nothing, which the loop
+        # already knows how to handle: re-prompt rather than drop the call.
+        logger.exception("stt: transcription failed")
+        return ""
 
 
 async def llm_stream(history: list[dict[str, str]]) -> AsyncIterator[str]:
@@ -63,15 +61,9 @@ async def llm_stream(history: list[dict[str, str]]) -> AsyncIterator[str]:
         yield NO_SPEECH_REPLY
         return
 
-    if settings.VOICE_LLM_PROVIDER == "local":
-        yield FALLBACK_REPLY
-        return
-
-    from voice_service.providers.groq_llm import llm_stream as groq_stream
-
     spoke = False
     try:
-        async for sentence in groq_stream(history):
+        async for sentence in groq_llm_stream(history):
             spoke = True
             logger.info("llm: %r", sentence)
             yield sentence
@@ -90,23 +82,13 @@ async def llm(history: list[dict[str, str]]) -> str:
 
 async def tts_stream(text: str) -> AsyncIterator[bytes]:
     """Yield `text` as 8 kHz u-law audio, in chunks as it is synthesised."""
-    if settings.VOICE_TTS_PROVIDER == "local":
-        yield await local_tts(text)
-        return
-
-    from voice_service.providers.magpie_tts import tts_stream as magpie_stream
-
-    produced = False
     try:
-        async for chunk in magpie_stream(text):
-            produced = True
+        async for chunk in magpie_tts_stream(text):
             yield chunk
     except Exception:
-        logger.exception("tts: Magpie failed")
-        # Restarting locally after some audio has played would repeat part of
-        # the sentence, so only fall back before the first chunk.
-        if not produced:
-            yield await local_tts(text)
+        # Nothing to fall back to: the caller hears the reply cut short, which
+        # the next turn recovers from. Better than a dropped call.
+        logger.exception("tts: synthesis failed")
 
 
 async def tts(text: str) -> bytes:

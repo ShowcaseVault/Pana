@@ -21,15 +21,6 @@ from api.connections import get_groq_client
 
 logger = logging.getLogger("voice.groq")
 
-SYSTEM_PROMPT = (
-    "You are Pana, answering a phone call. You are speaking, not writing: "
-    "every word you produce is read aloud to the caller. Reply in one or two "
-    "short sentences. Use no markdown, no lists, no emoji, and no stage "
-    "directions -- plain spoken English only. Write numbers, dates and amounts "
-    "the way they are said out loud. If the caller's words are garbled or "
-    "empty, say you did not catch that and ask them to repeat it."
-)
-
 # A sentence ends at .?! followed by whitespace. The lookbehind keeps the
 # punctuation with the sentence it ends, so the synthesiser sees the cue that
 # tells it to fall in pitch rather than hang.
@@ -43,7 +34,7 @@ MIN_CHUNK_CHARS = 24
 async def _completion(history: list[dict[str, str]], stream: bool):
     return await get_groq_client().chat.completions.create(
         model=settings.LLM_MODEL_REALTIME,
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}, *history],
+        messages=[{"role": "system", "content": settings.VOICE_LLM_PROMPT}, *history],
         max_completion_tokens=settings.LLM_MAX_TOKENS,
         temperature=settings.LLM_TEMPERATURE,
         stream=stream,

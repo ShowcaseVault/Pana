@@ -1,7 +1,16 @@
-"""The voice service: drives an AI conversation on a live call over ARI.
+"""The voice service: Pana on a live call, over ARI.
 
 Connects to Asterisk, subscribes to the `pana-voice` Stasis app, and runs one
 turn loop per call: record the caller, transcribe, generate a reply, speak it.
+
+What Pana is on that call is a companion, not an assistant -- someone who
+listens and also takes a turn of their own. Most of that lives in the prompt
+(prompts/voice_companion.py); what lives here is the turn-taking. Turns are
+long and the silence threshold generous, because cutting someone off at the
+length of a command is what makes a line feel like a kiosk. A turn that runs
+past BACKCHANNEL_OVER_SECONDS without ending on a question gets a short "mm"
+rather than a considered reply: they are mid-flow, and an insight there is an
+interruption.
 
 A turn is processed in chunks rather than as one block. The model writes the
 reply a sentence at a time and each sentence is synthesised and played while
@@ -20,29 +29,44 @@ Run with: make voice
 
 import asyncio
 import logging
+import random
 import uuid
 from pathlib import Path
 
 from api.config.config import settings
 from voice_service.ari import AriClient
+from voice_service.audio import TELEPHONY_RATE
 from voice_service.pipeline import NO_SPEECH_REPLY, llm_stream, stt, tts_stream
 
 logger = logging.getLogger("voice")
 
-# One caller turn. The whole call is already capped by TIMEOUT(absolute) in the
-# dialplan, so this only shapes how long a single utterance may run.
-MAX_TURN_SECONDS = 15
-# Silence that ends a turn: short enough to feel responsive, long enough to
-# survive a mid-sentence pause.
-SILENCE_SECONDS = 2
+# One caller turn. Long, deliberately: someone telling you about their day is
+# not answering a prompt, and cutting them off at the length of a command is
+# what makes a companion feel like a kiosk. The whole call is still capped by
+# TIMEOUT(absolute) in the dialplan.
+MAX_TURN_SECONDS = 45
+# Silence that ends a turn. A friend waits through the pause in the middle of a
+# hard sentence; an assistant jumps into it. Two seconds was the latter.
+SILENCE_SECONDS = 3
 # Backstop for waiting on an Asterisk operation. Reached only if the event that
 # should end it never arrives, which would otherwise hang the turn loop.
 EVENT_TIMEOUT = MAX_TURN_SECONDS + 10
-# Turns kept as context for the model. A phone call does not refer back far,
-# and every kept turn is tokens on the critical path of the next reply.
-HISTORY_TURNS = 12
+# Turns kept as context. Enough that Pana can pick up something said several
+# minutes ago, which is most of what makes it feel like the same conversation
+# rather than a series of exchanges.
+HISTORY_TURNS = 24
 
-GREETING = "Hello, thanks for calling Pana. How can I help?"
+# A turn this long is someone in full flow. Answering it with a considered
+# reply steps on them; a short acknowledgement lets them keep going.
+BACKCHANNEL_OVER_SECONDS = 20
+# ...but only when they have not stopped. A turn that ran long and ended on a
+# question still wants a real answer.
+BACKCHANNEL_ENDINGS = ("?", "!")
+# Said instead of a reply when they are mid-flow. Short enough to sit under
+# their next sentence rather than interrupt it.
+BACKCHANNELS = ("Mm.", "Yeah.", "Right.", "Go on.", "I'm here.")
+
+GREETING = "Hey, it's Pana. What's going on?"
 
 
 class CallSession:
@@ -164,6 +188,20 @@ class CallSession:
         await self.ari.delete_recording(name)
         return audio
 
+    def _is_backchannel_moment(self, audio: bytes, text: str) -> bool:
+        """True if the caller is mid-flow and wants an "mm", not an answer.
+
+        Length is measured on the audio rather than the transcript because it
+        is how long they held the floor that matters, not how many words they
+        got out. The trailing silence Asterisk waits through is subtracted, so
+        a long pause does not read as a long turn.
+        """
+        seconds = len(audio) / TELEPHONY_RATE - SILENCE_SECONDS
+        if seconds < BACKCHANNEL_OVER_SECONDS:
+            return False
+        # Something asked directly gets answered however long the run-up was.
+        return not text.rstrip().endswith(BACKCHANNEL_ENDINGS)
+
     async def run(self) -> None:
         """Greet the caller, then trade turns until they hang up."""
         await self.ari.answer(self.channel_id)
@@ -181,6 +219,14 @@ class CallSession:
                 logger.info("call %s: nothing recorded, ending", self.channel_id)
                 break
             text = await stt(audio)
+            if text.strip() and self._is_backchannel_moment(audio, text):
+                # Their turn still goes in the history -- Pana heard it, and
+                # the next real reply is answering all of it.
+                self._remember("user", text)
+                self._remember("assistant", backchannel := random.choice(BACKCHANNELS))
+                if not await self._speak(backchannel):
+                    break
+                continue
             if not text.strip():
                 # Nothing recognised: re-prompt without polluting the history
                 # with an empty turn the model would have to interpret.
