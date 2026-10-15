@@ -38,6 +38,7 @@ fi
 # the secret file is sourced, because that file may also carry a value and a
 # detected address is the fresher of the two.
 DETECTED_EXTERNAL_IP="${SIP_EXTERNAL_IP:-}"
+DETECTED_LOCAL_NET="${SIP_LOCAL_NET:-}"
 
 # shellcheck disable=SC1090
 . "$SECRET_FILE"
@@ -53,6 +54,18 @@ if [ -n "$DETECTED_EXTERNAL_IP" ]; then
         echo "entrypoint: says $SIP_EXTERNAL_IP. Using the detected one." >&2
     fi
     SIP_EXTERNAL_IP="$DETECTED_EXTERNAL_IP"
+fi
+
+# The same staleness applies to the LAN: a different router hands out a
+# different subnet, and a local_net that matches nothing is worse than none --
+# Asterisk treats LAN peers as external and rewrites addresses on traffic that
+# never left the building.
+if [ -n "$DETECTED_LOCAL_NET" ]; then
+    if [ -n "${SIP_LOCAL_NET:-}" ] && [ "$SIP_LOCAL_NET" != "$DETECTED_LOCAL_NET" ]; then
+        echo "entrypoint: local network is $DETECTED_LOCAL_NET, but the secret file" >&2
+        echo "entrypoint: says $SIP_LOCAL_NET. Using the detected one." >&2
+    fi
+    SIP_LOCAL_NET="$DETECTED_LOCAL_NET"
 fi
 
 for var in SIP_USERNAME SIP_PASSWORD SIP_AUTH_NAME SIP_DOMAIN SIP_OUTBOUND_PROXY; do
@@ -116,8 +129,24 @@ CARRIER_DID = ${SIP_USERNAME}"
 # advertised on Asterisk's internal port, which a NAT that rewrites ports has
 # already mapped to something else. Signalling keeps the static address either
 # way: registration needs one that does not move.
+#
+# SIP_NAT_MODE=latch advertises neither address and leaves Asterisk describing
+# itself by its private address throughout, which is what a softphone does.
+# It is the mode that works on this carrier. Claiming a public address in the
+# SDP while SIP says we are private is a contradiction, and this IMS responds
+# to it by sending no media at all: ~300 RTP packets out per call, zero back.
+# With both addresses off the two agree, the carrier latches onto the source
+# address our packets actually arrive from, and audio flows. It depends on
+# rtp_symmetric and force_rport (both on, in the endpoint) and on a NAT that
+# preserves ports -- check with scripts/stun_probe.py before choosing it.
 NAT_TRANSPORT_LINES=""
-if [ -n "${SIP_EXTERNAL_IP:-}" ]; then
+if [ "${SIP_NAT_MODE:-}" = "latch" ]; then
+    echo "entrypoint: NAT mode 'latch': advertising no external address, as a"
+    echo "entrypoint: softphone does. The carrier must latch onto our source address."
+    if [ -n "${SIP_LOCAL_NET:-}" ]; then
+        NAT_TRANSPORT_LINES="local_net = ${SIP_LOCAL_NET}"
+    fi
+elif [ -n "${SIP_EXTERNAL_IP:-}" ]; then
     if [ "${SIP_MEDIA_VIA_STUN:-false}" = "true" ]; then
         echo "entrypoint: media address comes from STUN; signalling stays on ${SIP_EXTERNAL_IP}"
         NAT_TRANSPORT_LINES="external_signaling_address = ${SIP_EXTERNAL_IP}"

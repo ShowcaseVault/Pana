@@ -47,6 +47,19 @@ services:
       # SIP_EXTERNAL_IP. For a NAT that rewrites RTP ports, where the port in
       # the SDP has to be the mapped one rather than Asterisk's own.
       SIP_MEDIA_VIA_STUN: "${SIP_MEDIA_VIA_STUN:-false}"
+      # The LAN the host sits on, detected by make asterisk-up. Goes stale the
+      # same way SIP_EXTERNAL_IP does -- a different router hands out a
+      # different subnet -- and a local_net that matches nothing means
+      # Asterisk rewrites addresses on traffic that never left the LAN.
+      # Empty when detection failed, in which case the secret file's value
+      # stands.
+      SIP_LOCAL_NET: "${SIP_LOCAL_NET:-}"
+      # 'latch' advertises no external address at all, the way a softphone
+      # behaves, and lets the carrier latch onto the source address our
+      # packets arrive from. Required on the NTC IMS trunk: claiming a public
+      # address in the SDP while SIP describes us as private makes it send no
+      # media whatsoever. See docs/telephony-nat.md.
+      SIP_NAT_MODE: "${SIP_NAT_MODE:-latch}"
     healthcheck:
       # Reports healthy only when the trunk is actually registered, so a
       # credential or network problem surfaces as an unhealthy container

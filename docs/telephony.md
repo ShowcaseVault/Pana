@@ -61,6 +61,38 @@ If the host is behind NAT, set `SIP_EXTERNAL_IP` to its public address and
 `SIP_LOCAL_NET` to the private subnet. Leaving `SIP_EXTERNAL_IP` empty on a
 NATed host is the usual cause of a call that connects with no audio.
 
+Both values go stale as soon as the host moves to a different connection, and
+a stale one fails in a way that hides itself: registration is an outbound
+request the carrier answers over the same flow, so the trunk still reports
+`Registered` while every inbound INVITE is routed to an address that is not
+ours. `make asterisk-up` therefore detects both at start -- the public address
+over HTTPS, the subnet from the host's own link routes -- and passes them to
+the container, where a detected value wins over the one in the secret file.
+The secret file's values are the fallback for when detection fails, not the
+source of truth.
+
+`SIP_NAT_MODE` decides what, if anything, Asterisk advertises as its external
+address. It defaults to `latch`, which is what the NTC trunk needs.
+
+| Mode | Advertises | For |
+|---|---|---|
+| `latch` (default) | neither address | a carrier that latches onto our source address |
+| unset | `external_media_address` and `external_signaling_address` | a host whose public address the far end must be told |
+| unset + `SIP_MEDIA_VIA_STUN=true` | signalling only; media from `stunaddr` | a NAT that rewrites RTP ports |
+
+Under `latch`, Asterisk describes itself by its private address everywhere,
+exactly as a softphone does, and the carrier replies to wherever our packets
+came from. It needs `rtp_symmetric` and `force_rport` on the endpoint (both
+on) and a NAT that preserves UDP source ports (`python3
+scripts/stun_probe.py`). `SIP_EXTERNAL_IP` is then unused for the transport,
+though it stays detected and available for the other modes.
+
+Do not pin the media address on a carrier that latches. Claiming a public
+address in the SDP while the SIP headers say we are private is a
+contradiction, and at least one IMS answers it by sending no media at all --
+the call connects, the caller is heard, and nothing comes back. That cost a
+full evening; see [telephony-nat.md](telephony-nat.md).
+
 ## Testing the trunk
 
 Registration proves only that the carrier accepted our credentials. It says
@@ -272,7 +304,10 @@ make asterisk-cli
 |---|---|
 | `Rejected` / 403 Forbidden | `SIP_AUTH_NAME` or `SIP_PASSWORD` wrong |
 | `Registered` but no inbound calls | carrier not routing the DID yet, or the `identify` match misses their proxy |
-| Call connects, no audio | NAT: set `SIP_EXTERNAL_IP`, and check the RTP range is open |
+| Carrier says "the number you have dialed is not registered" | the registration went stale against a changed public address -- see below |
+| Caller hears a whistle instead of Pana | the dialplan ran but the voice service was not subscribed to ARI; `ari show apps` is empty |
+| Call connects, caller heard, nothing comes back | SDP and SIP disagree about our address; use `SIP_NAT_MODE=latch` |
+| Call connects, no audio either way | NAT: check the RTP range is open |
 | Audio one way only | RTP blocked in one direction by the firewall |
 | No registration attempt at all | outbound 5060 blocked, or `SIP_OUTBOUND_PROXY` unreachable |
 | `No such command 'pjsip show ...'` | the pjsip stack did not load; check `docker logs` for "declined to load" and see the note below |
@@ -288,16 +323,100 @@ they need config files we do not ship and are not used here.
 `pjsip set logger on` prints full SIP messages including the `Authorization`
 header. Do not paste that output into a ticket or a chat without removing it.
 
+Do not use `pjsip send register` to inspect a registration. It sends
+`Expires: 0` first, which de-registers the trunk with the carrier -- inbound
+calls fail for as long as it takes Asterisk to register again. Turn the logger
+on and wait for the refresh (`SIP_REGISTRATION_EXPIRY`, 120s by default)
+instead.
+
+### The whistle means the dialplan worked
+
+`Playback(pana/cid_whistle)` in `from-carrier` is the fallback for
+`STASISSTATUS != SUCCESS`. Hearing it is good news about everything below the
+application: the carrier routed the DID, the INVITE arrived, `identify` matched
+it, the dialplan accepted the extension and answered. Only the handover to the
+voice service failed, and Asterisk says so directly:
+
+    ERROR res_stasis.c: stasis_app_exec: Stasis app 'pana-voice' not registered
+
+Confirm with `ari show apps` -- an empty list means nothing is subscribed.
+A running process is not the same as a subscribed one: if the service was
+killed, its ARI WebSocket is gone while a stale process may still match
+`pgrep`. Check the subscription, not the process list.
+
+## Moving the host to a different connection
+
+Changing network breaks inbound calls in a way that hides itself, and this has
+now cost two debugging sessions. What the carrier reports is **"the number you
+have dialed is not registered"**, while `pjsip show registrations` on our side
+says `Registered`. Both are true at once.
+
+Registration is an outbound request. It creates a NAT mapping on the way out
+and the carrier's 200 OK comes back through that same mapping, so it succeeds
+no matter what address we claim in the `Contact` header. Inbound is the
+opposite direction: the carrier takes the address we registered and sends the
+INVITE there on its own. If that address is stale, the INVITE goes to whoever
+holds it now, and nothing reaches us -- so the trunk looks healthy from here
+and unreachable from there.
+
+Two values go stale together when the host moves:
+
+| Value | Goes stale because | Symptom |
+|---|---|---|
+| `SIP_EXTERNAL_IP` | the ISP hands out a different public address | carrier says not registered; no INVITE arrives |
+| `SIP_LOCAL_NET` | a different router uses a different subnet | `local_net` matches nothing, so LAN peers are treated as external |
+
+`make asterisk-up` therefore detects both at start -- the public address over
+HTTPS, the subnet from the host's own link routes -- and passes them to the
+container, where a detected value overrides the secret file and logs a warning
+when the two disagree. The values in `secrets/sip_trunk.env` are the fallback
+for when detection fails, not the source of truth, so a stale one there is
+harmless as long as detection works.
+
+After moving, bring the stack up and check all three layers rather than one:
+
+```
+make asterisk-up                                   # detects and prints both
+docker exec asterisk-pana asterisk -rx 'pjsip show registrations'
+docker exec asterisk-pana asterisk -rx 'ari show apps'
+python3 scripts/stun_probe.py                      # can inbound audio work here
+```
+
+The third line is the one that is easy to forget: the trunk can be perfectly
+registered while the voice service is not subscribed, and the caller then
+hears the fallback whistle.
+
 ## Inbound audio from a NAT'd network
 
-Calls connect and the caller hears Pana, but on the development connection
-Pana hears nothing: the NAT there rewrites RTP ports, so the port Asterisk
-advertises in its SDP is not the one the carrier can reach. It is not a code
-fault and it is not configurable around -- see
-[telephony-nat.md](telephony-nat.md) for the evidence, the settings that were
-tried, and what actually resolves it. `scripts/rtp_probe.py` is the isolation
-test: it records one call through ARI alone, so a zero-byte result places the
-fault below the application.
+Whether inbound audio works from a given network depends on one property of
+the NAT in front of it: whether it preserves UDP source ports. Asterisk
+advertises its own RTP port in the SDP, so a NAT that maps port 20086 to some
+other external port sends the carrier to a port nothing is listening on, and
+the call is one-way -- the caller hears Pana and Pana hears nothing.
+
+This is a property of the connection, not a setting, so measure it rather than
+assuming either outcome:
+
+```
+python3 scripts/stun_probe.py
+```
+
+A mapped port equal to the local port means the NAT is not the obstacle, and
+`SIP_NAT_MODE=latch` (the default) is the right setting: Asterisk advertises
+no external address at all and the carrier latches onto the source address our
+packets arrive from, the way it does for a softphone. A different port means
+the NAT rewrites ports, which cannot be configured around.
+
+Either way, a clean probe result is not by itself a working media path. The
+2026-10-15 fault had a port-preserving NAT and still carried no inbound audio,
+because the SDP and the SIP headers disagreed about where we were.
+[telephony-nat.md](telephony-nat.md) has both investigations in full: what the
+fault turned out to be, what was wrongly believed along the way, and the order
+to check things in.
+
+`scripts/rtp_probe.py` is the isolation test for a fault that is already
+happening: it records one call through ARI alone, so a zero-byte result places
+the fault below the application.
 
 ## The AI conversation
 

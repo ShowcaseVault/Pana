@@ -124,7 +124,13 @@ asterisk-up: $(VOICE_TTS_DIR)
 	else \
 		echo "could not detect the public address; using the value in secrets/sip_trunk.env"; \
 	fi; \
-	SIP_EXTERNAL_IP="$$ip" $(ASTERISK) up -d
+	lan=$$(ip -4 -o route show scope link 2>/dev/null | awk '$$1 !~ /^(172\.1[6-9]|172\.2[0-9]|172\.3[01])\./ && $$3 !~ /^(docker|br-|veth)/ {print $$1; exit}'); \
+	if [ -n "$$lan" ]; then \
+		echo "local network: $$lan"; \
+	else \
+		echo "could not detect the local network; using the value in secrets/sip_trunk.env"; \
+	fi; \
+	SIP_EXTERNAL_IP="$$ip" SIP_LOCAL_NET="$$lan" $(ASTERISK) up -d
 
 asterisk-down:
 	$(ASTERISK) down
