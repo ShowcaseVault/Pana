@@ -15,7 +15,7 @@ follows; the rest are one page per thing the app does for a user.
 | [transcriptions.md](transcriptions.md) | Job lifecycle, the Celery worker and its failure policy, confidence scoring, the SSE stream |
 | [diary.md](diary.md) | Daily entry generation, transcript gap-filling and filtering, location resolution, why a day with no recordings is refused, the two empty-day fallbacks |
 | [home-and-history.md](home-and-history.md) | Profile endpoint and the calendar month view |
-| [telephony.md](telephony.md) | The SIP trunk to the carrier: where the credentials live and why, firewall requirements, blast-radius limits, registration troubleshooting |
-| [telephony-nat.md](telephony-nat.md) | Why inbound audio does not work from the development network, what was ruled out and how, and what would fix it |
+| [telephony.md](telephony.md) | The SIP trunk to the carrier: setup, moving networks, testing, the "not registered" and "cannot hear the caller" runbooks, credentials and firewall |
+| [telephony-incidents.md](telephony-incidents.md) | Every telephony fault so far: symptom, cause, fix, how to verify, and what was ruled out |
 
 Conventions, layout, and commands live in [../CLAUDE.md](../CLAUDE.md).

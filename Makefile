@@ -130,7 +130,7 @@ asterisk-up: $(VOICE_TTS_DIR)
 	else \
 		echo "could not detect the local network; using the value in secrets/sip_trunk.env"; \
 	fi; \
-	SIP_EXTERNAL_IP="$$ip" SIP_LOCAL_NET="$$lan" $(ASTERISK) up -d
+	SIP_EXTERNAL_IP="$$ip" SIP_LOCAL_NET="$$lan" $(ASTERISK) up -d --build
 
 asterisk-down:
 	$(ASTERISK) down

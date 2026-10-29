@@ -53,6 +53,14 @@ outbound_auth = carrier-auth
 aors = carrier
 from_user = ${SIP_USERNAME}
 from_domain = ${SIP_DOMAIN}
+; Without a caller id Asterisk sends the display name "Anonymous", and the
+; carrier presents the call as a private number.
+callerid = ${SIP_USERNAME} <${SIP_USERNAME}>
+; Requests go to the proxy, but their Request-URI names the domain, the way a
+; softphone sends them. With the proxy IP in the Request-URI instead, the IMS
+; answers every outbound call with "Unallocated (unassigned) number". The \;
+; keeps lr from being read as a comment.
+outbound_proxy = sip:${SIP_OUTBOUND_PROXY}\;lr
 ; Trust nothing about the far end's idea of our address.
 rtp_symmetric = yes
 force_rport = yes
@@ -65,11 +73,13 @@ device_state_busy_at = ${SIP_MAX_CHANNELS}
 
 [carrier]
 type = aor
-contact = sip:${SIP_OUTBOUND_PROXY}
-; Qualify is off: this carrier answers OPTIONS with 403, so probing only marks
-; the contact unreachable and produces a steady stream of failures in the log.
-; The registration already tells us whether the trunk is up.
-qualify_frequency = 0
+contact = sip:${SIP_DOMAIN}
+outbound_proxy = sip:${SIP_OUTBOUND_PROXY}\;lr
+; Qualify is the UDP keepalive. keep_alive_interval in [global] only applies
+; to TCP and TLS, so on a UDP trunk nothing else is sent between REGISTERs and
+; the NAT mapping can expire. An OPTIONS on the same socket to the same proxy
+; refreshes it, as a softphone's keepalive does. 0 turns it off.
+qualify_frequency = ${SIP_QUALIFY_FREQUENCY}
 
 ; --- Identify inbound traffic as the carrier -------------------------------
 ; Without this, calls from the carrier match no endpoint and arrive as

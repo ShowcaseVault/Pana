@@ -94,11 +94,23 @@ SIP_MAX_CALL_SECONDS="${SIP_MAX_CALL_SECONDS:-180}"
 
 # NAT keepalive. Behind carrier-grade NAT the IPv4 translation is torn down
 # after a short idle period and no port forward can be configured, so holding
-# the mapping open is the only way inbound calls can arrive at all. 30s is
-# below the timeout most CGNAT deployments use; the registration expiry is
-# kept short for the same reason.
+# the mapping open is the only way inbound calls can arrive at all.
+#
+# On UDP the keepalive is SIP_QUALIFY_FREQUENCY (an OPTIONS to the carrier).
+# SIP_KEEPALIVE_INTERVAL feeds keep_alive_interval, which Asterisk sends only
+# on TCP and TLS -- on a UDP trunk it does nothing at all.
 SIP_KEEPALIVE_INTERVAL="${SIP_KEEPALIVE_INTERVAL:-30}"
+SIP_QUALIFY_FREQUENCY="${SIP_QUALIFY_FREQUENCY:-20}"
 SIP_REGISTRATION_EXPIRY="${SIP_REGISTRATION_EXPIRY:-120}"
+for var in SIP_QUALIFY_FREQUENCY SIP_REGISTRATION_EXPIRY; do
+    eval "value=\${$var}"
+    case "$value" in
+        ''|*[!0-9]*)
+            echo "entrypoint: $var must be a whole number of seconds (got '$value')" >&2
+            exit 1
+            ;;
+    esac
+done
 case "$SIP_MAX_CALL_SECONDS" in
     ''|*[!0-9]*)
         echo "entrypoint: SIP_MAX_CALL_SECONDS must be a whole number of seconds" >&2
@@ -137,8 +149,8 @@ CARRIER_DID = ${SIP_USERNAME}"
 # to it by sending no media at all: ~300 RTP packets out per call, zero back.
 # With both addresses off the two agree, the carrier latches onto the source
 # address our packets actually arrive from, and audio flows. It depends on
-# rtp_symmetric and force_rport (both on, in the endpoint) and on a NAT that
-# preserves ports -- check with scripts/stun_probe.py before choosing it.
+# rtp_symmetric and force_rport (both on, in the endpoint). See
+# docs/telephony-incidents.md, entry 2.
 NAT_TRANSPORT_LINES=""
 if [ "${SIP_NAT_MODE:-}" = "latch" ]; then
     echo "entrypoint: NAT mode 'latch': advertising no external address, as a"
@@ -196,7 +208,7 @@ if [ -n "${SIP_IDENTIFY_EXTRA:-}" ]; then
 fi
 
 export SIP_USERNAME SIP_PASSWORD SIP_AUTH_NAME SIP_DOMAIN SIP_OUTBOUND_PROXY \
-       SIP_TRANSPORT SIP_MAX_CHANNELS SIP_KEEPALIVE_INTERVAL SIP_REGISTRATION_EXPIRY NAT_TRANSPORT_LINES REG_PROXY_LINE \
+       SIP_TRANSPORT SIP_MAX_CHANNELS SIP_KEEPALIVE_INTERVAL SIP_QUALIFY_FREQUENCY SIP_REGISTRATION_EXPIRY NAT_TRANSPORT_LINES REG_PROXY_LINE \
        IDENTIFY_MATCH
 
 # Create the file empty and locked down *before* any secret goes into it, so

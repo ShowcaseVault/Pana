@@ -47,6 +47,14 @@ services:
       # SIP_EXTERNAL_IP. For a NAT that rewrites RTP ports, where the port in
       # the SDP has to be the mapped one rather than Asterisk's own.
       SIP_MEDIA_VIA_STUN: "${SIP_MEDIA_VIA_STUN:-false}"
+      # TCP/TLS keepalive only; Asterisk sends nothing for it on UDP.
+      SIP_KEEPALIVE_INTERVAL: "${SIP_KEEPALIVE_INTERVAL:-30}"
+      # The UDP keepalive: an OPTIONS to the carrier every N seconds, which
+      # holds the NAT mapping open between REGISTERs. Without it the mapping
+      # expires, inbound INVITEs go nowhere, and callers hear "the number you
+      # have dialed is not registered" while the trunk reports Registered.
+      SIP_QUALIFY_FREQUENCY: "${SIP_QUALIFY_FREQUENCY:-20}"
+      SIP_REGISTRATION_EXPIRY: "${SIP_REGISTRATION_EXPIRY:-120}"
       # The LAN the host sits on, detected by make asterisk-up. Goes stale the
       # same way SIP_EXTERNAL_IP does -- a different router hands out a
       # different subnet -- and a local_net that matches nothing means
@@ -58,7 +66,7 @@ services:
       # behaves, and lets the carrier latch onto the source address our
       # packets arrive from. Required on the NTC IMS trunk: claiming a public
       # address in the SDP while SIP describes us as private makes it send no
-      # media whatsoever. See docs/telephony-nat.md.
+      # media whatsoever. See docs/telephony-incidents.md, entry 2.
       SIP_NAT_MODE: "${SIP_NAT_MODE:-latch}"
     healthcheck:
       # Reports healthy only when the trunk is actually registered, so a

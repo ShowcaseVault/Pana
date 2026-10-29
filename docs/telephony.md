@@ -39,10 +39,15 @@ excludes `secrets/`, so no credential can reach an image layer or a registry.
 ```
 make asterisk-secret     # creates secrets/sip_trunk.env, mode 600
 $EDITOR secrets/sip_trunk.env
-make asterisk-build
-make asterisk-up
+make asterisk-up         # builds, detects IP and subnet, starts
 make asterisk-check      # must end with: the trunk is registered
 ```
+
+`make asterisk-up` is the only start command to use, on first setup and after
+every network change. It rebuilds the image (a cache hit when nothing changed)
+and detects the network each time, so there is nothing to edit by hand when
+the host moves. Starting the container any other way -- `docker compose up`,
+`docker start` -- skips both.
 
 The carrier gives you five values, which map to the file as follows.
 
@@ -57,11 +62,8 @@ The carrier gives you five values, which map to the file as follows.
 Set `SIP_TRANSPORT=tls` if the carrier supports it. With `udp` or `tcp` the
 authentication exchange crosses the network in the clear.
 
-If the host is behind NAT, set `SIP_EXTERNAL_IP` to its public address and
-`SIP_LOCAL_NET` to the private subnet. Leaving `SIP_EXTERNAL_IP` empty on a
-NATed host is the usual cause of a call that connects with no audio.
-
-Both values go stale as soon as the host moves to a different connection, and
+Leave `SIP_EXTERNAL_IP` and `SIP_LOCAL_NET` empty in the secret file. Both
+values go stale as soon as the host moves to a different connection, and
 a stale one fails in a way that hides itself: registration is an outbound
 request the carrier answers over the same flow, so the trunk still reports
 `Registered` while every inbound INVITE is routed to an address that is not
@@ -83,15 +85,15 @@ address. It defaults to `latch`, which is what the NTC trunk needs.
 Under `latch`, Asterisk describes itself by its private address everywhere,
 exactly as a softphone does, and the carrier replies to wherever our packets
 came from. It needs `rtp_symmetric` and `force_rport` on the endpoint (both
-on) and a NAT that preserves UDP source ports (`python3
-scripts/stun_probe.py`). `SIP_EXTERNAL_IP` is then unused for the transport,
-though it stays detected and available for the other modes.
+on). `SIP_EXTERNAL_IP` is then unused for the transport, though it stays
+detected and available for the other modes. `latch` has carried two-way calls
+on every connection tried so far, including ones whose NAT rewrites ports.
 
-Do not pin the media address on a carrier that latches. Claiming a public
-address in the SDP while the SIP headers say we are private is a
-contradiction, and at least one IMS answers it by sending no media at all --
-the call connects, the caller is heard, and nothing comes back. That cost a
-full evening; see [telephony-nat.md](telephony-nat.md).
+Do not pin the media address on this carrier. Claiming a public address in the
+SDP while the SIP headers say we are private is a contradiction, and NTC's IMS
+answers it by sending no media at all: the call connects, the caller hears
+Pana, and Pana hears nothing. See
+[telephony-incidents.md](telephony-incidents.md#2-ims-sends-no-audio).
 
 ## Testing the trunk
 
@@ -104,15 +106,23 @@ Outbound needs no port forwarding: our registration keeps a path open through
 the router, and we initiate the call. Test it before touching the firewall.
 
 ```
-make asterisk-call NUMBER=9779812345678
+make asterisk-call NUMBER=9812345678
 ```
 
-The phone should ring and play `cid_whistle` when answered. That single test
+The phone should ring and play a prompt when answered. That single test
 covers signalling, authentication, codec negotiation, and NAT traversal.
 
-The number format is the carrier's, not ours. NTC generally wants the full
-national number without a leading `+`; if the carrier returns 404, try it with
-and without the country code before assuming the trunk is broken.
+NTC takes the national number (`98XXXXXXXX`). If every number, in every format,
+comes back as `183` carrying `Reason: Q.850;cause=1;text="Unallocated
+(unassigned) number"`, the number is not the problem: the Request-URI is. It
+must name the domain (`INVITE sip:98XXXXXXXX@ims.ntc.net.np`) and reach the
+proxy through `outbound_proxy`. With the proxy's IP in the Request-URI
+(`INVITE sip:98XXXXXXXX@202.70.74.178`) the IMS rejects every call this way.
+The endpoint and AOR in `pjsip.conf.template` are set up for the first form.
+
+A test call from `asterisk-call` shows as a private number on the phone: a CLI
+originate has no caller ID, so Asterisk sends `"Anonymous"`. Calls placed
+through the dialplan or ARI carry the endpoint's `callerid`.
 
 ### Then inbound
 
@@ -122,20 +132,19 @@ Ring the DID (`SIP_USERNAME`) from any phone while watching:
 make asterisk-watch
 ```
 
-A working inbound call prints `Inbound call from ... to ...`, then answers and
-plays `cid_whistle`. Hearing that whistle end to end is the proof that
-signalling, codec negotiation, and RTP all work.
+A working inbound call prints `Inbound call from ... to ...` and answers. With
+`make voice` running, Pana greets the caller; without it, the caller hears
+`cid_whistle`. Either one proves signalling, codec negotiation, and RTP work.
 
 Prompts are baked into the image, so changing one means a rebuild -- see
 [../asterisk/sounds/README.md](../asterisk/sounds/README.md). Asterisk cannot
-play mp3; audio must be converted to 8 kHz mono WAV first. Nothing at all in the trace means the INVITE never arrived,
-which is a firewall or NAT problem, not an Asterisk one.
+play mp3; audio must be converted to 8 kHz mono WAV first.
 
-Inbound is the harder direction behind NAT. The registration holds a pinhole
-open at the router, and many carriers reuse it, in which case inbound works
-with no port forwarding at all. If it does not, forward UDP 5060 and the RTP
-range to this host -- and read the firewall section below first, because a
-forwarded 5060 is reachable by anyone, not only the carrier.
+No port forwarding is needed. NTC delivers inbound calls over the path our
+registration opened, and that has worked from home connections behind NAT and
+CGNAT. If a call never arrives, use the runbook under
+[When callers hear "not registered"](#when-callers-hear-not-registered) before
+touching the router.
 
 ### Is the call even reaching us?
 
@@ -152,12 +161,10 @@ Run it, ring the DID, and it watches three layers at once:
 - **SIP** -- what Asterisk made of it, and what it replied
 - **dialplan** -- did the call reach `from-carrier` and get accepted
 
-**No INVITE arrived.** The call never reached this host, so no Asterisk setting
-is the cause. The likely reasons, in order: the carrier is not routing the DID
-to this trunk; the router is not forwarding UDP 5060 and the carrier is not
-reusing the registration pinhole; a host firewall is dropping it; or the ISP
-uses CGNAT, where inbound forwarding is impossible and the registration path is
-the only one available.
+**No INVITE arrived.** The carrier did not send the call to us. Work through
+the [runbook](#when-callers-hear-not-registered): a stale image, another
+client registered on the account, and NTC-side state have each been the
+cause. NAT and CGNAT have not.
 
 **An INVITE arrived but the call failed.** Now it is ours, and the SIP trace
 shows the response code we sent back. `404` from us means the dialplan found no
@@ -181,9 +188,9 @@ the DID means the call is not reaching the dialplan, which points back to
 |---|---|
 | 401 / 407 | authentication; unexpected when registration is up |
 | 403 | the carrier refused the call: number format, or the trunk is barred for that destination |
-| 404 | the carrier did not recognise the number |
+| 404, or `183` with `cause=1` "Unallocated number" | the number, or the Request-URI naming the proxy IP -- see "Outbound first" |
 | 488 | codec mismatch; the carrier wants something other than ulaw/alaw |
-| call connects, silence | NAT: `SIP_EXTERNAL_IP` wrong, or RTP not forwarded |
+| call connects, Pana hears nothing | SIP and SDP disagree about our address; keep `SIP_NAT_MODE=latch` |
 | audio one way | RTP blocked in one direction |
 | nothing in the trace at all | the INVITE never reached us |
 
@@ -304,9 +311,11 @@ make asterisk-cli
 |---|---|
 | `Rejected` / 403 Forbidden | `SIP_AUTH_NAME` or `SIP_PASSWORD` wrong |
 | `Registered` but no inbound calls | carrier not routing the DID yet, or the `identify` match misses their proxy |
-| Carrier says "the number you have dialed is not registered" | the registration went stale against a changed public address -- see below |
+| Carrier says "the number you have dialed is not registered" | work through [the runbook below](#when-callers-hear-not-registered) in order |
+| Every outbound call: `183` with `cause=1` "Unallocated number" | Request-URI names the proxy IP instead of the domain -- see "Outbound first" |
 | Caller hears a whistle instead of Pana | the dialplan ran but the voice service was not subscribed to ARI; `ari show apps` is empty |
-| Call connects, caller heard, nothing comes back | SDP and SIP disagree about our address; use `SIP_NAT_MODE=latch` |
+| Call connects, caller hears Pana, Pana hears nothing | SDP and SIP disagree about our address; use `SIP_NAT_MODE=latch` |
+| A config change has no effect | the container runs a stale image; start it with `make asterisk-up`, which builds |
 | Call connects, no audio either way | NAT: check the RTP range is open |
 | Audio one way only | RTP blocked in one direction by the firewall |
 | No registration attempt at all | outbound 5060 blocked, or `SIP_OUTBOUND_PROXY` unreachable |
@@ -346,77 +355,75 @@ killed, its ARI WebSocket is gone while a stale process may still match
 
 ## Moving the host to a different connection
 
-Changing network breaks inbound calls in a way that hides itself, and this has
-now cost two debugging sessions. What the carrier reports is **"the number you
-have dialed is not registered"**, while `pjsip show registrations` on our side
-says `Registered`. Both are true at once.
-
-Registration is an outbound request. It creates a NAT mapping on the way out
-and the carrier's 200 OK comes back through that same mapping, so it succeeds
-no matter what address we claim in the `Contact` header. Inbound is the
-opposite direction: the carrier takes the address we registered and sends the
-INVITE there on its own. If that address is stale, the INVITE goes to whoever
-holds it now, and nothing reaches us -- so the trunk looks healthy from here
-and unreachable from there.
-
-Two values go stale together when the host moves:
-
-| Value | Goes stale because | Symptom |
-|---|---|---|
-| `SIP_EXTERNAL_IP` | the ISP hands out a different public address | carrier says not registered; no INVITE arrives |
-| `SIP_LOCAL_NET` | a different router uses a different subnet | `local_net` matches nothing, so LAN peers are treated as external |
-
-`make asterisk-up` therefore detects both at start -- the public address over
-HTTPS, the subnet from the host's own link routes -- and passes them to the
-container, where a detected value overrides the secret file and logs a warning
-when the two disagree. The values in `secrets/sip_trunk.env` are the fallback
-for when detection fails, not the source of truth, so a stale one there is
-harmless as long as detection works.
-
-After moving, bring the stack up and check all three layers rather than one:
+Nothing to edit. On the new network:
 
 ```
-make asterisk-up                                   # detects and prints both
-docker exec asterisk-pana asterisk -rx 'pjsip show registrations'
-docker exec asterisk-pana asterisk -rx 'ari show apps'
-python3 scripts/stun_probe.py                      # can inbound audio work here
+make asterisk-up       # rebuilds, detects and prints public IP and LAN
+make voice             # in another terminal; restart it after every asterisk-up
+docker exec asterisk-pana asterisk -rx 'pjsip show registrations'   # Registered
+docker exec asterisk-pana asterisk -rx 'ari show apps'              # pana-voice
 ```
 
-The third line is the one that is easy to forget: the trunk can be perfectly
-registered while the voice service is not subscribed, and the caller then
-hears the fallback whistle.
+Then call the DID. The public IP and the LAN subnet both change with the
+network, and a stale value fails in a way that hides itself (see
+[incident 1](telephony-incidents.md#1-stale-public-address)), which is why
+both are detected on every start rather than configured.
 
-## Inbound audio from a NAT'd network
+## When callers hear "not registered"
 
-Whether inbound audio works from a given network depends on one property of
-the NAT in front of it: whether it preserves UDP source ports. Asterisk
-advertises its own RTP port in the SDP, so a NAT that maps port 20086 to some
-other external port sends the carrier to a port nothing is listening on, and
-the call is one-way -- the caller hears Pana and Pana hears nothing.
+`pjsip show registrations` says `Registered`, and callers hear NTC's recording
+"the number you have dialed is not registered". Registration succeeding proves
+almost nothing here: it is outbound, and the 200 OK comes back over the flow
+the REGISTER opened, whatever is wrong. Work through these in order. Each step
+is cheap, and the first ones are the ones that have actually been the cause.
 
-This is a property of the connection, not a setting, so measure it rather than
-assuming either outcome:
+1. **Start with `make asterisk-up`, never anything else.** It rebuilds the
+   image and detects the network. On 2026-10-29 the container was still
+   running an image built on 2026-09-20, so a month of entrypoint fixes had
+   never run on that machine. Check with
+   `docker exec asterisk-pana md5sum /usr/local/bin/entrypoint.sh` against
+   `md5sum asterisk/bin/entrypoint.sh`: different sums mean a stale image.
+2. **Check the detected values.** `make asterisk-up` prints the public address
+   and local network; they must match the network the host is on now.
+3. **Nothing else registered on the account.** NTC keeps one binding per
+   account and gives inbound calls to it. A softphone left registered with the
+   same credentials takes every call while Asterisk still says `Registered`.
+   Force-stop it, then wait for Asterisk's next REGISTER (up to two minutes).
+4. **Does the INVITE reach us?** Turn on `pjsip set logger on`, call, and look
+   for `INVITE sip:+977...`. A carrier `NOTIFY` (`Event: ua-profile`) arrives
+   after every REGISTER; seeing it means the path from the carrier to us
+   works, so if NOTIFYs arrive and the INVITE does not, the IMS chose not to
+   deliver the call. Nothing in our network is blocking it.
+5. **If 1-4 are clean and the INVITE still never arrives: reset the IMS side
+   with a softphone.** Register Zoiper on the same account, make a call in each
+   direction, force-stop it, wait two minutes for Asterisk to re-register, and
+   call again. This is what brought inbound back on 2026-10-29. Exactly what
+   it resets on NTC's side was not isolated, but it is the step that turned
+   the same configuration from failing to working.
 
-```
-python3 scripts/stun_probe.py
-```
+What each of these fixed, and the long list of things that were tested and
+ruled out (NAT port rewriting, CGNAT, NAT modes, keepalive, ports, "needs a
+VPS"), is in [telephony-incidents.md](telephony-incidents.md). Read the
+ruled-out table before trying anything not on this list.
 
-A mapped port equal to the local port means the NAT is not the obstacle, and
-`SIP_NAT_MODE=latch` (the default) is the right setting: Asterisk advertises
-no external address at all and the carrier latches onto the source address our
-packets arrive from, the way it does for a softphone. A different port means
-the NAT rewrites ports, which cannot be configured around.
+## When Pana cannot hear the caller
 
-Either way, a clean probe result is not by itself a working media path. The
-2026-10-15 fault had a port-preserving NAT and still carried no inbound audio,
-because the SDP and the SIP headers disagreed about where we were.
-[telephony-nat.md](telephony-nat.md) has both investigations in full: what the
-fault turned out to be, what was wrongly believed along the way, and the order
-to check things in.
+The call connects and the caller hears Pana, but every turn logs `recorded 0
+bytes` and Pana says it could not hear. Inbound audio is not arriving.
 
-`scripts/rtp_probe.py` is the isolation test for a fault that is already
-happening: it records one call through ARI alone, so a zero-byte result places
-the fault below the application.
+1. Keep `SIP_NAT_MODE=latch` (the default). Advertising a public address in
+   SDP while SIP says we are private makes NTC send no audio at all
+   ([incident 2](telephony-incidents.md#2-ims-sends-no-audio)).
+2. Turn on `VOICE_KEEP_RECORDINGS=true` to see the byte count on every turn.
+   Zero means a media-path fault; a non-zero count with a wrong transcript
+   points at recognition instead. Turn it off afterwards, since it keeps
+   recordings of real conversations.
+3. `scripts/rtp_probe.py` answers one call and records ten seconds through ARI
+   alone, with no recognition, synthesis or turn loop. Zero bytes places the
+   fault below the application.
+4. In one call's trace (`pjsip set logger on`), read the `Contact:` and the
+   SDP `c=IN IP4` together. Both must be the private address under `latch`.
+   Compare values only within one Call-ID.
 
 ## The AI conversation
 
